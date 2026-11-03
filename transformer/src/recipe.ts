@@ -16,6 +16,16 @@ export interface Field {
   required?: boolean;
   /** move 되는 노드 안에서 숨길 요소 */
   exclude?: string[];
+  /**
+   * move 되는 노드 안에서 사이트 모양을 그대로 둘 부분 (통합 화면의 글꼴·색·크기 맞춤을 하지 않음).
+   * 예) 디시 댓글의 디시콘·텍스트콘 (색 배경 + 흰 글자라 색을 맞추면 글자가 안 보인다)
+   */
+  raw?: string[];
+  /**
+   * move 할 때 사이트 모양 그대로 (통합 화면의 글꼴·색 맞춤을 하지 않고, 사이트 CSS 가 맞도록 원래 조상 껍데기로 감쌈).
+   * 예) 디시 홈의 실북갤·흥한갤, 실시간 베스트 (keep.ts)
+   */
+  keepStyle?: boolean;
 }
 
 export interface CommentSpec {
@@ -126,8 +136,12 @@ export interface HubPage {
   type: "hub";
   match: string;
   probe: string[];
-  /** 화면 제목 (예: "PS5"). 없으면 사이트 이름 */
+  /** 화면 제목 (예: "PS5"). 없으면 제목 줄 없음 */
   title?: Field;
+  /** move. 가운데 칸 맨 위 (예: 디시 홈의 "갤러리 & 통합검색") */
+  top?: Field;
+  /** move. 가운데 칸에 남길 사이트 내용 (예: 디시 홈의 실시간 베스트·개념글). 찾은 요소 전부를 문서 순서대로 */
+  blocks?: Field;
   /** move. 가운데 칸에 남길 광고. 찾은 요소 전부를 문서 순서대로 옮긴다 */
   ads?: Field;
   hide?: string[];

@@ -9,6 +9,7 @@
 //   ├─ div.k-main         게시글/목록 (기존 통일 화면)
 //   └─ aside.k-side       오른쪽 열: 루리웹 게시판 BEST, 디시 전체글/개념글/공지·말머리 (창이 좁으면 본문 아래로)
 import { findAll, hit } from "./locate.js";
+import { placeKept } from "./keep.js";
 import { siteMark } from "./logo.js";
 import { extractMenu, readLinks } from "./menu.js";
 import type { Menu, MenuGroup, Recipe, SideBlock } from "./recipe.js";
@@ -115,11 +116,13 @@ export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "bo
       // 사이트 요소를 그대로 옮김: 버튼·말머리처럼 사이트 동작이 필요한 것
       const found = hit(document, block.move)?.el;
       if (!found) continue;
-      const section = el("section", "k-side-block k-move");
+      const keep = !!block.move.keepStyle;
+      const section = el("section", keep ? "k-side-keep k-keep" : "k-side-block k-move");
       if (block.title) section.appendChild(el("div", "k-side-title", block.title));
       for (const sel of block.reveal ?? []) findAll(found, [sel]).els.forEach((e) => e.classList.add("k-revealed"));
       for (const sel of block.hide ?? []) findAll(found, [sel]).els.forEach((e) => e.classList.add("k-excluded"));
-      section.appendChild(found);
+      if (keep) placeKept(section, found);
+      else section.appendChild(found);
       side.appendChild(section);
     } else if (block.links) {
       // 링크를 읽어 다시 그림 (사이트가 늦게 채우면 refresh 로 다시 그림)
@@ -138,7 +141,7 @@ export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "bo
       render(box, { groups: groups[i] });
       box.hidden = !groups[i].length;
     });
-    root.classList.toggle("k-has-side", side.querySelector(".k-side-block:not([hidden])") !== null);
+    root.classList.toggle("k-has-side", side.querySelector(":is(.k-side-block, .k-side-keep):not([hidden])") !== null);
   };
   refresher = () => {
     draw();

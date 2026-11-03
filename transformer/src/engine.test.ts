@@ -1,10 +1,10 @@
 // 엔진 단위 테스트: 작은 HTML 조각 + 가짜 DOM 으로 탐지·판정·메뉴 읽기를 검사한다
 import { beforeEach, describe, expect, it } from "vitest";
 import { judge } from "./judge.js";
-import { buildBoard, buildHub, mount } from "./layout.js";
+import { buildBoard, buildHub, buildPost, mount } from "./layout.js";
 import { readLogo, siteMark } from "./logo.js";
 import { setNavOptions } from "./nav.js";
-import { cleanText, hit, locate, pickPage, type LocatedBoard, type LocatedHub } from "./locate.js";
+import { cleanText, hit, locate, pickPage, type LocatedBoard, type LocatedHub, type LocatedPost } from "./locate.js";
 import { extractMenu } from "./menu.js";
 import type { Recipe } from "./recipe.js";
 import { isVisited, setVisited, visitKey } from "./visited.js";
@@ -307,5 +307,61 @@ describe("사이트 로고 위치", () => {
     expect(root.firstElementChild?.className).toBe("k-top");
     expect(root.querySelector(".k-top a.k-logo img")).not.toBeNull();
     expect(root.querySelector(".k-main .k-site")).toBeNull();
+  });
+});
+
+describe("첫 화면: 사이트 블록을 모양 그대로 (디시 홈)", () => {
+  const hubRecipe = (): Recipe => ({
+    ...recipe,
+    menu: [],
+    side: [{ move: { sel: ["#rank"], keepStyle: true } }],
+    pages: [
+      {
+        id: "home",
+        type: "hub",
+        match: "^/?$",
+        probe: ["#container"],
+        top: { sel: ["#search_wrap"], keepStyle: true },
+        blocks: { sel: [".left_content .time_best, .left_content .concept"], keepStyle: true },
+      },
+    ],
+  });
+  const html = `<div id="top" class="dcwrap"><header><div id="search_wrap" class="wrap_search">검색</div></header>
+    <main id="container"><section class="left_content"><div class="time_best">실베</div><div class="concept">개념글</div></section>
+    <section class="right_content"><article><div id="rank" class="content_box">실북갤</div></article></section></main></div>`;
+
+  it("검색 → 블록 순서로, 원래 조상을 본뜬 껍데기(k-ctx)로 감싸 사이트 CSS 가 맞게", () => {
+    page("https://example.test/", html);
+    const r = hubRecipe();
+    const l = locate(document, pickPage(r, document).page!) as LocatedHub;
+    expect(judge(l, r).verdict).toBe("ok");
+    const root = buildHub(l, r);
+    const main = root.querySelector(".k-main")!;
+    expect([...main.children].map((c) => c.className)).toEqual(["k-hub-top k-keep", "k-hub-block k-keep", "k-hub-block k-keep"]);
+    expect(main.querySelector(".k-head")).toBeNull(); // 제목 필드가 없으면 제목 줄 없음
+    // 실베: div#top.dcwrap > main#container > section.left_content > div.time_best
+    const best = main.querySelector(".time_best")!;
+    expect(best.hasAttribute("data-kong-kept")).toBe(true);
+    const chain: string[] = [];
+    for (let a = best.parentElement; a && !a.classList.contains("k-keep"); a = a.parentElement) chain.unshift(`${a.tagName.toLowerCase()}.${a.className}`);
+    expect(chain).toEqual(["div.dcwrap k-ctx", "main.k-ctx", "section.left_content k-ctx"]);
+    expect(best.closest("main")?.id).toBe("container");
+    // 오른쪽 열: 카드 모양 없이 그대로
+    expect(root.querySelector(".k-side .k-side-keep.k-keep #rank")).not.toBeNull();
+  });
+});
+
+describe("raw: 옮긴 내용 중 사이트 모양 그대로 둘 부분", () => {
+  it("디시콘·텍스트콘에 k-raw 표시 (통합 화면의 색·크기 맞춤에서 빠짐)", () => {
+    page(
+      "https://example.test/board/1/read/10",
+      `<div class="view"><h1 class="subject">제목</h1><div class="content">본문</div>
+       <ul><li class="c"><span class="t"><div class="comment_dccon"><p>흰 글자</p></div></span></li></ul></div>`,
+    );
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    const post = r.pages.find((p) => p.id === "post") as Extract<Recipe["pages"][number], { type: "post" }>;
+    post.comments = { item: ["li.c"], content: { sel: [".t"], raw: [".comment_dccon"] } };
+    const root = buildPost(locate(document, pickPage(r, document).page!) as LocatedPost, r).root;
+    expect(root.querySelector(".k-cmt-body .comment_dccon")?.classList.contains("k-raw")).toBe(true);
   });
 });

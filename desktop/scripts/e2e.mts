@@ -78,7 +78,7 @@ async function shot(app: ElectronApplication, toolbar: Page, name: string) {
   // Windows 가 다크 모드여도 앱은 밝은 모드
   const dark = await inPage<boolean>(app, `matchMedia("(prefers-color-scheme: dark)").matches`);
   const bg = await inPage<string>(app, `getComputedStyle(document.getElementById("kong-root")).backgroundColor`);
-  check("밝은 모드가 기본 (OS 다크 모드와 무관)", !dark && bg === "rgb(247, 247, 245)", { dark, bg });
+  check("밝은 모드가 기본 (OS 다크 모드와 무관, 흰 배경)", !dark && bg === "rgb(255, 255, 255)", { dark, bg });
   await shot(app, toolbar, "board");
 
   // 왼쪽 메뉴 열 (통일 화면 안): 루리웹 상단 메뉴(칩) + 게시판 메뉴, 지금 위치 강조

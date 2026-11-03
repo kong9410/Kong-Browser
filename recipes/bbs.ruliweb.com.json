@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "bbs.ruliweb.com",
-  "version": 9,
+  "version": 10,
   "minEngine": 1,
   "siteName": "루리웹",
   "logo": {
@@ -457,6 +457,19 @@
         ],
         "exclude": [
           "#ad_main_ti_close"
+        ]
+      }
+    },
+    {
+      "id": "home",
+      "type": "hub",
+      "match": "^/?(\\?.*)?$",
+      "probe": [
+        "#main"
+      ],
+      "ads": {
+        "sel": [
+          ".cfa, #ad_main_top_08, #ad_main_top_13, #ad_main_top_09, #ad_main_top_14, #ad_main_top_10"
         ]
       }
     }

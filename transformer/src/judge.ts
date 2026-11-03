@@ -112,6 +112,8 @@ function judgeBoard(l: LocatedBoard, recipe: Recipe, failed: string[], warnings:
 function judgeHub(l: LocatedHub, warnings: string[]) {
   if (l.page.title && !l.title?.value) warnings.push("title");
   if (l.page.ads && !l.ads.length) warnings.push("ads");
+  if (l.page.top && !l.top?.el) warnings.push("top");
+  if (l.page.blocks && !l.blocks.length) warnings.push("blocks");
 }
 
 export function judge(l: Located, recipe: Recipe): Judgement {

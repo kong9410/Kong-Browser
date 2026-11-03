@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 9,
+  "version": 10,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
@@ -144,7 +144,10 @@
             ".cmt_txtbox",
             ".del_reply"
           ],
-          "required": true
+          "required": true,
+          "raw": [
+            ".comment_dccon"
+          ]
         },
         "more": {
           "sel": [

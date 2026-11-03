@@ -69,7 +69,8 @@ html.kong-on #kong-root .k-hidden {
   word-break: break-word;
   -webkit-text-size-adjust: 100%;
 }
-#kong-root * {
+/* 사이트 모양 그대로 옮긴 블록(.k-keep) 안은 사이트 CSS 에 맡긴다 */
+#kong-root *:not(.k-keep *) {
   box-sizing: border-box;
 }
 
@@ -127,18 +128,19 @@ html.kong-on #kong-root .k-hidden {
 }
 
 /* ---------- move 영역: 원본 노드의 모양을 통일 ---------- */
+/* .k-raw (레시피 raw) 안은 사이트 모양 그대로 */
 #kong-root .k-move,
-#kong-root .k-move * {
+#kong-root .k-move *:not(.k-raw, .k-raw *) {
   color: inherit !important;
   background-color: transparent !important;
   max-width: 100% !important;
 }
 /* 아이콘 폰트(<i class="icon-…">)는 글꼴을 바꾸면 깨지므로 제외 */
 #kong-root .k-move,
-#kong-root .k-move *:not(i):not([class*="icon"]) {
+#kong-root .k-move *:not(i):not([class*="icon"]):not(.k-raw, .k-raw *) {
   font-family: var(--k-font) !important;
 }
-#kong-root .k-move :is(p, div, span, font, li, td, th, b, strong, em, a, h1, h2, h3, h4, h5, h6, blockquote) {
+#kong-root .k-move :is(p, div, span, font, li, td, th, b, strong, em, a, h1, h2, h3, h4, h5, h6, blockquote):not(.k-raw, .k-raw *) {
   font-size: inherit !important;
   line-height: inherit !important;
 }
@@ -230,7 +232,7 @@ html.kong-on #kong-root .k-hidden {
   display: flow-root; /* 안의 float 가 밖으로 새지 않게 */
 }
 /* 사이트가 댓글 상자에 준 float/고정 크기를 풀어서 한 줄 흐름으로 */
-#kong-root .k-cmt-body :is(div, p, span, ul, li) {
+#kong-root .k-cmt-body :is(div, p, span, ul, li):not(.k-raw, .k-raw *) {
   float: none !important;
   position: static !important;
   width: auto !important;
@@ -241,6 +243,16 @@ html.kong-on #kong-root .k-hidden {
 #kong-root .k-cmt-body :is(img, video) {
   max-height: 240px !important;
   width: auto !important;
+}
+/* 이미지 댓글(디시콘·텍스트콘 등 raw): 사이트 크기 그대로, 댓글 줄 안에서 내용만큼만 차지 */
+#kong-root .k-cmt-body .k-raw {
+  display: inline-block !important;
+  float: none !important;
+  max-width: 100%;
+  vertical-align: top;
+}
+#kong-root .k-cmt-body .k-raw :is(img, video) {
+  border-radius: 6px;
 }
 #kong-root .k-cmt-actions {
   margin-top: 4px;
@@ -710,4 +722,34 @@ html.kong-on #kong-root .k-hidden {
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--k-line);
+}
+
+/* ---------- 사이트 모양 그대로 옮긴 블록 (keepStyle, keep.ts) ----------
+   원래 조상을 본뜬 껍데기(.k-ctx)는 자리를 차지하지 않고 사이트 CSS 선택자만 맞게 한다 */
+#kong-root .k-ctx {
+  display: contents !important;
+}
+#kong-root .k-keep {
+  text-align: left;
+  word-break: normal;
+}
+#kong-root > .k-main > .k-hub-top {
+  margin-bottom: 16px;
+}
+#kong-root > .k-main > .k-hub-block + .k-hub-block {
+  margin-top: 20px;
+}
+#kong-root .k-side-keep + .k-side-keep {
+  margin-top: 16px;
+}
+/* 옮긴 블록 자신: 원래 자리 기준의 위치 지정(예: 디시 검색창 position: absolute)을 풀어 상자 안에 놓는다 */
+#kong-root .k-keep [data-kong-kept] {
+  position: relative !important;
+  inset: auto !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+/* 사이트 모양 그대로인 오른쪽 블록(디시 실북갤 250px 등)이 들어가도록 오른쪽 열을 넓힌다 (그런 페이지에서만) */
+#kong-root:has(> .k-side .k-side-keep) {
+  --k-sidew: clamp(256px, 15vw, 340px);
 }

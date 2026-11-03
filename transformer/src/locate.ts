@@ -55,6 +55,9 @@ export interface LocatedBoard {
 export interface LocatedHub {
   page: HubPage;
   title: Hit | null;
+  top: Hit | null;
+  /** 옮길 내용 블록들 (문서 순서) */
+  blocks: Element[];
   /** 옮길 광고 요소들 (문서 순서) */
   ads: Element[];
 }
@@ -212,6 +215,8 @@ export function locateHub(doc: Document, page: HubPage): LocatedHub {
   return {
     page,
     title: hit(doc, page.title),
+    top: hit(doc, page.top),
+    blocks: page.blocks ? findAll(doc, page.blocks.sel).els : [],
     ads: page.ads ? findAll(doc, page.ads.sel).els : [],
   };
 }

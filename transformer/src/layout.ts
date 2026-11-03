@@ -4,6 +4,7 @@
 import { findAll, hit } from "./locate.js";
 import type { Hit, LocatedBoard, LocatedComment, LocatedHub, LocatedPost, LocatedRow } from "./locate.js";
 import type { Field, Recipe } from "./recipe.js";
+import { placeKept } from "./keep.js";
 import { buildShell, ROOT_ID } from "./nav.js";
 import { isVisited, markVisited } from "./visited.js";
 import css from "./style.css";
@@ -20,20 +21,28 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: s
 /** 원본 노드를 container 로 옮긴다. exclude 대상은 지우지 않고 숨긴다 (사이트 JS 가 찾을 수 있게) */
 function moveInto(container: HTMLElement, el: Element | null | undefined, field?: Field): boolean {
   if (!el) return false;
-  for (const sel of field?.exclude ?? []) {
-    try {
-      el.querySelectorAll(sel).forEach((e) => e.classList.add("k-excluded"));
-    } catch {
-      /* 잘못된 셀렉터 무시 */
+  const mark = (sels: string[] | undefined, cls: string) => {
+    for (const sel of sels ?? []) {
+      try {
+        el.querySelectorAll(sel).forEach((e) => e.classList.add(cls));
+      } catch {
+        /* 잘못된 셀렉터 무시 */
+      }
     }
-  }
-  container.appendChild(el);
+  };
+  mark(field?.exclude, "k-excluded");
+  mark(field?.raw, "k-raw");
+  if (field?.keepStyle) placeKept(container, el);
+  else container.appendChild(el);
   return true;
 }
 
+/** 옮겨 담을 상자: 사이트 모양 그대로면 k-keep, 아니면 통합 화면 모양으로 맞추는 k-move */
+const slotBox = (cls: string, field?: Field) => h("div", `${cls} ${field?.keepStyle ? "k-keep" : "k-move"}`);
+
 function moveSlot(cls: string, h_: Hit | null, field?: Field): HTMLElement | null {
   if (!h_?.el) return null;
-  const box = h("div", `${cls} k-move`);
+  const box = slotBox(cls, field);
   moveInto(box, h_.el, field);
   return box;
 }
@@ -278,13 +287,23 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
 /** 제목 + 광고만. 원본 내용(뉴스·추천글 등)은 숨겨진 채로 둔다 */
 export function buildHub(l: LocatedHub, recipe: Recipe): HTMLElement {
   const root = h("div");
-  const head = h("header", "k-head");
-  head.append(h("h1", "k-title", l.title?.value ?? recipe.siteName));
-  root.appendChild(head);
-  for (const ad of l.ads) {
-    const box = h("div", "k-ad k-move");
-    moveInto(box, ad, l.page.ads);
-    root.appendChild(box);
+  const p = l.page;
+  if (p.title) {
+    const head = h("header", "k-head");
+    head.append(h("h1", "k-title", l.title?.value ?? recipe.siteName));
+    root.appendChild(head);
+  }
+  const top = moveSlot("k-hub-top", l.top, p.top);
+  if (top) root.appendChild(top);
+  for (const [els, field, cls] of [
+    [l.blocks, p.blocks, "k-hub-block"],
+    [l.ads, p.ads, "k-ad"],
+  ] as const) {
+    for (const el of els) {
+      const box = slotBox(cls, field);
+      moveInto(box, el, field);
+      root.appendChild(box);
+    }
   }
   return buildShell(root, recipe, "hub");
 }

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 2,
+  "host": "www.ruliweb.com",
+  "version": 1,
+  "minEngine": 1,
+  "siteName": "루리웹",
+  "logo": {
+    "sel": [
+      "#header .logo > a"
+    ]
+  },
+  "menu": [
+    {
+      "label": "루리웹 메뉴",
+      "groups": [
+        "ul#gnb_menu_list"
+      ],
+      "links": [
+        ":scope > li.menu_item > h3 > a"
+      ],
+      "current": "prefix",
+      "style": "chips"
+    },
+    {
+      "groups": [
+        "ul.menu_wrapper > li.menu"
+      ],
+      "heading": {
+        "sel": [
+          ":scope > a .nav_name",
+          ":scope > a",
+          ":scope > h4"
+        ]
+      },
+      "links": [
+        ".sub_wrapper a"
+      ],
+      "linkText": {
+        "sel": [
+          ".nav_name"
+        ]
+      }
+    },
+    {
+      "groups": [
+        ".snb_family .menu_snb .list_menu > li.menu"
+      ],
+      "heading": {
+        "sel": [
+          ":scope > .tit_sub"
+        ]
+      },
+      "links": [
+        ".list_snb a"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "home",
+      "type": "hub",
+      "match": "^/?(\\?.*)?$",
+      "probe": [
+        "#main"
+      ],
+      "ads": {
+        "sel": [
+          ".cfa, #ad_main_top_08, #ad_main_top_13, #ad_main_top_09, #ad_main_top_14, #ad_main_top_10"
+        ]
+      }
+    }
+  ]
+}

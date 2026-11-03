@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 2,
+  "host": "www.dcinside.com",
+  "version": 1,
+  "minEngine": 1,
+  "siteName": "디시인사이드",
+  "logo": {
+    "sel": [
+      "header.dcheader h1.dclogo a.logo_img",
+      "header.dcheader h1.dclogo > a"
+    ]
+  },
+  "menu": [
+    {
+      "label": "디시 메뉴",
+      "groups": [
+        "nav.gnb ul.gnb_list"
+      ],
+      "links": [
+        ":scope > li > a.link_gnb"
+      ],
+      "current": "none",
+      "style": "chips",
+      "skip": "광고"
+    },
+    {
+      "label": "최근 방문 갤러리",
+      "groups": [
+        ".newvisit_history .vst_listbox"
+      ],
+      "links": [
+        "li > a"
+      ],
+      "current": "none"
+    }
+  ],
+  "side": [
+    {
+      "move": {
+        "sel": [
+          "#rank_gall"
+        ],
+        "keepStyle": true
+      }
+    },
+    {
+      "move": {
+        "sel": [
+          "#hot_gall"
+        ],
+        "keepStyle": true
+      }
+    }
+  ],
+  "pages": [
+    {
+      "id": "home",
+      "type": "hub",
+      "match": "^/?(\\?.*)?$",
+      "probe": [
+        "#container .time_best"
+      ],
+      "top": {
+        "sel": [
+          "#search_wrap"
+        ],
+        "keepStyle": true
+      },
+      "blocks": {
+        "sel": [
+          ".left_content .time_best, .left_content .concept_con"
+        ],
+        "keepStyle": true
+      }
+    }
+  ]
+}
