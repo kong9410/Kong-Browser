@@ -347,36 +347,21 @@ html.kong-on #kong-root .k-hidden {
 }
 
 /* ---------- 세 열 배치 ----------
-   본문 열은 최대 760px 에서 창이 좁으면 줄어든다.
-   왼쪽 메뉴: 펼침 220px / 접힘 [☰ 메뉴] 버튼 폭 / 메뉴가 없는 사이트는 열 없음
-   오른쪽 열: 블록이 있을 때만 240px. 창이 좁으면(1150px 미만) 본문 아래로 내려간다 */
+   어느 페이지에서나 본문 열의 위치와 폭이 같도록, 세 열을 항상 같은 폭으로 잡아 둔다.
+   (오른쪽 열이 없는 글 화면, 왼쪽 메뉴를 접은 상태, 메뉴가 없는 사이트도 그 자리는 비워 둔다)
+   폭은 창 크기에 맞춘다: 본문 760~1320px (창 폭의 52%), 왼쪽 200~280px, 오른쪽 220~340px.
+     (브라우저 dock 을 뺀 페이지 폭 기준) 1280px 창 ≈ 본문 700 (창에 맞게 줄어듦) / 1920px ≈ 1000 / 2560px(2K) ≈ 1300
+   창이 좁으면(1150px 미만) 오른쪽 열을 본문 아래로 (모든 페이지에서 똑같이) */
 #kong-root {
-  --k-navcol: 220px;
-  grid-template-columns: minmax(0, 760px);
-  grid-template-areas: "main";
-}
-#kong-root.k-nav-closed {
-  --k-navcol: auto;
-}
-#kong-root.k-has-nav {
-  grid-template-columns: var(--k-navcol) minmax(0, 760px);
-  grid-template-areas: "nav main";
-}
-#kong-root.k-has-side {
-  grid-template-columns: minmax(0, 760px) 240px;
-  grid-template-areas: "main side";
-}
-#kong-root.k-has-nav.k-has-side {
-  grid-template-columns: var(--k-navcol) minmax(0, 760px) 240px;
+  --k-navw: clamp(200px, 11vw, 280px);
+  --k-sidew: clamp(220px, 13vw, 340px);
+  --k-mainw: clamp(760px, 52vw, 1320px);
+  grid-template-columns: var(--k-navw) minmax(0, var(--k-mainw)) var(--k-sidew);
   grid-template-areas: "nav main side";
 }
 @media (max-width: 1150px) {
-  #kong-root.k-has-side {
-    grid-template-columns: minmax(0, 760px);
-    grid-template-areas: "main" "side";
-  }
-  #kong-root.k-has-nav.k-has-side {
-    grid-template-columns: var(--k-navcol) minmax(0, 760px);
+  #kong-root {
+    grid-template-columns: var(--k-navw) minmax(0, var(--k-mainw));
     grid-template-areas: "nav main" "nav side";
   }
 }

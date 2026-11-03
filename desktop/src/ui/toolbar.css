@@ -148,13 +148,20 @@ svg {
 
 
 /* ---------- 탭 줄 ---------- */
+/* 탭 줄 = 창의 맨 위 (제목 표시줄 없음). 빈 곳을 끌면 창이 움직이고 두 번 누르면 최대화 (Windows 기본 동작).
+   오른쪽 끝은 Windows 의 최소화/최대화/닫기 버튼 자리 (main.ts 의 titleBarOverlay, 높이·색을 맞춘다) */
 .tabstrip {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  height: 36px;
-  padding: 6px 8px 0;
+  height: 40px;
+  padding: 8px 8px 0;
+  padding-right: max(146px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px));
   background: #e6e6e3;
+  -webkit-app-region: drag;
+}
+.tabstrip :is(.tab, button) {
+  -webkit-app-region: no-drag;
 }
 /* 탭들은 내용만큼, [+] 는 마지막 탭 바로 오른쪽에 (Chrome 과 같은 배치) */
 .tabs {
@@ -170,7 +177,7 @@ svg {
   position: relative;
   flex: 0 1 220px;
   min-width: 44px;
-  height: 30px;
+  height: 32px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -318,4 +325,84 @@ svg {
   width: 15px;
   height: 15px;
   color: #c48a1b;
+}
+
+/* 사이트 아이콘이 없을 때 쓰는 앱 아이콘 (탭, 북마크 바) */
+.tab-icon svg,
+.bm-icon svg {
+  width: 15px;
+  height: 15px;
+  color: #6e6e73;
+}
+.bm-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bm-icon img {
+  width: 14px;
+  height: 14px;
+}
+.bm-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------- 오른쪽 dock (국내 주요 커뮤니티) ---------- */
+.dock {
+  position: fixed;
+  top: var(--toolbar-h, 84px);
+  right: 0;
+  bottom: 0;
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-left: 1px solid var(--line);
+  background: var(--bg);
+}
+.dock-item {
+  flex: none;
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+}
+.dock-item img {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+}
+.dock-badge {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+/* 지금 보고 있는 사이트: 왼쪽에 막대 표시 */
+.dock-item.on {
+  background: var(--field);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.dock-item.on::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
 }

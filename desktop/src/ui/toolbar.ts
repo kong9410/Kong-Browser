@@ -1,7 +1,31 @@
 // 툴바: 탭 줄, 주소창(자동완성), 뒤로/앞으로/새로고침, 재배치 상태 표시, 원본 보기 전환, 북마크(폴더), 고장 배너
 import type { KongUI } from "../preload-ui";
 import type { Bookmark, BookmarkData, BrowserState, Rect, TabInfo } from "../shared";
+import { DOCK_SITES, dockSiteOf, faviconOf, openTarget } from "../dock";
+import { iconFor, type BuiltinIcon, type IconChoice } from "../favicon";
 import type { Suggestion } from "../suggest";
+
+/** 앱이 가진 아이콘: 사이트 아이콘이 없거나 못 불러올 때, 그리고 앱 안쪽 페이지 */
+const BUILTIN: Record<BuiltinIcon, string> = {
+  home: `<svg viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6.5 9.5V19h11V9.5"/></svg>`,
+  history: `<svg viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4M12 7.5V12l3 2"/></svg>`,
+  bookmarks: `<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>`,
+  page: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.3 3.6 5.2 3.6 8.5s-1.1 6.2-3.6 8.5c-2.5-2.3-3.6-5.2-3.6-8.5s1.1-6.2 3.6-8.5z"/></svg>`,
+};
+
+/** 아이콘 칸 채우기: 사이트 아이콘 이미지, 불러오지 못하면 앱 아이콘으로 바꾼다 */
+function fillIcon(box: HTMLElement, choice: IconChoice) {
+  box.replaceChildren();
+  if ("builtin" in choice) {
+    box.innerHTML = BUILTIN[choice.builtin];
+    return;
+  }
+  const img = document.createElement("img");
+  img.alt = "";
+  img.src = choice.src;
+  img.onerror = () => (box.innerHTML = BUILTIN[choice.fallback]);
+  box.appendChild(img);
+}
 
 declare global {
   interface Window {
@@ -26,6 +50,7 @@ const newTab = $<HTMLButtonElement>("new-tab");
 const bookmarkBtn = $<HTMLButtonElement>("bookmark");
 const historyBtn = $<HTMLButtonElement>("history");
 const bookmarkBar = $("bookmark-bar");
+const dock = $("dock");
 
 let loading = false;
 let editing = false;
@@ -44,11 +69,6 @@ newTab.onclick = () => ui.newTab();
 // ☆ = 북마크 추가, ★ = 폴더로 이동 / 삭제 / 관리 메뉴
 bookmarkBtn.onclick = () => (bookmarked ? ui.starMenu(rectOf(bookmarkBtn)) : ui.toggleBookmark());
 historyBtn.onclick = () => ui.openHistory();
-// 탭 줄 빈 곳을 두 번 누르면 새 탭 (Chrome 과 같은 동작)
-const tabstrip = tabsBox.parentElement!;
-tabstrip.ondblclick = (e) => {
-  if (e.target === tabstrip || e.target === tabsBox) ui.newTab();
-};
 // ---------- 주소창 + 자동완성 ----------
 // 목록은 main 이 페이지 위에 띄우는 별도 창에 그린다. 여기서는 입력과 선택 위치만 관리한다.
 let suggestions: Suggestion[] = [];
@@ -128,6 +148,7 @@ let activeId = -1;
 
 ui.onState((s: BrowserState) => {
   renderTabs(s.tabs);
+  markDock(s.url);
   // 다른 탭으로 바뀌면 주소창 편집 중이던 내용은 버리고 그 탭의 주소를 보여준다
   const now = s.tabs.find((t) => t.active)?.id ?? -1;
   if (now !== activeId) {
@@ -194,13 +215,7 @@ function renderTabs(tabs: TabInfo[]) {
 
       const icon = document.createElement("span");
       icon.className = "tab-icon";
-      if (!t.loading && t.favicon) {
-        const img = document.createElement("img");
-        img.src = t.favicon;
-        img.alt = "";
-        img.onerror = () => img.remove();
-        icon.appendChild(img);
-      }
+      if (!t.loading) fillIcon(icon, iconFor(t.url, t.favicon)); // 로딩 중에는 도는 표시 (CSS)
       const label = document.createElement("span");
       label.className = "tab-title";
       label.textContent = t.title || displayUrl(t.url) || "새 탭";
@@ -294,13 +309,10 @@ function bookmarkItem(b: Bookmark): HTMLElement {
   const item = document.createElement("button");
   item.className = "bm";
   item.title = `${b.title}\n${b.url}`;
-  if (b.favicon) {
-    const img = document.createElement("img");
-    img.src = b.favicon;
-    img.alt = "";
-    img.onerror = () => img.remove();
-    item.appendChild(img);
-  }
+  const icon = document.createElement("span");
+  icon.className = "bm-icon";
+  fillIcon(icon, iconFor(b.url, b.favicon));
+  item.appendChild(icon);
   const label = document.createElement("span");
   label.textContent = b.title;
   item.appendChild(label);
@@ -316,9 +328,49 @@ function bookmarkItem(b: Bookmark): HTMLElement {
   return item;
 }
 
-/** 페이지 영역이 툴바 바로 아래에 오도록 main 에 알린다 (배너가 뜨면 툴바가 높아짐) */
+// ---------- 오른쪽 dock: 국내 주요 커뮤니티 ----------
+
+function renderDock() {
+  dock.replaceChildren(
+    ...DOCK_SITES.map((site) => {
+      const b = document.createElement("button");
+      b.className = "dock-item";
+      b.title = `${site.name}
+${site.url}`;
+      b.setAttribute("aria-label", site.name);
+      b.dataset.domain = site.domain;
+      const img = document.createElement("img");
+      img.alt = "";
+      img.src = faviconOf(site);
+      // 아이콘을 못 불러오면 첫 글자 배지
+      img.onerror = () => {
+        const badge = document.createElement("span");
+        badge.className = "dock-badge";
+        badge.style.background = site.color;
+        badge.textContent = site.name.charAt(0);
+        img.replaceWith(badge);
+      };
+      b.appendChild(img);
+      // 클릭 = 지금 탭, Ctrl+클릭·가운데 클릭 = 뒤쪽 새 탭
+      b.onclick = (e) => ui.openUrl(site.url, openTarget(e));
+      b.onauxclick = (e) => {
+        if (e.button === 1) ui.openUrl(site.url, openTarget(e));
+      };
+      return b;
+    }),
+  );
+}
+/** 지금 보고 있는 사이트를 dock 에서 강조 */
+function markDock(url: string) {
+  const domain = dockSiteOf(url)?.domain;
+  dock.querySelectorAll<HTMLElement>(".dock-item").forEach((b) => b.classList.toggle("on", b.dataset.domain === domain));
+}
+renderDock();
+
+/** 페이지 영역이 툴바 바로 아래, dock 왼쪽에 오도록 main 에 알린다 (배너·북마크 바가 생기면 툴바가 높아짐) */
 function reportLayout() {
-  ui.setLayout({ top: toolbar.offsetHeight });
+  document.documentElement.style.setProperty("--toolbar-h", `${toolbar.offsetHeight}px`);
+  ui.setLayout({ top: toolbar.offsetHeight, right: dock.offsetWidth });
 }
 
 ui.ready();

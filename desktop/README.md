@@ -38,7 +38,10 @@ npm run e2e
 
 | 기능 | 방법 |
 |---|---|
-| 새 탭 | 탭 줄의 [+], `Ctrl+T`, 탭 줄 빈 곳 두 번 클릭 |
+| 창 맨 위 | Chrome 처럼 제목 표시줄 없이 탭 줄이 맨 위. 탭 줄 빈 곳을 끌면 창 이동, 두 번 누르면 최대화. 최소화/최대화/닫기는 탭 줄 오른쪽 끝 |
+| 새 탭 | 탭 줄의 [+], `Ctrl+T` |
+| 탭 아이콘 | 사이트가 알려준 아이콘 → 없으면 그 사이트의 /favicon.ico → 그것도 없으면 기본 아이콘. 시작 페이지·방문 기록·북마크 관리는 앱 아이콘 |
+| 오른쪽 dock | 국내 주요 커뮤니티 15곳 바로가기 (루리웹, 디시인사이드, 에펨코리아, 더쿠, 클리앙, 뽐뿌, 인벤, MLB파크, 오늘의유머, 보배드림, 웃긴대학, 인스티즈, 네이트판, 82쿡, SLR클럽). 클릭 = 지금 탭, `Ctrl+클릭`·가운데 클릭 = 뒤쪽 새 탭. 지금 보는 사이트는 강조 |
 | 탭 닫기 | 탭의 ×, 가운데 버튼 클릭, `Ctrl+W` (마지막 탭을 닫으면 창이 닫힘) |
 | 탭 이동 | 탭 클릭, `Ctrl+Tab` / `Ctrl+Shift+Tab`, `Ctrl+1`~`8` (그 번째 탭), `Ctrl+9` (마지막 탭) |
 | 탭 순서 바꾸기 | 탭을 끌어서 원하는 자리에 놓기 |
@@ -75,6 +78,8 @@ npm run e2e
 | `src/preload-page.ts` | 웹페이지 preload. `transformer/src` 엔진을 그대로 번들해서 격리된 world 에서 `kong.boot` / `kong.bootMenu` |
 | `src/page-tools.ts` | 모든 페이지에 붙는 맨 위/맨 아래 버튼 (Shadow DOM) |
 | `src/preload-ui.ts` | 툴바에 노출하는 최소 API |
+| `src/dock.ts` | dock 사이트 목록, 지금 사이트 판별 (순수, `dock.test.ts`) |
+| `src/favicon.ts` | 탭·북마크 아이콘 고르기 (순수, `favicon.test.ts`) |
 | `src/suggest.ts` | 주소창 자동완성 후보·순위 (순수 함수, `suggest.test.ts`) |
 | `src/bookmarks.ts` | 북마크·폴더 조작 (순수 함수, `bookmarks.test.ts`) |
 | `src/preload-suggest.ts`, `src/ui/suggest.*` | 페이지 위에 겹쳐 뜨는 자동완성 목록 창 |

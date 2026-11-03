@@ -43,8 +43,12 @@ function loadRecipes(): Recipe[] {
 }
 
 let win: BrowserWindow;
-/** 페이지 영역 시작 위치 (탭 줄 + 툴바 높이). 툴바 화면이 알려준다 */
+/** 탭 줄 높이와 색 (toolbar.css 의 .tabstrip 과 같아야 창 버튼이 자연스럽게 이어진다) */
+const TABSTRIP_H = 40;
+const TABSTRIP_BG = "#e6e6e3";
+/** 페이지 영역: 위로는 탭 줄 + 툴바 높이, 오른쪽으로는 dock 폭만큼 비운다. 툴바 화면이 알려준다 */
 let pageTop = 84;
+let pageRight = 0;
 const recipes = loadRecipes();
 
 // 사용자 설정 (통일 화면의 왼쪽 메뉴 펼침 상태 등): %APPDATA%/Kong Browser/settings.json
@@ -142,7 +146,7 @@ function pushUI() {
 function layout() {
   if (!active) return;
   const [width, height] = win.getContentSize();
-  active.view.setBounds({ x: 0, y: pageTop, width, height: Math.max(0, height - pageTop) });
+  active.view.setBounds({ x: 0, y: pageTop, width: Math.max(0, width - pageRight), height: Math.max(0, height - pageTop) });
 }
 
 /** 새 탭. after 를 주면 그 탭 바로 오른쪽에 (링크로 연 탭), 아니면 맨 끝에 */
@@ -361,6 +365,9 @@ function createWindow() {
     minHeight: 400,
     title: "Kong Browser",
     autoHideMenuBar: true,
+    // Chrome 처럼 제목 표시줄을 없애고 탭 줄을 맨 위로. 최소화/최대화/닫기는 Windows 가 탭 줄 오른쪽 끝에 그린다
+    titleBarStyle: "hidden",
+    titleBarOverlay: { color: TABSTRIP_BG, symbolColor: "#3a3a3c", height: TABSTRIP_H },
     webPreferences: {
       preload: path.join(__dirname, "preload-ui.js"),
       contextIsolation: true,
@@ -554,10 +561,12 @@ ipcMain.handle(IPC.internal, (e, req: InternalRequest) => {
   }
 });
 
-ipcMain.on(IPC.layout, (_e, box: { top: number }) => {
+ipcMain.on(IPC.layout, (_e, box: { top: number; right: number }) => {
   const top = Math.ceil(box.top);
-  if (top > 0 && top !== pageTop) {
+  const right = Math.ceil(box.right);
+  if (top > 0 && (top !== pageTop || right !== pageRight)) {
     pageTop = top;
+    pageRight = right;
     layout();
   }
 });

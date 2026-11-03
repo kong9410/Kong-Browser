@@ -38,7 +38,7 @@ export const IPC = {
   openHistory: "ui:open-history",
   /** 앱 안쪽 페이지(시작 페이지, 방문 기록) → main: 기록·북마크 조회/삭제 (invoke) */
   internal: "kong:internal",
-  /** 툴바 → main: 페이지 영역이 시작할 위치 (툴바 높이) */
+  /** 툴바 → main: 페이지 영역 위치 (툴바 높이, 오른쪽 dock 폭) */
   layout: "ui:layout",
   ready: "ui:ready",
   /** main → 툴바 */

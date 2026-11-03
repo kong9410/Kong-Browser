@@ -25,8 +25,8 @@ const api = {
   suggest: (text: string, at: Rect) => ipcRenderer.invoke(IPC.suggest, text, at) as Promise<Suggestion[]>,
   suggestSelect: (i: number) => ipcRenderer.send(IPC.suggestSelect, i),
   suggestHide: () => ipcRenderer.send(IPC.suggestHide),
-  /** 페이지 영역이 시작할 위치 (툴바 높이) */
-  setLayout: (box: { top: number }) => ipcRenderer.send(IPC.layout, box),
+  /** 페이지 영역 위치: 툴바 높이(top), 오른쪽 dock 폭(right) */
+  setLayout: (box: { top: number; right: number }) => ipcRenderer.send(IPC.layout, box),
   ready: () => ipcRenderer.send(IPC.ready),
   onState: (fn: (s: BrowserState) => void) => ipcRenderer.on(IPC.state, (_e, s) => fn(s)),
   onFocusAddress: (fn: () => void) => ipcRenderer.on(IPC.focusAddress, () => fn()),
