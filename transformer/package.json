@@ -1,0 +1,22 @@
+{
+  "name": "kong-transformer",
+  "private": true,
+  "type": "module",
+  "description": "페이지 안에서 원본 요소를 통일된 뼈대로 재배치하는 엔진 + 레시피 개발 도구",
+  "scripts": {
+    "build": "tsx cli/build.ts",
+    "browse": "tsx cli/browse.ts",
+    "diagnose": "tsx cli/diagnose.ts",
+    "typecheck": "tsc --noEmit",
+    "snapshot": "tsx cli/snapshot.ts",
+    "check": "tsx cli/check.ts",
+    "canary": "tsx cli/canary.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "playwright-core": "^1.64.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

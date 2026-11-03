@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 2,
+  "host": "bbs.ruliweb.com",
+  "version": 4,
+  "minEngine": 1,
+  "siteName": "루리웹",
+  "menu": [
+    {
+      "label": "루리웹 메뉴",
+      "groups": [
+        "ul#gnb_menu_list"
+      ],
+      "links": [
+        ":scope > li.menu_item > h3 > a"
+      ],
+      "current": "prefix",
+      "style": "chips"
+    },
+    {
+      "groups": [
+        "ul.menu_wrapper > li.menu"
+      ],
+      "heading": {
+        "sel": [
+          ":scope > a .nav_name",
+          ":scope > a",
+          ":scope > h4"
+        ]
+      },
+      "links": [
+        ".sub_wrapper a"
+      ],
+      "linkText": {
+        "sel": [
+          ".nav_name"
+        ]
+      }
+    }
+  ],
+  "side": [
+    {
+      "links": {
+        "groups": [
+          ".top_best"
+        ],
+        "heading": {
+          "sel": [
+            ".list_title"
+          ],
+          "pattern": "^(.*?BEST)"
+        },
+        "links": [
+          ".list.active li.item a.subject_link",
+          ".list li.item a.subject_link"
+        ],
+        "current": "none"
+      }
+    }
+  ],
+  "pages": [
+    {
+      "id": "post",
+      "type": "post",
+      "match": "^/[a-z]+/board/[0-9]+/read/[0-9]+",
+      "probe": [
+        ".board_main_view"
+      ],
+      "category": {
+        "sel": [
+          ".subject_text .category_text"
+        ]
+      },
+      "title": {
+        "sel": [
+          ".subject_text .subject_inner_text"
+        ],
+        "required": true
+      },
+      "author": {
+        "sel": [
+          ".user_info .nick"
+        ]
+      },
+      "createdAt": {
+        "sel": [
+          ".user_info .regdate"
+        ]
+      },
+      "views": {
+        "sel": [
+          ".user_info"
+        ],
+        "pattern": "조회\\s*([0-9,]+)"
+      },
+      "likes": {
+        "sel": [
+          ".user_info .like"
+        ]
+      },
+      "body": {
+        "sel": [
+          ".board_main_view .view_content"
+        ],
+        "required": true
+      },
+      "actions": {
+        "sel": [
+          ".board_main_view .like_wrapper"
+        ]
+      },
+      "listLink": {
+        "sel": [
+          ".board_main_bottom .btn_wrapper a"
+        ],
+        "text": "^목록$"
+      },
+      "commentCount": {
+        "sel": [
+          ".comment_count .reply_count"
+        ]
+      },
+      "comments": {
+        "anchor": ".comment_container",
+        "item": [
+          "tr.comment_element.normal.blocktarget"
+        ],
+        "bestItem": [
+          "tr.comment_element.best"
+        ],
+        "replyMarker": ".child",
+        "who": {
+          "sel": [
+            ".nick .nick_link"
+          ]
+        },
+        "when": {
+          "sel": [
+            ".time"
+          ]
+        },
+        "content": {
+          "sel": [
+            ".text_wrapper .text"
+          ],
+          "required": true
+        },
+        "actions": {
+          "sel": [
+            ".control_box"
+          ],
+          "exclude": [
+            ".time",
+            ".text_bar"
+          ]
+        },
+        "more": {
+          "sel": [
+            ".comment_count_wrapper .paging_wrapper"
+          ]
+        }
+      }
+    },
+    {
+      "id": "board",
+      "type": "board",
+      "match": "^/[a-z]+/board/[0-9]+/?(\\?.*)?$",
+      "probe": [
+        ".board_main .board_list_table"
+      ],
+      "boardName": {
+        "sel": [
+          "head > title"
+        ],
+        "pattern": "^(.+?)\\s*\\|"
+      },
+      "rows": {
+        "sameBoard": "/board/([0-9]+)",
+        "scope": [
+          ".board_main .board_list_table"
+        ],
+        "item": [
+          "tr.table_body.notice, tr.table_body.blocktarget:not(.other)"
+        ],
+        "notice": ".notice",
+        "category": {
+          "sel": [
+            ".divsn"
+          ]
+        },
+        "title": {
+          "sel": [
+            ".subject_link"
+          ]
+        },
+        "link": {
+          "sel": [
+            ".subject_link"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".writer"
+          ]
+        },
+        "createdAt": {
+          "sel": [
+            ".time"
+          ]
+        },
+        "views": {
+          "sel": [
+            ".hit"
+          ]
+        },
+        "likes": {
+          "sel": [
+            ".recomd"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            ".num_reply"
+          ]
+        }
+      },
+      "pager": {
+        "sel": [
+          ".paging_wrapper"
+        ]
+      }
+    }
+  ]
+}

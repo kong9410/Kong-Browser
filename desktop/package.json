@@ -1,0 +1,48 @@
+{
+  "name": "kong-browser",
+  "productName": "Kong Browser",
+  "version": "0.1.0",
+  "private": true,
+  "description": "커뮤니티 화면을 통일해서 보여주는 브라우저",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsx scripts/build.mts",
+    "start": "tsx scripts/build.mts && electron .",
+    "dist": "tsx scripts/build.mts && electron-builder --win nsis",
+    "typecheck": "tsc --noEmit",
+    "e2e": "tsx scripts/build.mts && tsx scripts/e2e.mts"
+  },
+  "build": {
+    "appId": "com.kong.browser",
+    "productName": "Kong Browser",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/recipes",
+        "to": "recipes"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "electron": "^39.8.10",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
+    "playwright-core": "^1.64.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

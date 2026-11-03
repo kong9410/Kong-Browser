@@ -1,0 +1,4 @@
+# 줄바꿈은 저장소에서 LF 로 통일 (Windows 의 core.autocrlf 설정과 관계없이)
+* text=auto eol=lf
+*.png binary
+*.ico binary

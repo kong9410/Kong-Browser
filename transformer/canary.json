@@ -1,0 +1,10 @@
+{
+  "description": "kong canary 가 매일 점검할 게시판. 각 게시판의 목록 + 최신 글 posts 개를 실제로 열어 판정한다.",
+  "posts": 5,
+  "boards": [
+    "https://bbs.ruliweb.com/community/board/300143",
+    "https://m.ruliweb.com/community/board/300143",
+    "https://gall.dcinside.com/board/lists/?id=programming",
+    "https://gall.dcinside.com/mgallery/board/lists/?id=github"
+  ]
+}

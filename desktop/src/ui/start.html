@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>새 탭</title>
+    <link rel="stylesheet" href="pages.css" />
+    <style>
+      main {
+        padding-top: 64px;
+      }
+      .lead {
+        margin: 4px 0 8px;
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 10px;
+      }
+      .tile {
+        position: relative;
+        display: block;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+      }
+      .tile:hover {
+        border-color: var(--accent);
+      }
+      .tile b {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .tile span.sub {
+        display: block;
+        margin-top: 2px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .tile .del {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        opacity: 0;
+      }
+      .tile:hover .del {
+        opacity: 1;
+      }
+      .more {
+        margin-left: 8px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Kong Browser</h1>
+      <p class="lead">커뮤니티를 어디서 보든 같은 화면으로. 위 주소창에 주소나 검색어를 입력하세요.</p>
+
+      <section id="bookmarks-section" hidden>
+        <h2>북마크</h2>
+        <div id="bookmarks" class="grid"></div>
+      </section>
+
+      <section id="recent-section" hidden>
+        <h2>최근 방문 <a class="more" href="history.html">전체 기록</a></h2>
+        <div id="recent" class="card"></div>
+      </section>
+
+      <section>
+        <h2>통일 화면 지원 사이트</h2>
+        <div class="grid">
+          <a class="tile" href="https://bbs.ruliweb.com/community/board/300143"><b>루리웹 유머 게시판</b><span class="sub">bbs.ruliweb.com</span></a>
+          <a class="tile" href="https://bbs.ruliweb.com/mobile/board/300008"><b>루리웹 애플 정보</b><span class="sub">bbs.ruliweb.com</span></a>
+          <a class="tile" href="https://gall.dcinside.com/board/lists/?id=programming"><b>디시 프로그래밍 갤러리</b><span class="sub">gall.dcinside.com</span></a>
+          <a class="tile" href="https://gall.dcinside.com/mgallery/board/lists/?id=github"><b>디시 깃허브 마이너 갤러리</b><span class="sub">gall.dcinside.com</span></a>
+        </div>
+      </section>
+    </main>
+    <script src="start.js"></script>
+  </body>
+</html>

@@ -1,0 +1,315 @@
+:root {
+  --bg: #f3f3f1;
+  --field: #ffffff;
+  --fg: #1d1d1f;
+  --muted: #86868b;
+  --line: #dcdcdf;
+  --accent: #4f46e5;
+  --accent-soft: #eef2ff;
+  --warn-bg: #fff7e6;
+  --warn-fg: #8a5300;
+  font: 13px/1.4 "Pretendard", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+/* button 등에 display 를 지정하면 hidden 속성이 무시되므로 명시 */
+[hidden] {
+  display: none !important;
+}
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+  user-select: none;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 48px;
+  padding: 0 10px;
+}
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+button:disabled {
+  color: #c7c7cc;
+  cursor: default;
+}
+svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#reload .i-stop,
+#reload.loading .i-reload {
+  display: none;
+}
+#reload.loading .i-stop {
+  display: block;
+}
+#address-form {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  margin: 0 6px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+}
+#address-form:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+#address {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 14px;
+  user-select: text;
+}
+.mode {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.mode.unified {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.mode.original {
+  background: #ececef;
+  color: var(--muted);
+}
+.mode.broken {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.pill {
+  width: auto;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pill.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.pill.active:hover {
+  background: var(--accent);
+}
+.banner {
+  padding: 8px 16px;
+  border-top: 1px solid #f3dfb5;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 13px;
+}
+.banner .detail {
+  margin-left: 6px;
+  color: #b07a2a;
+  font-size: 12px;
+}
+
+
+/* ---------- 탭 줄 ---------- */
+.tabstrip {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 36px;
+  padding: 6px 8px 0;
+  background: #e6e6e3;
+}
+/* 탭들은 내용만큼, [+] 는 마지막 탭 바로 오른쪽에 (Chrome 과 같은 배치) */
+.tabs {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100%;
+  overflow: hidden;
+}
+.tab {
+  position: relative;
+  flex: 0 1 220px;
+  min-width: 44px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 10px;
+  border-radius: 9px 9px 0 0;
+  color: #4a4a4f;
+  cursor: default;
+}
+.tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.5);
+}
+.tab.active {
+  background: var(--bg);
+  color: var(--fg);
+}
+/* 탭 사이 구분선 (지금 탭과 그 옆은 생략) */
+.tab:not(.active) + .tab:not(.active)::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: #c8c8cc;
+}
+.tab-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab-icon img {
+  width: 16px;
+  height: 16px;
+}
+.tab.loading .tab-icon::after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border: 2px solid #c7c7cc;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: kong-spin 0.8s linear infinite;
+}
+@keyframes kong-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.tab-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+.tab-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  color: #6e6e73;
+}
+.tab-close:hover {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+/* 닫기 버튼은 지금 탭과 마우스를 올린 탭에만 */
+.tab:not(.active) .tab-close {
+  opacity: 0;
+}
+.tab:hover .tab-close {
+  opacity: 1;
+}
+.new-tab {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
+}
+
+/* 탭 끌기: 놓을 자리 표시 */
+.tab.dragging {
+  opacity: 0.5;
+}
+.tab.drop-before {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.tab.drop-after {
+  box-shadow: inset -3px 0 0 var(--accent);
+}
+
+/* ---------- 북마크 ☆ / 방문 기록 ---------- */
+.star {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-right: -6px;
+  color: var(--muted);
+}
+.star.on {
+  color: #f5a524;
+}
+.star.on svg {
+  fill: currentColor;
+}
+
+/* ---------- 북마크 바 ---------- */
+.bookmark-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 10px 4px;
+  overflow: hidden;
+}
+.bm {
+  width: auto;
+  max-width: 180px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.bm img {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.bm span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -1,0 +1,20 @@
+# 의존성
+node_modules/
+
+# 빌드 결과
+dist/
+desktop/release/
+
+# 실행 결과 (스크린샷, 카나리 결과, 로그)
+out/
+*.log
+
+# 회귀 테스트 스냅샷: 실제 사이트 글이 들어 있으므로 저장소에 올리지 않는다 (개발 PC 에만, docs/DESIGN.md 12절)
+transformer/snapshots/
+
+# OS / 편집기
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/

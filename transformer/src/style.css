@@ -1,0 +1,598 @@
+/* 모든 사이트에 공통으로 적용되는 통일 화면. 모든 규칙은 #kong-root 아래로 한정한다.
+   move 로 옮겨온 원본 노드(.k-move 안)는 사이트 CSS 가 일부 따라오므로, 글꼴·색·배경만 강제로 맞춘다.
+   (사이트의 숨김용 유틸 클래스 등은 살아 있어야 하므로 all: revert 로 전부 지우지는 않는다) */
+
+#kong-root {
+  --k-bg: #f7f7f5;
+  --k-card: #ffffff;
+  --k-fg: #1d1d1f;
+  --k-muted: #86868b;
+  --k-line: #e8e8ed;
+  --k-accent: #4f46e5;
+  --k-accent-soft: #eef2ff;
+  --k-font: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --k-size: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  #kong-root {
+    --k-bg: #111113;
+    --k-card: #1c1c1f;
+    --k-fg: #f2f2f4;
+    --k-muted: #8e8e93;
+    --k-line: #2c2c30;
+    --k-accent: #a5b4fc;
+    --k-accent-soft: #23243a;
+  }
+}
+
+html.kong-on,
+html.kong-on body {
+  background: #f7f7f5 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+}
+@media (prefers-color-scheme: dark) {
+  html.kong-on,
+  html.kong-on body {
+    background: #111113 !important;
+  }
+}
+html.kong-on body > .k-hidden,
+html.kong-on #kong-root .k-hidden {
+  display: none !important;
+}
+/* 이벤트 위임 때문에 통째로 옮겨온 원본 컨테이너: 사이트가 준 상자 모양만 지운다 */
+#kong-root .k-anchor {
+  all: unset !important;
+  display: block !important;
+}
+#kong-root .k-excluded {
+  display: none !important;
+}
+
+/* 최대 세 열(grid): 왼쪽 메뉴(.k-nav) | 본문(.k-main) | 오른쪽 열(.k-side). 열 구성은 아래 "세 열 배치" 참고 */
+#kong-root {
+  display: grid !important;
+  align-items: start;
+  justify-content: center;
+  column-gap: 28px;
+  row-gap: 24px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 16px 16px 64px;
+  background: var(--k-bg);
+  color: var(--k-fg);
+  font: 400 var(--k-size) / 1.7 var(--k-font);
+  text-align: left;
+  word-break: break-word;
+  -webkit-text-size-adjust: 100%;
+}
+#kong-root * {
+  box-sizing: border-box;
+}
+
+/* ---------- 머리 ---------- */
+#kong-root .k-head {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--k-line);
+  margin-bottom: 16px;
+}
+#kong-root .k-site {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--k-accent);
+}
+#kong-root h1.k-title {
+  margin: 4px 0 8px;
+  padding: 0;
+  font-size: 21px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--k-fg);
+}
+#kong-root .k-cat {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--k-accent-soft);
+  color: var(--k-accent);
+  font-size: 0.72em;
+  font-weight: 600;
+  vertical-align: 0.15em;
+}
+#kong-root .k-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 13px;
+  color: var(--k-muted);
+}
+
+/* ---------- move 영역: 원본 노드의 모양을 통일 ---------- */
+#kong-root .k-move,
+#kong-root .k-move * {
+  color: inherit !important;
+  background-color: transparent !important;
+  max-width: 100% !important;
+}
+/* 아이콘 폰트(<i class="icon-…">)는 글꼴을 바꾸면 깨지므로 제외 */
+#kong-root .k-move,
+#kong-root .k-move *:not(i):not([class*="icon"]) {
+  font-family: var(--k-font) !important;
+}
+#kong-root .k-move :is(p, div, span, font, li, td, th, b, strong, em, a, h1, h2, h3, h4, h5, h6, blockquote) {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+#kong-root .k-move a {
+  color: var(--k-accent) !important;
+}
+#kong-root .k-move :is(img, video, iframe) {
+  height: auto !important;
+  border-radius: 10px;
+}
+#kong-root .k-move iframe {
+  width: 100% !important;
+  aspect-ratio: 16 / 9;
+  height: auto !important;
+}
+#kong-root .k-body {
+  padding: 4px 0 20px;
+  overflow: hidden;
+  display: flow-root;
+}
+#kong-root .k-body :is(img, video) {
+  display: block;
+  margin: 8px auto;
+}
+#kong-root .k-body p {
+  margin: 0 0 0.6em;
+}
+#kong-root .k-actions,
+#kong-root .k-ad {
+  margin: 8px 0 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* ---------- 댓글 ---------- */
+#kong-root .k-sec-title {
+  margin: 24px 0 4px;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--k-fg);
+}
+#kong-root .k-best {
+  margin-top: 8px;
+  padding: 2px 14px 4px;
+  border-radius: 14px;
+  background: var(--k-card);
+  border: 1px solid var(--k-line);
+}
+#kong-root .k-best .k-sec-title {
+  margin-top: 12px;
+  color: var(--k-accent);
+}
+#kong-root .k-cmt {
+  padding: 12px 0;
+  border-top: 1px solid var(--k-line);
+}
+#kong-root .k-best .k-cmt:first-child {
+  border-top: 0;
+}
+#kong-root .k-cmt.k-reply {
+  padding-left: 22px;
+  position: relative;
+}
+#kong-root .k-cmt.k-reply::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 14px;
+  width: 8px;
+  height: 8px;
+  border-left: 1.5px solid var(--k-line);
+  border-bottom: 1.5px solid var(--k-line);
+}
+#kong-root .k-cmt-head {
+  font-size: 13px;
+}
+#kong-root .k-who {
+  font-weight: 600;
+}
+#kong-root .k-when {
+  margin-left: 8px;
+  color: var(--k-muted);
+  font-size: 12px;
+}
+#kong-root .k-cmt-body {
+  margin-top: 2px;
+  font-size: 15px;
+  display: flow-root; /* 안의 float 가 밖으로 새지 않게 */
+}
+/* 사이트가 댓글 상자에 준 float/고정 크기를 풀어서 한 줄 흐름으로 */
+#kong-root .k-cmt-body :is(div, p, span, ul, li) {
+  float: none !important;
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+#kong-root .k-cmt-body :is(img, video) {
+  max-height: 240px !important;
+  width: auto !important;
+}
+#kong-root .k-cmt-actions {
+  margin-top: 4px;
+  font-size: 12px !important;
+  color: var(--k-muted) !important;
+}
+/* 사이트가 버튼 묶음을 오른쪽에 띄우는(float/absolute) 경우가 많아, 항상 본문 아래 왼쪽 정렬로 통일 */
+#kong-root .k-cmt-actions > * {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  float: none !important;
+  position: static !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+#kong-root .k-cmt-actions :is(button, span, i) {
+  font-size: 12px !important;
+  color: var(--k-muted) !important;
+  border: 0 !important;
+  background: none !important;
+  padding: 0 6px 0 0 !important;
+  margin: 0 !important;
+  float: none !important;
+  width: auto !important;
+}
+#kong-root .k-list,
+#kong-root .k-more,
+#kong-root .k-pager {
+  margin: 16px 0;
+  display: flex;
+  justify-content: center;
+  font-size: 14px;
+}
+#kong-root .k-more:empty {
+  display: none;
+}
+/* 옮겨온 원본 버튼/페이지 번호를 같은 모양으로 */
+#kong-root :is(.k-list, .k-more, .k-pager) :is(button, a, span, em, strong) {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px !important;
+  margin: 0 3px !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 999px !important;
+  background: var(--k-card) !important;
+  color: var(--k-fg) !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  float: none !important;
+  width: auto !important;
+}
+#kong-root :is(.k-list, .k-more, .k-pager) :is(button, a, span, em, strong) :is(button, a, span, em, strong) {
+  /* 버튼 안의 버튼 모양 중복 방지 */
+  all: unset !important;
+}
+/* 지금 페이지 번호: 루리웹은 .active, 디시는 링크가 아닌 <em> */
+#kong-root :is(.k-more, .k-pager) :is(.active, [aria-current], em) {
+  background: var(--k-accent) !important;
+  border-color: var(--k-accent) !important;
+  color: #fff !important;
+}
+
+/* ---------- 게시판 ---------- */
+#kong-root .k-rows {
+  display: flex;
+  flex-direction: column;
+}
+#kong-root a.k-row {
+  display: block;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--k-line);
+  color: var(--k-fg);
+  text-decoration: none;
+}
+#kong-root a.k-row:visited .k-row-title {
+  color: var(--k-muted);
+}
+#kong-root .k-row-title {
+  font-size: 15.5px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+#kong-root .k-row-title .k-cat {
+  font-size: 11px;
+  vertical-align: 1px;
+}
+#kong-root .k-ccount {
+  margin-left: 6px;
+  color: var(--k-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+#kong-root .k-badge {
+  margin-right: 6px;
+  color: #e11d48;
+  font-size: 12px;
+  font-weight: 700;
+}
+#kong-root .k-row .k-meta {
+  margin-top: 2px;
+  font-size: 12px;
+}
+#kong-root a.k-source {
+  display: block;
+  margin-top: 32px;
+  font-size: 12px;
+  color: var(--k-muted);
+  text-decoration: none;
+}
+
+/* ---------- 세 열 배치 ----------
+   본문 열은 최대 760px 에서 창이 좁으면 줄어든다.
+   왼쪽 메뉴: 펼침 220px / 접힘 [☰ 메뉴] 버튼 폭 / 메뉴가 없는 사이트는 열 없음
+   오른쪽 열: 블록이 있을 때만 240px. 창이 좁으면(1150px 미만) 본문 아래로 내려간다 */
+#kong-root {
+  --k-navcol: 220px;
+  grid-template-columns: minmax(0, 760px);
+  grid-template-areas: "main";
+}
+#kong-root.k-nav-closed {
+  --k-navcol: auto;
+}
+#kong-root.k-has-nav {
+  grid-template-columns: var(--k-navcol) minmax(0, 760px);
+  grid-template-areas: "nav main";
+}
+#kong-root.k-has-side {
+  grid-template-columns: minmax(0, 760px) 240px;
+  grid-template-areas: "main side";
+}
+#kong-root.k-has-nav.k-has-side {
+  grid-template-columns: var(--k-navcol) minmax(0, 760px) 240px;
+  grid-template-areas: "nav main side";
+}
+@media (max-width: 1150px) {
+  #kong-root.k-has-side {
+    grid-template-columns: minmax(0, 760px);
+    grid-template-areas: "main" "side";
+  }
+  #kong-root.k-has-nav.k-has-side {
+    grid-template-columns: var(--k-navcol) minmax(0, 760px);
+    grid-template-areas: "nav main" "nav side";
+  }
+}
+#kong-root > .k-main {
+  grid-area: main;
+  min-width: 0;
+}
+#kong-root > :is(.k-nav, .k-nav-open) {
+  grid-area: nav;
+}
+#kong-root > .k-side {
+  grid-area: side;
+}
+#kong-root:not(.k-has-nav) > :is(.k-nav, .k-nav-open),
+#kong-root.k-nav-closed > .k-nav,
+#kong-root:not(.k-nav-closed) > .k-nav-open,
+#kong-root:not(.k-has-side) > .k-side,
+#kong-root .k-side-block[hidden] {
+  display: none !important;
+}
+
+/* ---------- 왼쪽 메뉴 ---------- */
+#kong-root .k-nav {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 10px 8px 16px;
+  border: 1px solid var(--k-line);
+  border-radius: 14px;
+  background: var(--k-card);
+  font-size: 13px;
+  line-height: 1.4;
+  scrollbar-width: thin;
+}
+#kong-root .k-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 8px;
+}
+#kong-root .k-nav-site {
+  color: var(--k-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+#kong-root :is(.k-nav-close, .k-nav-open) {
+  border: 1px solid var(--k-line);
+  border-radius: 999px;
+  background: var(--k-card);
+  color: var(--k-muted);
+  font: 600 12px/1 var(--k-font);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+#kong-root :is(.k-nav-close, .k-nav-open):hover {
+  border-color: var(--k-accent);
+  color: var(--k-accent);
+}
+#kong-root .k-nav-open {
+  justify-self: start;
+  position: sticky;
+  top: 12px;
+  padding: 8px 12px;
+}
+#kong-root .k-nav-group {
+  padding: 8px 0;
+  border-top: 1px solid var(--k-line);
+}
+#kong-root .k-nav-title,
+#kong-root .k-nav-link {
+  display: block;
+  padding: 5px 8px;
+  border-radius: 7px;
+  color: var(--k-fg);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#kong-root .k-nav-title {
+  font-weight: 700;
+}
+#kong-root div.k-nav-title {
+  color: var(--k-muted);
+  font-size: 12px;
+}
+#kong-root .k-nav-list .k-nav-link {
+  padding-left: 14px;
+}
+#kong-root :is(a.k-nav-title, .k-nav-link):hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+#kong-root :is(.k-nav-title, .k-nav-link).k-current {
+  background: var(--k-accent-soft);
+  color: var(--k-accent);
+  font-weight: 700;
+}
+/* 상단 메뉴처럼 짧은 항목이 많은 그룹은 칩으로 */
+#kong-root .k-nav-chips .k-nav-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 4px;
+}
+#kong-root .k-nav-list .k-nav-chips .k-nav-link {
+  padding: 4px 9px;
+  border: 1px solid var(--k-line);
+  border-radius: 999px;
+  font-size: 12px;
+}
+#kong-root .k-nav-chips .k-nav-link.k-current {
+  border-color: var(--k-accent);
+}
+
+/* ---------- 오른쪽 열 ---------- */
+#kong-root .k-side {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  scrollbar-width: thin;
+}
+@media (max-width: 1150px) {
+  /* 본문 아래로 내려가면 고정하지 않고 그대로 흐르게 */
+  #kong-root .k-side {
+    position: static;
+    max-height: none;
+  }
+}
+#kong-root .k-side-block {
+  padding: 10px 8px 12px;
+  border: 1px solid var(--k-line);
+  border-radius: 14px;
+  background: var(--k-card);
+}
+#kong-root .k-side-title {
+  padding: 0 6px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-muted);
+}
+/* 링크 블록 (루리웹 BEST 등): 제목은 블록 머리, 글 제목은 두 줄까지 */
+#kong-root .k-side .k-nav-group {
+  border-top: 0;
+  padding: 0;
+}
+#kong-root .k-side .k-nav-title {
+  color: var(--k-accent);
+  font-size: 13px;
+}
+#kong-root .k-side .k-nav-list .k-nav-link,
+#kong-root .k-side.k-side .k-nav-link {
+  padding: 6px 8px;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  border-bottom: 1px solid var(--k-line);
+  border-radius: 0;
+}
+#kong-root .k-side .k-nav-link:last-child {
+  border-bottom: 0;
+}
+/* 옮겨 온 사이트 요소 (디시 전체글/개념글/공지, 말머리): 버튼과 링크를 같은 칩 모양으로 */
+#kong-root .k-side .k-move :is(ul, li, div) {
+  float: none !important;
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  list-style: none !important;
+}
+#kong-root .k-side .k-move :is(ul, .array_tab, .inner) {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+#kong-root .k-side .k-move :is(button, a):not(.k-excluded) {
+  display: inline-flex !important;
+  align-items: center;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 28px !important;
+  padding: 0 11px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 999px !important;
+  background: var(--k-card) !important;
+  color: var(--k-fg) !important;
+  font: 500 12.5px/1 var(--k-font) !important;
+  text-decoration: none !important;
+  cursor: pointer;
+}
+#kong-root .k-side .k-move :is(button, a):hover {
+  border-color: var(--k-accent) !important;
+  color: var(--k-accent) !important;
+}
+#kong-root .k-side .k-move :is(button, a).on {
+  background: var(--k-accent) !important;
+  border-color: var(--k-accent) !important;
+  color: #fff !important;
+}
+/* 원래 레이어로 숨겨져 있던 목록(디시 "말머리 더보기")을 펼쳐서 */
+#kong-root .k-side .k-revealed {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin-top: 6px !important;
+}

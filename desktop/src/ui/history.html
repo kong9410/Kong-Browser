@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>방문 기록</title>
+    <link rel="stylesheet" href="pages.css" />
+  </head>
+  <body>
+    <main>
+      <div class="head">
+        <h1>방문 기록</h1>
+        <button id="clear" class="danger" type="button">기록 모두 삭제</button>
+      </div>
+      <input id="q" class="search" type="search" placeholder="제목이나 주소로 검색" autocomplete="off" />
+      <div id="list"></div>
+      <p id="empty" class="muted" hidden>방문 기록이 없습니다.</p>
+    </main>
+    <script src="history.js"></script>
+  </body>
+</html>

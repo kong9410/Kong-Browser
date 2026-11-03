@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 2,
+  "host": "gall.dcinside.com",
+  "version": 6,
+  "minEngine": 1,
+  "siteName": "디시인사이드",
+  "menu": [
+    {
+      "label": "디시 메뉴",
+      "groups": [
+        "nav.gnb ul.gnb_list"
+      ],
+      "links": [
+        ":scope > li > a.link_gnb"
+      ],
+      "current": "mark",
+      "mark": ".on",
+      "style": "chips",
+      "skip": "광고"
+    },
+    {
+      "label": "최근 방문 갤러리",
+      "groups": [
+        ".newvisit_history .vst_listbox"
+      ],
+      "links": [
+        "li > a"
+      ]
+    }
+  ],
+  "side": [
+    {
+      "title": "게시물",
+      "move": {
+        "sel": [
+          ".list_array_option .array_tab"
+        ]
+      }
+    },
+    {
+      "title": "말머리",
+      "move": {
+        "sel": [
+          ".list_array_option .center_box"
+        ]
+      },
+      "reveal": [
+        ".subject_morelist"
+      ],
+      "hide": [
+        ".btn_subject_more"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "post",
+      "type": "post",
+      "match": "^/(mgallery/|mini/)?board/view/",
+      "probe": [
+        ".gallview_head",
+        ".write_div"
+      ],
+      "category": {
+        "sel": [
+          ".gallview_head .title_headtext"
+        ]
+      },
+      "title": {
+        "sel": [
+          ".gallview_head .title_subject"
+        ],
+        "required": true
+      },
+      "author": {
+        "sel": [
+          ".gallview_head .gall_writer"
+        ],
+        "attr": "data-nick"
+      },
+      "createdAt": {
+        "sel": [
+          ".gallview_head .gall_date"
+        ]
+      },
+      "views": {
+        "sel": [
+          ".gallview_head .gall_count"
+        ],
+        "pattern": "([0-9,]+)"
+      },
+      "likes": {
+        "sel": [
+          ".gallview_head .gall_reply_num"
+        ],
+        "pattern": "([0-9,]+)"
+      },
+      "body": {
+        "sel": [
+          ".writing_view_box .write_div"
+        ],
+        "required": true
+      },
+      "actions": {
+        "sel": [
+          ".btn_recommend_box"
+        ]
+      },
+      "listLink": {
+        "sel": [
+          ".view_bottom_btnbox button"
+        ],
+        "text": "^(전체글|목록)$"
+      },
+      "commentCount": {
+        "sel": [
+          "[id^=comment_total_]"
+        ]
+      },
+      "comments": {
+        "lazy": true,
+        "item": [
+          ".comment_box li.ub-content:not(.dory)"
+        ],
+        "replyMarker": "[id^=reply_li_]",
+        "who": {
+          "sel": [
+            ".gall_writer"
+          ],
+          "attr": "data-nick"
+        },
+        "when": {
+          "sel": [
+            ".date_time"
+          ]
+        },
+        "content": {
+          "sel": [
+            ".cmt_txtbox",
+            ".del_reply"
+          ],
+          "required": true
+        },
+        "more": {
+          "sel": [
+            ".cmt_paging"
+          ]
+        }
+      }
+    },
+    {
+      "id": "board",
+      "type": "board",
+      "match": "^/(mgallery/|mini/)?board/lists",
+      "probe": [
+        ".gall_listwrap table.gall_list"
+      ],
+      "boardName": {
+        "sel": [
+          ".page_head h2 a",
+          ".page_head h2"
+        ],
+        "exclude": [
+          ".pagehead_titicon",
+          ".blind"
+        ]
+      },
+      "rows": {
+        "sameBoard": "[?&]id=([^&]+)",
+        "scope": [
+          ".gall_listwrap table.gall_list"
+        ],
+        "item": [
+          "tr.ub-content.us-post, tr.ub-content[data-type=icon_notice]"
+        ],
+        "notice": "[data-type=icon_notice]",
+        "title": {
+          "sel": [
+            ".gall_tit > a:first-child"
+          ]
+        },
+        "link": {
+          "sel": [
+            ".gall_tit > a:first-child"
+          ]
+        },
+        "category": {
+          "sel": [
+            ".gall_subject"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".gall_writer"
+          ],
+          "attr": "data-nick"
+        },
+        "createdAt": {
+          "sel": [
+            ".gall_date"
+          ]
+        },
+        "views": {
+          "sel": [
+            ".gall_count"
+          ]
+        },
+        "likes": {
+          "sel": [
+            ".gall_recommend"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            ".reply_num"
+          ]
+        }
+      },
+      "pager": {
+        "sel": [
+          ".bottom_paging_box"
+        ]
+      }
+    }
+  ]
+}

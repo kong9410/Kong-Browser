@@ -1,0 +1,201 @@
+// 레시피 스펙 v2 — 사이트별 "어디에 무엇이 있는지"만 담은 선언형 데이터. JS 는 담지 않는다.
+// 설계: docs/DESIGN.md 5절
+
+export const ENGINE_VERSION = 1;
+
+/** 값 하나를 찾는 방법. sel 은 앞에서부터 처음 맞는 것을 사용한다. */
+export interface Field {
+  sel: string[];
+  /** 텍스트 대신 이 속성값을 읽는다 (예: href) */
+  attr?: string;
+  /** 읽은 텍스트에 적용할 정규식. 첫 번째 캡처 그룹(없으면 전체 매치)을 값으로 쓴다 */
+  pattern?: string;
+  /** sel 로 찾은 요소 중 글자가 이 정규식에 맞는 것만 (예: 버튼 여러 개 중 "목록") */
+  text?: string;
+  /** 없으면 broken. 기본 false (없으면 degraded) */
+  required?: boolean;
+  /** move 되는 노드 안에서 숨길 요소 */
+  exclude?: string[];
+}
+
+export interface CommentSpec {
+  /**
+   * 사이트가 댓글 버튼 이벤트를 위임해 둔 상위 요소 (예: jQuery $(".comment_container").on("click", ".btn_like")).
+   * 지정하면 이 요소를 통째로 뼈대로 옮기고 그 안에 댓글 목록을 만들어, 옮긴 버튼이 계속 동작하게 한다.
+   */
+  anchor?: string;
+  /**
+   * 댓글을 페이지 준비 뒤에 AJAX 로 불러오는 사이트 (디시 등). true 면 재배치 시점에 댓글이 0개여도 정상으로 보고,
+   * 댓글 수 검산은 댓글이 실제로 붙은 뒤(observe) 한 번 더 한다.
+   */
+  lazy?: boolean;
+  /** 일반 댓글 한 개 (문서 전체 기준) */
+  item: string[];
+  /** 베스트 댓글 한 개. 기능이 없는 사이트는 생략 */
+  bestItem?: string[];
+  /** item 자신 또는 내부에서 매칭되면 대댓글 */
+  replyMarker?: string;
+  who?: Field;
+  when?: Field;
+  /** move. item 기준 */
+  content: Field;
+  /** move. 댓글별 추천/신고 버튼 등. item 기준 */
+  actions?: Field;
+  /** move. 댓글 페이지 넘김/더보기 (문서 기준) */
+  more?: Field;
+}
+
+export interface PostPage {
+  id: string;
+  type: "post";
+  /** location.pathname + location.search 에 대한 정규식 */
+  match: string;
+  /** 이 페이지 유형이 맞는지 확인하는 표식. 전부 존재해야 함 */
+  probe: string[];
+  category?: Field;
+  title: Field;
+  author?: Field;
+  createdAt?: Field;
+  views?: Field;
+  likes?: Field;
+  /** move */
+  body: Field;
+  /** move. 글 추천 버튼 등 */
+  actions?: Field;
+  /** move. 남겨둘 광고 영역 */
+  ad?: Field;
+  /** move. 사이트의 원래 "목록" 버튼 (사이트의 기본 동작 그대로). 본문 아래, 댓글 위에 놓인다 */
+  listLink?: Field;
+  /** 검산용: 페이지에 표시된 일반 댓글 수 */
+  commentCount?: Field;
+  comments?: CommentSpec;
+  /** 재배치 후에도 나중에 body 에 붙는 요소 중 숨길 것 (떠다니는 배너 등) */
+  hide?: string[];
+}
+
+export interface RowSpec {
+  /** 게시글 목록 영역. item 은 이 안에서만 찾는다 */
+  scope: string[];
+  item: string[];
+  category?: Field;
+  title: Field;
+  /** 기본 attr=href */
+  link: Field;
+  author?: Field;
+  createdAt?: Field;
+  views?: Field;
+  likes?: Field;
+  commentCount?: Field;
+  /** item 이 공지 행이면 매칭 */
+  notice?: string;
+  /**
+   * 게시판을 식별하는 정규식 (첫 캡처 그룹). 현재 페이지 URL 과 각 행 링크에서 뽑은 값이 같아야 "이 게시판의 글".
+   * 다른 게시판 글(사이드바, 인기글 등)이 목록에 섞였는지 검산한다. 예: "/board/([0-9]+)", "[?&]id=([^&]+)"
+   */
+  sameBoard?: string;
+}
+
+export interface BoardPage {
+  id: string;
+  type: "board";
+  match: string;
+  probe: string[];
+  boardName?: Field;
+  rows: RowSpec;
+  /** move. 페이지 번호 */
+  pager?: Field;
+  /** move. "더보기" 버튼 (누르면 사이트가 원본 목록에 행을 추가 → 감시해서 반영) */
+  more?: Field;
+  hide?: string[];
+}
+
+export type Page = PostPage | BoardPage;
+
+/**
+ * 통일 화면 왼쪽 메뉴 열에 놓을 사이트 메뉴 (설계 8-2절). 사이트 페이지의 메뉴 링크를 읽어 왼쪽 열에 다시 배치한다.
+ * 루리웹: 상단 메뉴(PS5/XSX/PC…) + 게시판 메뉴(그룹 제목 + 하위 게시판) / 디시: 최근 방문 갤러리
+ * 레시피에는 이 블록을 여러 개(menu 배열) 둘 수 있고, 위에서부터 순서대로 놓인다.
+ */
+export interface MenuSpec {
+  /** 지금 위치 강조 방식: board = 같은 게시판(rows.sameBoard), prefix = 주소 경로가 링크로 시작 (상단 메뉴용), mark = 사이트 표시, none = 강조 안 함 (글 목록 등). 기본 board */
+  current?: "board" | "prefix" | "mark" | "none";
+  /** current 가 mark 일 때: 사이트가 지금 위치에 붙여 둔 표시 (예: 디시 상단 메뉴의 ".on"). 링크 자신이나 그 li 에서 찾는다 */
+  mark?: string;
+  /** 보여주는 모양: list = 세로 목록 (기본), chips = 짧은 항목을 여러 줄로 감싼 칩 (상단 메뉴용) */
+  style?: "list" | "chips";
+  /** 그룹 하나를 감싸는 요소 (문서 기준) */
+  groups: string[];
+  /** 그룹 기준 제목 요소. a 요소면 제목도 링크가 된다. 없으면 label 을 제목으로 */
+  heading?: Field;
+  /** heading 이 없을 때의 그룹 이름 (예: "최근 방문 갤러리") */
+  label?: string;
+  /** 그룹 기준 게시판 링크 (a) */
+  links: string[];
+  /** 링크 글자 (링크 기준). 없으면 링크 전체 글자 */
+  linkText?: Field;
+  /** 글자가 이 정규식에 맞는 링크는 뺀다 (예: 메뉴 끝의 "광고문의") */
+  skip?: string;
+}
+
+/**
+ * 통일 화면 오른쪽 열의 블록 하나 (설계 8-2절). 둘 중 하나:
+ * - links: 사이트의 링크 목록을 읽어 통일된 모양으로 다시 그림 (예: 루리웹 게시판 BEST 글 목록)
+ * - move: 사이트의 원래 요소를 그대로 옮겨 놓음. 버튼처럼 사이트 동작이 필요한 것 (예: 디시 전체글/개념글/공지, 말머리)
+ * 페이지에 없으면 그 블록은 생략되고, 블록이 하나도 없으면 오른쪽 열 자체가 없다.
+ */
+export interface SideBlock {
+  /** 블록 제목 (move 블록용. links 블록은 MenuSpec 의 heading/label) */
+  title?: string;
+  links?: MenuSpec;
+  move?: Field;
+  /** move 블록 안에서 숨겨져 있던 요소를 펼쳐 보일 것 (예: 디시 "말머리 더보기" 레이어) */
+  reveal?: string[];
+  /** move 블록 안에서 숨길 것 (예: 더보기 버튼) */
+  hide?: string[];
+}
+
+export interface Recipe {
+  schemaVersion: 2;
+  host: string;
+  version: number;
+  minEngine: number;
+  siteName: string;
+  menu?: MenuSpec[];
+  side?: SideBlock[];
+  pages: Page[];
+}
+
+/** 레시피의 menu 를 읽은 결과 (왼쪽 메뉴 열에 그려진다) */
+export interface MenuLink {
+  text: string;
+  href: string;
+  /** 지금 보고 있는 게시판 */
+  current: boolean;
+}
+export interface MenuGroup {
+  title: string;
+  style: "list" | "chips";
+  href: string | null;
+  current: boolean;
+  links: MenuLink[];
+}
+export interface Menu {
+  site: string;
+  host: string;
+  groups: MenuGroup[];
+}
+
+export type Verdict = "ok" | "degraded" | "broken" | "none";
+
+export interface Status {
+  verdict: Verdict;
+  host: string;
+  recipeVersion: number | null;
+  pageId: string | null;
+  /** broken 의 원인 (probe, 필수 필드명, engine, exception 등) */
+  failed: string[];
+  /** degraded 의 원인 (못 찾은 선택 필드, 검산 경고) */
+  warnings: string[];
+  engine: number;
+  ms: number;
+}

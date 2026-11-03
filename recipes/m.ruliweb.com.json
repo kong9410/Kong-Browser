@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "host": "m.ruliweb.com",
+  "version": 2,
+  "minEngine": 1,
+  "siteName": "루리웹",
+  "pages": [
+    {
+      "id": "post",
+      "type": "post",
+      "match": "^/[a-z]+/board/[0-9]+/read/[0-9]+",
+      "probe": [".board_main_view"],
+      "category": { "sel": [".subject_text .category_text"] },
+      "title": { "sel": [".subject_text .subject_inner_text"], "required": true },
+      "author": { "sel": [".user_view .user_info .nick"] },
+      "createdAt": { "sel": [".user_view .regdate"] },
+      "views": { "sel": [".user_view .hit"] },
+      "likes": { "sel": [".user_view .recomd"] },
+      "body": { "sel": [".board_main_view .view_content"], "required": true, "exclude": ["h1.screen_out"] },
+      "actions": { "sel": [".board_main_view .like_wrapper"] },
+      "listLink": {"sel": [".article_func_wrapper a"], "text": "^목록$"},
+      "ad": { "sel": [".mo_ad_main_ti_wrapper"] },
+      "commentCount": { "sel": [".comment_btn_wrapper .reply_count"] },
+      "comments": {
+        "anchor": ".comment_container",
+        "item": ["tr.comment_element.normal"],
+        "bestItem": ["tr.comment_element.best"],
+        "replyMarker": ".child",
+        "who": { "sel": [".nick"] },
+        "when": { "sel": [".time"], "pattern": "([0-9.]+\\s+[0-9:]+)" },
+        "content": { "sel": [".text_wrapper .text"], "required": true },
+        "actions": { "sel": [".control_box"] },
+        "more": { "sel": [".comment_count_wrapper .paging_wrapper"] }
+      }
+    },
+    {
+      "id": "board",
+      "type": "board",
+      "match": "^/[a-z]+/board/[0-9]+/?(\\?.*)?$",
+      "probe": [".board_list_table"],
+      "boardName": { "sel": ["strong#board_name"] },
+      "rows": {
+        "sameBoard": "/board/([0-9]+)",
+        "scope": [".board_main .board_list_table"],
+        "item": ["tr.table_body.default_list"],
+        "category": { "sel": [".cate_label"] },
+        "title": { "sel": [".subject_link"], "exclude": [".num_reply"] },
+        "link": { "sel": [".subject_link"] },
+        "author": { "sel": [".writer"] },
+        "createdAt": { "sel": [".time"] },
+        "views": { "sel": [".hit"] },
+        "likes": { "sel": [".recomd"] },
+        "commentCount": { "sel": [".replycount .num", ".num_reply"] }
+      },
+      "more": { "sel": ["#btn_more"] },
+      "pager": { "sel": [".paging_wrapper"] }
+    }
+  ]
+}
