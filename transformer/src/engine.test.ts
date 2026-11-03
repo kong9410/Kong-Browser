@@ -4,6 +4,7 @@ import { judge } from "./judge.js";
 import { buildBoard, buildHub, buildPost, mount } from "./layout.js";
 import { readLogo, siteMark } from "./logo.js";
 import { setNavOptions } from "./nav.js";
+import { observeHub } from "./observe.js";
 import { cleanText, hit, locate, pickPage, type LocatedBoard, type LocatedHub, type LocatedPost } from "./locate.js";
 import { extractMenu } from "./menu.js";
 import type { Recipe } from "./recipe.js";
@@ -363,5 +364,24 @@ describe("raw: 옮긴 내용 중 사이트 모양 그대로 둘 부분", () => {
     post.comments = { item: ["li.c"], content: { sel: [".t"], raw: [".comment_dccon"] } };
     const root = buildPost(locate(document, pickPage(r, document).page!) as LocatedPost, r).root;
     expect(root.querySelector(".k-cmt-body .comment_dccon")?.classList.contains("k-raw")).toBe(true);
+  });
+});
+
+describe("첫 화면: 사이트가 늦게 채우는 메뉴", () => {
+  it("최근 방문 갤러리처럼 나중에 붙는 링크도 왼쪽 메뉴에 반영 (디시 홈)", async () => {
+    page("https://example.test/", `<div id="container"><ul class="vst_listbox"></ul></div>`);
+    const r: Recipe = {
+      ...recipe,
+      menu: [{ label: "최근 방문 갤러리", groups: [".vst_listbox"], links: ["li > a"], current: "none" }],
+      pages: [{ id: "home", type: "hub", match: "^/?$", probe: ["#container"] }],
+    };
+    const root = buildHub(locate(document, pickPage(r, document).page!) as LocatedHub, r);
+    mount(root);
+    observeHub();
+    expect(root.querySelectorAll(".k-nav a").length).toBe(0);
+    // 사이트가 저장소에서 읽어 와 목록을 채움 (원본 영역은 숨겨진 채)
+    document.querySelector(".vst_listbox")!.innerHTML = `<li><a href="https://gall.dcinside.com/board/lists?id=a">갤A</a></li>`;
+    await new Promise((res) => setTimeout(res, 300));
+    expect([...root.querySelectorAll(".k-nav a")].map((a) => a.textContent)).toContain("갤A");
   });
 });

@@ -6,7 +6,7 @@ import { setVisited } from "./visited.js";
 import { findAll, hit, locate, pickPage, type Located, type LocatedBoard, type LocatedHub, type LocatedPost } from "./locate.js";
 import { extractMenu } from "./menu.js";
 import { revealCurrent, setNavOptions } from "./nav.js";
-import { observeBoard, observePost } from "./observe.js";
+import { observeBoard, observePost, observeHub } from "./observe.js";
 import { ENGINE_VERSION, type Recipe, type Status } from "./recipe.js";
 
 declare global {
@@ -88,6 +88,7 @@ export function run(recipe: Recipe): Status {
     } else if (located.page.type === "hub") {
       mount(buildHub(located as LocatedHub, recipe), page.hide);
       revealCurrent();
+      observeHub();
     } else {
       const view = buildBoard(located as LocatedBoard, recipe);
       mount(view.root, page.hide);

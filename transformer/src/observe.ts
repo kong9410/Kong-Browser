@@ -47,3 +47,8 @@ export function observeBoard(page: BoardPage, view: BoardView) {
     for (const r of locateRows(scope, page.rows)) if (!isDone(r.item)) view.addRow(r);
   });
 }
+
+/** 첫 화면: 옮길 목록은 없고, 사이트가 메뉴를 늦게 채우면(디시 홈의 최근 방문 갤러리 등) 왼쪽 메뉴만 다시 그린다 */
+export function observeHub() {
+  onChange(() => {});
+}
