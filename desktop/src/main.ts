@@ -6,8 +6,10 @@ import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme, WebContentsView, type Input, type WebContents } from "electron";
 import { dedupeKey, DEDUPE_MS, shouldReport, toReport } from "../../transformer/src/report";
 import type { Status } from "../../transformer/src/recipe";
-import { IPC, type BrowserState, type InternalRequest, type PageConfig, type TabInfo, type TabState } from "./shared.js";
+import * as bm from "./bookmarks.js";
+import { IPC, type BrowserState, type InternalRequest, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
 import * as store from "./store.js";
+import { suggest, toUrl, type Suggestion } from "./suggest.js";
 
 // 테스트에서 매번 깨끗한 사용자 데이터로 시작할 수 있게 (탭 복원·북마크·기록이 이전 실행에 영향받지 않도록)
 if (process.env.KONG_USER_DATA) app.setPath("userData", process.env.KONG_USER_DATA);
@@ -16,11 +18,11 @@ if (process.env.KONG_USER_DATA) app.setPath("userData", process.env.KONG_USER_DA
 const fileUrl = (...p: string[]) => pathToFileURL(path.join(__dirname, ...p)).href;
 const START_URL = fileUrl("ui", "start.html");
 const HISTORY_URL = fileUrl("ui", "history.html");
-/** 앱 안쪽 페이지(시작 페이지, 방문 기록)의 주소 앞부분: 이 페이지들만 기록·북마크 API 를 쓸 수 있다 */
+const BOOKMARKS_URL = fileUrl("ui", "bookmarks.html");
+/** 앱 안쪽 페이지(시작 페이지, 방문 기록, 북마크 관리)의 주소 앞부분: 이 페이지들만 기록·북마크 API 를 쓸 수 있다 */
 const INTERNAL_PREFIX = decodeURIComponent(fileUrl("ui") + "/").toLowerCase();
 const isInternal = (url: string) => decodeURIComponent(url).toLowerCase().startsWith(INTERNAL_PREFIX);
-const isHistoryPage = (url: string) => decodeURIComponent(url).toLowerCase().startsWith(decodeURIComponent(HISTORY_URL).toLowerCase());
-const SEARCH_URL = "https://www.google.com/search?q=";
+const samePage = (url: string, page: string) => decodeURIComponent(url).toLowerCase().startsWith(decodeURIComponent(page).toLowerCase());
 
 // 패키징된 앱은 resources/recipes, 개발 중에는 dist/recipes (빌드 시 ../recipes 에서 복사)
 // (KONG_RECIPES_DIR: 테스트에서 일부러 깨진 레시피를 넣어볼 때)
@@ -128,7 +130,7 @@ function pushUI() {
     ...active.state,
     tabs: info,
     bookmarked: store.isBookmarked(active.state.url),
-    bookmarks: store.listBookmarks(),
+    bookmarks: store.bookmarkData(),
     bookmarkBar: loadSettings().bookmarkBar,
   };
   win.webContents.send(IPC.state, state);
@@ -193,6 +195,7 @@ function createTab(url: string, opts: { activate?: boolean; after?: Tab | null }
 
 function activate(tab: Tab) {
   if (active === tab) return;
+  hideSuggestions();
   if (active) win.contentView.removeChildView(active.view);
   active = tab;
   win.contentView.addChildView(tab.view);
@@ -241,32 +244,79 @@ function moveTab(tab: Tab, to: number) {
 function toggleBookmark() {
   if (!active || !/^https?:/.test(active.state.url)) return;
   const { url, title } = active.state;
-  if (store.isBookmarked(url)) store.removeBookmark(url);
-  else store.addBookmark({ url, title: title || url, favicon: active.favicon });
+  store.editBookmarks((d) => (bm.find(d, url) ? bm.remove(d, url) : bm.add(d, { url, title: title || url, favicon: active!.favicon })));
   pushUI();
 }
 
-/** 방문 기록 페이지: 이미 열려 있으면 그 탭으로(새로 읽음), 없으면 새 탭 */
-function openHistory() {
-  const open = tabs.find((t) => isHistoryPage(t.state.url));
+const editBookmarks = (fn: Parameters<typeof store.editBookmarks>[0]) => {
+  store.editBookmarks(fn);
+  pushUI();
+};
+
+/** "폴더로 이동" 하위 메뉴: 북마크 바 + 폴더들, 지금 있는 곳에 체크 */
+function moveMenu(url: string): Electron.MenuItemConstructorOptions {
+  const d = store.bookmarkData();
+  const now = bm.find(d, url)?.folder ?? null;
+  const to = (folder: string | null, label: string): Electron.MenuItemConstructorOptions => ({
+    label,
+    type: "radio",
+    checked: now === folder,
+    click: () => editBookmarks((x) => bm.move(x, url, folder)),
+  });
+  return {
+    label: "폴더로 이동",
+    submenu: [to(null, "북마크 바"), ...d.folders.map((fo) => to(fo.id, fo.name)), { type: "separator" }, { label: "새 폴더 만들기…", click: openBookmarks }],
+  };
+}
+
+/** 같은 앱 안쪽 페이지가 열려 있으면 그 탭으로(새로 읽음), 없으면 새 탭 */
+function openInternal(page: string) {
+  const open = tabs.find((t) => samePage(t.state.url, page));
   if (open) {
     activate(open);
     open.view.webContents.reload();
-  } else createTab(HISTORY_URL);
+  } else createTab(page, { after: active });
 }
+const openBookmarks = () => openInternal(BOOKMARKS_URL);
+
+// ---------- 주소창 자동완성 목록 (페이지 위에 겹쳐 뜨는 작은 창) ----------
+// 페이지(WebContentsView)는 툴바 화면보다 위에 그려지므로, 목록은 별도의 view 로 페이지 위에 띄운다.
+
+let suggestView: WebContentsView | null = null;
+let suggestions: Suggestion[] = [];
+const ROW_H = 36;
+
+function ensureSuggestView(): WebContentsView {
+  if (suggestView) return suggestView;
+  suggestView = new WebContentsView({
+    webPreferences: { preload: path.join(__dirname, "preload-suggest.js"), contextIsolation: true, sandbox: true, nodeIntegration: false },
+  });
+  suggestView.setBackgroundColor("#00000000");
+  suggestView.webContents.loadFile(path.join(__dirname, "ui", "suggest.html"));
+  return suggestView;
+}
+
+function showSuggestions(list: Suggestion[], at: Rect) {
+  suggestions = list;
+  const v = ensureSuggestView();
+  if (!list.length) return hideSuggestions();
+  v.setBounds({ x: Math.round(at.x), y: Math.round(at.y + at.height + 4), width: Math.round(at.width), height: list.length * ROW_H + 12 });
+  win.contentView.addChildView(v); // 이미 있으면 맨 위로
+  v.webContents.send(IPC.suggestList, list, 0);
+}
+
+function hideSuggestions() {
+  suggestions = [];
+  if (suggestView && win.contentView.children.includes(suggestView)) win.contentView.removeChildView(suggestView);
+}
+
+/** 방문 기록 페이지 */
+const openHistory = () => openInternal(HISTORY_URL);
 
 function toggleBookmarkBar() {
   const s = loadSettings();
   saveSettings({ ...s, bookmarkBar: !s.bookmarkBar });
   setTimeout(pushUI, 50); // 설정 파일 쓰기 뒤에
-}
-
-/** 주소창 입력 → URL. 주소처럼 보이지 않으면 검색 */
-function toUrl(text: string): string {
-  const t = text.trim();
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) return t;
-  if (/^[^\s]+\.[^\s]{2,}(\/.*)?$/.test(t) || /^localhost(:\d+)?(\/.*)?$/.test(t)) return `https://${t}`;
-  return SEARCH_URL + encodeURIComponent(t);
 }
 
 /** 단축키: 툴바와 페이지 어느 쪽에 포커스가 있어도 동작 */
@@ -281,6 +331,7 @@ function handleShortcut(input: Input): boolean {
   else if (ctrl && input.shift && key === "b") toggleBookmarkBar();
   else if (ctrl && key === "d") toggleBookmark();
   else if (ctrl && key === "h") openHistory();
+  else if (ctrl && input.shift && key === "o") openBookmarks();
   else if (ctrl && key === "t") openBlankTab();
   else if (ctrl && (key === "w" || input.key === "F4")) closeTab(active);
   else if (ctrl && (input.key === "Tab" || input.key === "PageDown" || input.key === "PageUp"))
@@ -343,6 +394,9 @@ function createWindow() {
       },
       get tabs() {
         return tabs.map((t) => ({ id: t.id, url: t.state.url, title: t.state.title, active: t === active }));
+      },
+      get suggest() {
+        return { visible: !!suggestView && win.contentView.children.includes(suggestView), list: suggestions };
       },
     };
 }
@@ -421,15 +475,56 @@ ipcMain.on(IPC.openHistory, () => openHistory());
 ipcMain.on(IPC.bookmarkMenu, (_e, url: string) => {
   Menu.buildFromTemplate([
     { label: "새 탭에서 열기", click: () => createTab(url, { after: active }) },
+    moveMenu(url),
     { type: "separator" },
-    {
-      label: "북마크 삭제",
-      click: () => {
-        store.removeBookmark(url);
-        pushUI();
-      },
-    },
+    { label: "북마크 삭제", click: () => editBookmarks((d) => bm.remove(d, url)) },
+    { label: "북마크 관리", click: openBookmarks },
   ]).popup({ window: win });
+});
+// ★ (이미 북마크된 페이지) 를 눌렀을 때
+ipcMain.on(IPC.starMenu, (_e, at: Rect) => {
+  if (!active) return;
+  const url = active.state.url;
+  Menu.buildFromTemplate([
+    { label: "북마크됨", enabled: false },
+    moveMenu(url),
+    { type: "separator" },
+    { label: "북마크 삭제", click: () => editBookmarks((d) => bm.remove(d, url)) },
+    { label: "북마크 관리", click: openBookmarks },
+  ]).popup({ window: win, x: Math.round(at.x), y: Math.round(at.y + at.height) });
+});
+// 북마크 바의 폴더를 눌렀을 때: 안의 북마크 (Ctrl+클릭 = 뒤쪽 새 탭)
+ipcMain.on(IPC.folderMenu, (_e, id: string, at: Rect) => {
+  const group = bm.tree(store.bookmarkData()).folders.find((g) => g.folder.id === id);
+  if (!group) return;
+  const items: Electron.MenuItemConstructorOptions[] = group.bookmarks.map((b) => ({
+    label: b.title.length > 60 ? b.title.slice(0, 60) + "…" : b.title,
+    click: (_i, _w, e) => (e.ctrlKey || e.metaKey ? createTab(b.url, { activate: false, after: active }) : current()?.loadURL(b.url)),
+  }));
+  if (!items.length) items.push({ label: "(비어 있음)", enabled: false });
+  else
+    items.push({ type: "separator" }, { label: "모두 새 탭에서 열기", click: () => group.bookmarks.forEach((b) => createTab(b.url, { activate: false, after: active })) });
+  items.push({ label: "북마크 관리", click: openBookmarks });
+  Menu.buildFromTemplate(items).popup({ window: win, x: Math.round(at.x), y: Math.round(at.y + at.height) });
+});
+ipcMain.on(IPC.openBookmarks, () => openBookmarks());
+
+// 주소창 자동완성
+ipcMain.handle(IPC.suggest, (_e, text: string, at: Rect) => {
+  const d = store.bookmarkData();
+  const list = suggest(text, {
+    bookmarks: d.bookmarks.map((b) => ({ url: b.url, title: b.title, folder: bm.folderName(d, b.folder) ?? null })),
+    history: store.historyEntries(),
+  });
+  showSuggestions(list, at);
+  return list;
+});
+ipcMain.on(IPC.suggestSelect, (_e, i: number) => suggestView?.webContents.send(IPC.suggestList, suggestions, i));
+ipcMain.on(IPC.suggestHide, () => hideSuggestions());
+ipcMain.on(IPC.suggestChoose, (_e, url: string) => {
+  hideSuggestions();
+  current()?.loadURL(url);
+  active?.view.webContents.focus();
 });
 
 // 앱 안쪽 페이지(시작 페이지, 방문 기록)만 쓸 수 있는 기록·북마크 API
@@ -443,11 +538,19 @@ ipcMain.handle(IPC.internal, (e, req: InternalRequest) => {
     case "clearHistory":
       return store.clearHistory();
     case "bookmarks":
-      return store.listBookmarks();
+      return store.bookmarkData();
     case "removeBookmark":
-      store.removeBookmark(req.url);
-      pushUI();
-      return;
+      return editBookmarks((d) => bm.remove(d, req.url));
+    case "renameBookmark":
+      return editBookmarks((d) => bm.rename(d, req.url, req.title));
+    case "moveBookmark":
+      return editBookmarks((d) => bm.move(d, req.url, req.folder));
+    case "addFolder":
+      return editBookmarks((d) => bm.addFolder(d, req.name, store.newFolderId()));
+    case "renameFolder":
+      return editBookmarks((d) => bm.renameFolder(d, req.id, req.name));
+    case "removeFolder":
+      return editBookmarks((d) => bm.removeFolder(d, req.id));
   }
 });
 

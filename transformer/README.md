@@ -26,6 +26,12 @@ npm run browse -- "https://bbs.ruliweb.com/community/board/300143"
 npm run diagnose -- "https://bbs.ruliweb.com/mobile/board/300008/read/2296589"
 ```
 
+단위 테스트: 엔진 함수(탐지·판정·메뉴 읽기)를 가짜 DOM(happy-dom)에서 검사합니다. 실제 브라우저 없이 1초 안쪽.
+
+```bash
+npm test
+```
+
 ### 사이트 변경 대응 도구 (설계 7절)
 
 스냅샷 모으기: 판정이 ok 인 페이지의 HTML 을 `snapshots/<host>/` 에 저장합니다. 개발 PC 에만 두고 git/서버에는 올리지 않습니다. 이미지 글, 동영상 글, 댓글 없는 글, 댓글 많은 글처럼 다양하게 모아 두세요.

@@ -23,7 +23,7 @@ await Promise.all([
     external: ["electron"],
   }),
   // sandbox 된 preload 는 require("electron") 외에는 모듈을 불러올 수 없으므로 한 파일로 묶는다
-  ...["preload-page", "preload-ui"].map((name) =>
+  ...["preload-page", "preload-ui", "preload-suggest"].map((name) =>
     esbuild.build({
       ...common,
       entryPoints: [path.join(SRC, `${name}.ts`)],
@@ -36,7 +36,7 @@ await Promise.all([
     }),
   ),
   // 툴바와 앱 안쪽 페이지(시작 페이지, 방문 기록)의 스크립트
-  ...["toolbar", "start", "history"].map((name) =>
+  ...["toolbar", "start", "history", "bookmarks", "suggest-list"].map((name) =>
     esbuild.build({
       ...common,
       entryPoints: [path.join(SRC, "ui", `${name}.ts`)],
@@ -48,7 +48,7 @@ await Promise.all([
   ),
 ]);
 
-for (const f of ["index.html", "toolbar.css", "start.html", "history.html", "pages.css"]) fs.copyFileSync(path.join(SRC, "ui", f), path.join(DIST, "ui", f));
+for (const f of ["index.html", "toolbar.css", "start.html", "history.html", "bookmarks.html", "suggest.html", "pages.css"]) fs.copyFileSync(path.join(SRC, "ui", f), path.join(DIST, "ui", f));
 
 fs.mkdirSync(path.join(DIST, "recipes"), { recursive: true });
 const recipes = fs.readdirSync(RECIPES).filter((f) => f.endsWith(".json"));

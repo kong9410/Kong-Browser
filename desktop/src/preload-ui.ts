@@ -1,6 +1,7 @@
 // 툴바 preload: 툴바 화면에 필요한 최소한의 API 만 노출한다.
 import { contextBridge, ipcRenderer } from "electron";
-import { IPC, type BrowserState } from "./shared";
+import { IPC, type BrowserState, type Rect } from "./shared";
+import type { Suggestion } from "./suggest";
 
 const api = {
   navigate: (text: string) => ipcRenderer.send(IPC.navigate, text),
@@ -17,6 +18,13 @@ const api = {
   toggleBookmark: () => ipcRenderer.send(IPC.toggleBookmark),
   bookmarkMenu: (url: string) => ipcRenderer.send(IPC.bookmarkMenu, url),
   openHistory: () => ipcRenderer.send(IPC.openHistory),
+  openBookmarks: () => ipcRenderer.send(IPC.openBookmarks),
+  starMenu: (at: Rect) => ipcRenderer.send(IPC.starMenu, at),
+  folderMenu: (id: string, at: Rect) => ipcRenderer.send(IPC.folderMenu, id, at),
+  /** 자동완성: 후보를 계산해 목록 창에 띄우고, 후보를 돌려받는다 (Enter 처리용) */
+  suggest: (text: string, at: Rect) => ipcRenderer.invoke(IPC.suggest, text, at) as Promise<Suggestion[]>,
+  suggestSelect: (i: number) => ipcRenderer.send(IPC.suggestSelect, i),
+  suggestHide: () => ipcRenderer.send(IPC.suggestHide),
   /** 페이지 영역이 시작할 위치 (툴바 높이) */
   setLayout: (box: { top: number }) => ipcRenderer.send(IPC.layout, box),
   ready: () => ipcRenderer.send(IPC.ready),

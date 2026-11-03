@@ -10,13 +10,17 @@
     "typecheck": "tsc --noEmit",
     "snapshot": "tsx cli/snapshot.ts",
     "check": "tsx cli/check.ts",
-    "canary": "tsx cli/canary.ts"
+    "canary": "tsx cli/canary.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
     "playwright-core": "^1.64.1",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.7"
   }
 }

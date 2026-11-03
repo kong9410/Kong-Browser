@@ -6,8 +6,8 @@ import type { Recipe } from "../../transformer/src/recipe";
 import { installScrollButtons } from "./page-tools";
 import { IPC, type InternalRequest, type PageConfig } from "./shared";
 
-// 앱 안쪽 페이지(시작 페이지, 방문 기록)에만: 방문 기록·북마크 조회/삭제 (main 도 보낸 쪽 주소를 다시 확인한다)
-if (location.protocol === "file:" && /\/ui\/(start|history)\.html$/i.test(location.pathname)) {
+// 앱 안쪽 페이지(시작 페이지, 방문 기록, 북마크 관리)에만: 방문 기록·북마크 조회/편집 (main 도 보낸 쪽 주소를 다시 확인한다)
+if (location.protocol === "file:" && /\/ui\/(start|history|bookmarks)\.html$/i.test(location.pathname)) {
   contextBridge.exposeInMainWorld("kongInternal", {
     call: (req: InternalRequest) => ipcRenderer.invoke(IPC.internal, req),
   });

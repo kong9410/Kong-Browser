@@ -1,28 +1,44 @@
 // 시작 페이지(새 탭): 북마크와 최근 방문을 보여준다
+import type { Bookmark } from "../shared";
 import { el, hostOf, internal, siteIcon } from "./pages";
 
+function tile(b: Bookmark): HTMLElement {
+  const a = el("a", "tile");
+  a.href = b.url;
+  a.title = b.url;
+  const title = el("b");
+  title.append(siteIcon(b.url, b.favicon), document.createTextNode(b.title));
+  const del = el("button", "del", "×");
+  del.title = "북마크 삭제";
+  del.onclick = async (e) => {
+    e.preventDefault();
+    await internal.removeBookmark(b.url);
+    showBookmarks();
+  };
+  a.append(title, el("span", "sub", hostOf(b.url)), del);
+  return a;
+}
+
+/** 북마크: 북마크 바에 바로 놓인 것 먼저, 그 아래 폴더별 */
 async function showBookmarks() {
-  const list = await internal.bookmarks();
+  const data = await internal.bookmarks();
   const box = document.getElementById("bookmarks")!;
-  document.getElementById("bookmarks-section")!.hidden = !list?.length;
-  box.replaceChildren(
-    ...(list ?? []).map((b) => {
-      const a = el("a", "tile");
-      a.href = b.url;
-      a.title = b.url;
-      const title = el("b");
-      title.append(siteIcon(b.url, b.favicon), document.createTextNode(b.title));
-      const del = el("button", "del", "×");
-      del.title = "북마크 삭제";
-      del.onclick = async (e) => {
-        e.preventDefault();
-        await internal.removeBookmark(b.url);
-        showBookmarks();
-      };
-      a.append(title, el("span", "sub", hostOf(b.url)), del);
-      return a;
-    }),
-  );
+  document.getElementById("bookmarks-section")!.hidden = !data?.bookmarks.length;
+  box.replaceChildren();
+  if (!data) return;
+  const root = data.bookmarks.filter((b) => !b.folder);
+  if (root.length) {
+    const grid = el("div", "grid");
+    root.forEach((b) => grid.appendChild(tile(b)));
+    box.appendChild(grid);
+  }
+  for (const f of data.folders) {
+    const list = data.bookmarks.filter((b) => b.folder === f.id);
+    if (!list.length) continue;
+    const grid = el("div", "grid");
+    list.forEach((b) => grid.appendChild(tile(b)));
+    box.append(el("h3", "folder-title", f.name), grid);
+  }
 }
 
 async function showRecent() {

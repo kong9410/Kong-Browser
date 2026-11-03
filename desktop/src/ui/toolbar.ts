@@ -1,6 +1,7 @@
-// 툴바: 탭 줄, 주소창, 뒤로/앞으로/새로고침, 재배치 상태 표시, 원본 보기 전환, 고장 배너
+// 툴바: 탭 줄, 주소창(자동완성), 뒤로/앞으로/새로고침, 재배치 상태 표시, 원본 보기 전환, 북마크(폴더), 고장 배너
 import type { KongUI } from "../preload-ui";
-import type { Bookmark, BrowserState, TabInfo } from "../shared";
+import type { Bookmark, BookmarkData, BrowserState, Rect, TabInfo } from "../shared";
+import type { Suggestion } from "../suggest";
 
 declare global {
   interface Window {
@@ -28,35 +29,85 @@ const bookmarkBar = $("bookmark-bar");
 
 let loading = false;
 let editing = false;
+let bookmarked = false;
+
+const rectOf = (el: Element): Rect => {
+  const r = el.getBoundingClientRect();
+  return { x: r.left, y: r.top, width: r.width, height: r.height };
+};
 
 back.onclick = () => ui.back();
 forward.onclick = () => ui.forward();
 reload.onclick = () => (loading ? ui.stop() : ui.reload());
 original.onclick = () => ui.toggleOriginal();
 newTab.onclick = () => ui.newTab();
-bookmarkBtn.onclick = () => ui.toggleBookmark();
+// ☆ = 북마크 추가, ★ = 폴더로 이동 / 삭제 / 관리 메뉴
+bookmarkBtn.onclick = () => (bookmarked ? ui.starMenu(rectOf(bookmarkBtn)) : ui.toggleBookmark());
 historyBtn.onclick = () => ui.openHistory();
 // 탭 줄 빈 곳을 두 번 누르면 새 탭 (Chrome 과 같은 동작)
 const tabstrip = tabsBox.parentElement!;
 tabstrip.ondblclick = (e) => {
   if (e.target === tabstrip || e.target === tabsBox) ui.newTab();
 };
+// ---------- 주소창 + 자동완성 ----------
+// 목록은 main 이 페이지 위에 띄우는 별도 창에 그린다. 여기서는 입력과 선택 위치만 관리한다.
+let suggestions: Suggestion[] = [];
+let selected = 0;
+let suggestTimer: ReturnType<typeof setTimeout> | undefined;
+let seq = 0;
+
+function closeSuggestions() {
+  clearTimeout(suggestTimer);
+  seq++; // 늦게 도착한 후보는 버린다
+  suggestions = [];
+  ui.suggestHide();
+}
+
 form.onsubmit = (e) => {
   e.preventDefault();
   if (!address.value.trim()) return;
   editing = false;
-  ui.navigate(address.value);
+  // 고른 후보가 있으면 그 주소로 (첫 줄 = 입력한 그대로 이동/검색)
+  const chosen = suggestions[selected];
+  closeSuggestions();
+  if (chosen) ui.openUrl(chosen.url, "current");
+  else ui.navigate(address.value);
   address.blur();
 };
 address.onfocus = () => {
   editing = true;
   address.select();
 };
-address.onblur = () => (editing = false);
+address.onblur = () => {
+  editing = false;
+  // 목록을 마우스로 누르는 경우를 위해 조금 늦게 닫는다 (목록 쪽은 mousedown 에서 바로 고름)
+  setTimeout(closeSuggestions, 150);
+};
+address.oninput = () => {
+  clearTimeout(suggestTimer);
+  const text = address.value;
+  if (!text.trim()) return closeSuggestions();
+  suggestTimer = setTimeout(async () => {
+    const mine = ++seq;
+    const list = await ui.suggest(text, rectOf(form));
+    if (mine !== seq) return;
+    suggestions = list;
+    selected = 0;
+  }, 60);
+};
 address.onkeydown = (e) => {
-  if (e.key === "Escape") {
-    editing = false;
-    address.blur();
+  if ((e.key === "ArrowDown" || e.key === "ArrowUp") && suggestions.length) {
+    e.preventDefault();
+    const n = suggestions.length;
+    selected = (selected + (e.key === "ArrowDown" ? 1 : -1) + n) % n;
+    ui.suggestSelect(selected);
+  } else if (e.key === "Escape") {
+    // 목록이 있으면 목록만 닫고, 없으면 주소창을 빠져나간다
+    if (suggestions.length) closeSuggestions();
+    else {
+      editing = false;
+      address.blur();
+    }
   }
 };
 ui.onFocusAddress(() => {
@@ -101,9 +152,10 @@ ui.onState((s: BrowserState) => {
 
   // 북마크 ☆/★: 웹 페이지에서만
   bookmarkBtn.hidden = !/^https?:/.test(s.url);
+  bookmarked = s.bookmarked;
   bookmarkBtn.classList.toggle("on", s.bookmarked);
-  bookmarkBtn.title = s.bookmarked ? "북마크 삭제 (Ctrl+D)" : "북마크 추가 (Ctrl+D)";
-  renderBookmarks(s.bookmarkBar ? s.bookmarks : []);
+  bookmarkBtn.title = s.bookmarked ? "북마크 편집: 폴더로 이동 / 삭제 (Ctrl+D 로 바로 삭제)" : "북마크 추가 (Ctrl+D)";
+  renderBookmarks(s.bookmarkBar ? s.bookmarks : null);
 
   const broken = s.verdict === "broken" && !s.original;
   banner.hidden = !broken;
@@ -209,40 +261,59 @@ tabsBox.ondrop = (e) => {
 // ---------- 북마크 바 ----------
 
 let lastBookmarks = "";
-function renderBookmarks(list: Bookmark[]) {
-  const json = JSON.stringify(list);
+/** 북마크 바: 폴더 먼저(누르면 안의 북마크 메뉴), 그 뒤에 북마크 바에 바로 놓인 북마크. null 이면 숨김(Ctrl+Shift+B) */
+function renderBookmarks(data: BookmarkData | null) {
+  const json = JSON.stringify(data);
   if (json === lastBookmarks) return;
   lastBookmarks = json;
-  bookmarkBar.hidden = list.length === 0;
+  const root = data ? data.bookmarks.filter((b) => !b.folder) : [];
+  const folders = data ? data.folders : [];
+  bookmarkBar.hidden = root.length + folders.length === 0;
   bookmarkBar.replaceChildren(
-    ...list.map((b) => {
+    ...folders.map((f) => {
       const item = document.createElement("button");
-      item.className = "bm";
-      item.title = `${b.title}
-${b.url}`;
-      if (b.favicon) {
-        const img = document.createElement("img");
-        img.src = b.favicon;
-        img.alt = "";
-        img.onerror = () => img.remove();
-        item.appendChild(img);
-      }
+      item.className = "bm folder";
+      item.title = f.name;
+      item.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>`;
       const label = document.createElement("span");
-      label.textContent = b.title;
+      label.textContent = f.name;
       item.appendChild(label);
-      // 클릭 = 지금 탭, Ctrl+클릭·가운데 클릭 = 뒤쪽 새 탭, 오른쪽 클릭 = 메뉴(새 탭에서 열기 / 삭제)
-      item.onclick = (e) => ui.openUrl(b.url, e.ctrlKey || e.metaKey ? "background" : "current");
-      item.onauxclick = (e) => {
-        if (e.button === 1) ui.openUrl(b.url, "background");
-      };
+      item.onclick = () => ui.folderMenu(f.id, rectOf(item));
       item.oncontextmenu = (e) => {
         e.preventDefault();
-        ui.bookmarkMenu(b.url);
+        ui.openBookmarks(); // 폴더 이름 바꾸기·삭제는 북마크 관리에서
       };
       return item;
     }),
+    ...root.map((b) => bookmarkItem(b)),
   );
   reportLayout(); // 북마크 바가 생기거나 없어지면 툴바 높이가 바뀐다
+}
+
+function bookmarkItem(b: Bookmark): HTMLElement {
+  const item = document.createElement("button");
+  item.className = "bm";
+  item.title = `${b.title}\n${b.url}`;
+  if (b.favicon) {
+    const img = document.createElement("img");
+    img.src = b.favicon;
+    img.alt = "";
+    img.onerror = () => img.remove();
+    item.appendChild(img);
+  }
+  const label = document.createElement("span");
+  label.textContent = b.title;
+  item.appendChild(label);
+  // 클릭 = 지금 탭, Ctrl+클릭·가운데 클릭 = 뒤쪽 새 탭, 오른쪽 클릭 = 메뉴(새 탭에서 열기 / 폴더로 이동 / 삭제)
+  item.onclick = (e) => ui.openUrl(b.url, e.ctrlKey || e.metaKey ? "background" : "current");
+  item.onauxclick = (e) => {
+    if (e.button === 1) ui.openUrl(b.url, "background");
+  };
+  item.oncontextmenu = (e) => {
+    e.preventDefault();
+    ui.bookmarkMenu(b.url);
+  };
+  return item;
 }
 
 /** 페이지 영역이 툴바 바로 아래에 오도록 main 에 알린다 (배너가 뜨면 툴바가 높아짐) */

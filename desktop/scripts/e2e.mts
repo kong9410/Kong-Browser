@@ -373,6 +373,61 @@ async function shot(app: ElectronApplication, toolbar: Page, name: string) {
   await new Promise((r) => setTimeout(r, 500));
   s = await waitVerdict(app);
   check("북마크 바 클릭 → 지금 탭에서 그 페이지", s.url.includes("ruliweb") && s.verdict === "ok", { url: s.url });
+
+  // ---------- 주소창 자동완성 ----------
+  const sug = () => app.evaluate(() => (globalThis as any).__kong.suggest as { visible: boolean; list: { kind: string; title: string; url: string; folder?: string }[] });
+  await toolbar.click("#address");
+  await toolbar.fill("#address", "");
+  await toolbar.type("#address", "유게", { delay: 30 });
+  await new Promise((r) => setTimeout(r, 600));
+  let sg = await sug();
+  check(
+    "자동완성: 입력하면 목록 (첫 줄 검색, 북마크 후보 포함)",
+    sg.visible && sg.list[0]?.kind === "search" && sg.list.some((x) => x.kind === "bookmark" && x.url.includes("ruliweb")),
+    sg.list.map((x) => `${x.kind}:${x.title}`),
+  );
+  await toolbar.press("#address", "Escape");
+  await new Promise((r) => setTimeout(r, 300));
+  check("자동완성: Esc → 목록 닫힘", !(await sug()).visible);
+  await toolbar.type("#address", " ", { delay: 30 });
+  await new Promise((r) => setTimeout(r, 600));
+  await toolbar.press("#address", "ArrowDown");
+  await toolbar.press("#address", "Enter");
+  await new Promise((r) => setTimeout(r, 500));
+  s = await waitVerdict(app);
+  check("자동완성: ↓ + Enter → 고른 후보로 이동", s.url.includes("ruliweb") && !(await sug()).visible, { url: s.url });
+
+  // ---------- 북마크 폴더 ----------
+  await key("O", ["control", "shift"]);
+  await new Promise((r) => setTimeout(r, 1000));
+  s = await state(app);
+  check("Ctrl+Shift+O → 북마크 관리 페이지", s.url.endsWith("bookmarks.html"), { url: s.url });
+  await inPage(app, `(() => { document.getElementById("folder-name").value = "모음"; document.getElementById("new-folder").requestSubmit(); })()`);
+  await new Promise((r) => setTimeout(r, 600));
+  await inPage(
+    app,
+    `(() => { const sel = document.querySelector(".row select"); const o = Array.from(sel.options).find(x => x.textContent === "모음"); sel.value = o.value; sel.dispatchEvent(new Event("change")); })()`,
+  );
+  await new Promise((r) => setTimeout(r, 600));
+  const mgr = await inPage<string[]>(app, `Array.from(document.querySelectorAll(".group-head h2")).map(h => h.textContent)`);
+  check("북마크 관리: 새 폴더 + 북마크 옮기기", mgr.some((t) => t.startsWith("모음") && t.endsWith("1")), mgr);
+  const bar = await toolbar.evaluate(() => ({
+    folders: Array.from(document.querySelectorAll("#bookmark-bar .bm.folder")).map((b) => b.textContent),
+    root: document.querySelectorAll("#bookmark-bar .bm:not(.folder)").length,
+  }));
+  check("북마크 바: 폴더가 보이고 옮긴 북마크는 폴더 안으로", bar.folders.includes("모음") && bar.root === 0, bar);
+  await toolbar.click("#address");
+  await toolbar.fill("#address", "");
+  await toolbar.type("#address", "모음", { delay: 30 });
+  await new Promise((r) => setTimeout(r, 600));
+  sg = await sug();
+  check("자동완성: 폴더 이름으로도 찾고 폴더 표시", sg.list.some((x) => x.kind === "bookmark" && x.folder === "모음"), sg.list);
+  await toolbar.press("#address", "Escape");
+  await toolbar.press("#address", "Escape");
+  await toolbar.click("#new-tab");
+  await new Promise((r) => setTimeout(r, 1200));
+  const folderTitles = await inPage<string[]>(app, `Array.from(document.querySelectorAll("#bookmarks .folder-title")).map(h => h.textContent)`);
+  check("시작 페이지: 북마크를 폴더별로", folderTitles.includes("모음"), folderTitles);
   await shot(app, toolbar, "tabs");
 
   await app.close();

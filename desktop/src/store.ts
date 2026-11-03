@@ -3,7 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
-import type { Bookmark, HistoryEntry } from "./shared.js";
+import * as bm from "./bookmarks.js";
+import type { BookmarkData, HistoryEntry } from "./shared.js";
 
 const file = (name: string) => path.join(app.getPath("userData"), name);
 
@@ -38,23 +39,20 @@ export interface Session {
 export const loadSession = (): Session => readJson<Session>("session.json", { tabs: [], active: 0 });
 export const saveSession = (s: Session) => writeLater("session.json", s);
 
-// ---------- 북마크 ----------
+// ---------- 북마크 (폴더 포함, 조작 로직은 bookmarks.ts) ----------
 
-let bookmarks: Bookmark[] | null = null;
-export function listBookmarks(): Bookmark[] {
-  bookmarks ??= readJson<Bookmark[]>("bookmarks.json", []);
+let bookmarks: BookmarkData | null = null;
+export function bookmarkData(): BookmarkData {
+  bookmarks ??= bm.migrate(readJson<unknown>("bookmarks.json", null));
   return bookmarks;
 }
-export const isBookmarked = (url: string) => listBookmarks().some((b) => b.url === url);
-export function addBookmark(b: Omit<Bookmark, "createdAt">) {
-  if (isBookmarked(b.url)) return;
-  listBookmarks().push({ ...b, createdAt: Date.now() });
+/** 바꾸는 함수를 받아 실행하고 저장 */
+export function editBookmarks(fn: (d: BookmarkData) => void) {
+  fn(bookmarkData());
   writeLater("bookmarks.json", bookmarks);
 }
-export function removeBookmark(url: string) {
-  bookmarks = listBookmarks().filter((b) => b.url !== url);
-  writeLater("bookmarks.json", bookmarks);
-}
+export const isBookmarked = (url: string) => !!bm.find(bookmarkData(), url);
+export const newFolderId = () => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 // ---------- 방문 기록 ----------
 
@@ -80,6 +78,9 @@ export function setVisitTitle(url: string, title: string) {
     writeLater("history.json", history);
   }
 }
+/** 자동완성용: 전체 기록 */
+export const historyEntries = (): readonly HistoryEntry[] => allHistory();
+
 export function searchHistory(query = "", limit = 500): HistoryEntry[] {
   const q = query.trim().toLowerCase();
   const h = allHistory();

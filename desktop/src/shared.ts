@@ -22,6 +22,19 @@ export const IPC = {
   openUrl: "ui:open-url",
   toggleBookmark: "ui:toggle-bookmark",
   bookmarkMenu: "ui:bookmark-menu",
+  /** ★ 를 눌렀을 때 (이미 북마크된 페이지): 폴더로 이동 / 삭제 / 관리 메뉴 */
+  starMenu: "ui:star-menu",
+  /** 북마크 바의 폴더를 눌렀을 때: 안의 북마크 메뉴 */
+  folderMenu: "ui:folder-menu",
+  openBookmarks: "ui:open-bookmarks",
+  /** 주소창 자동완성: 툴바 → main (invoke, 후보 목록을 돌려받음) */
+  suggest: "ui:suggest",
+  suggestSelect: "ui:suggest-select",
+  suggestHide: "ui:suggest-hide",
+  /** 자동완성 목록 창 → main: 후보를 눌렀을 때 */
+  suggestChoose: "suggest:choose",
+  /** main → 자동완성 목록 창: 그릴 후보와 선택 위치 */
+  suggestList: "suggest:list",
   openHistory: "ui:open-history",
   /** 앱 안쪽 페이지(시작 페이지, 방문 기록) → main: 기록·북마크 조회/삭제 (invoke) */
   internal: "kong:internal",
@@ -46,6 +59,20 @@ export interface Bookmark {
   title: string;
   favicon: string | null;
   createdAt: number;
+  /** 들어 있는 폴더 id. null 이면 북마크 바에 바로 */
+  folder: string | null;
+}
+
+export interface BookmarkFolder {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
+/** 북마크 저장 형식 (bookmarks.json) */
+export interface BookmarkData {
+  folders: BookmarkFolder[];
+  bookmarks: Bookmark[];
 }
 
 export interface HistoryEntry {
@@ -61,7 +88,20 @@ export type InternalRequest =
   | { op: "removeVisit"; id: string }
   | { op: "clearHistory" }
   | { op: "bookmarks" }
-  | { op: "removeBookmark"; url: string };
+  | { op: "removeBookmark"; url: string }
+  | { op: "renameBookmark"; url: string; title: string }
+  | { op: "moveBookmark"; url: string; folder: string | null }
+  | { op: "addFolder"; name: string }
+  | { op: "renameFolder"; id: string; name: string }
+  | { op: "removeFolder"; id: string };
+
+/** 화면 위 사각형 (툴바 화면 기준 = 창 기준). 메뉴·자동완성 목록을 띄울 자리 */
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 /** 탭 줄에 그릴 탭 하나 */
 export interface TabInfo {
@@ -94,7 +134,7 @@ export interface BrowserState extends TabState {
   tabs: TabInfo[];
   /** 지금 페이지가 북마크되어 있는지 (☆/★) */
   bookmarked: boolean;
-  bookmarks: Bookmark[];
+  bookmarks: BookmarkData;
   /** 북마크 바 표시 (Ctrl+Shift+B, 기본 표시) */
   bookmarkBar: boolean;
 }

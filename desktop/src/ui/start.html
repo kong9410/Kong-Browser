@@ -54,6 +54,15 @@
       .tile:hover .del {
         opacity: 1;
       }
+      .folder-title {
+        margin: 16px 0 8px;
+        font-size: 13px;
+        color: var(--fg);
+      }
+      #bookmarks .grid + .grid,
+      #bookmarks .grid + .folder-title {
+        margin-top: 16px;
+      }
       .more {
         margin-left: 8px;
         color: var(--accent);
@@ -68,8 +77,8 @@
       <p class="lead">커뮤니티를 어디서 보든 같은 화면으로. 위 주소창에 주소나 검색어를 입력하세요.</p>
 
       <section id="bookmarks-section" hidden>
-        <h2>북마크</h2>
-        <div id="bookmarks" class="grid"></div>
+        <h2>북마크 <a class="more" href="bookmarks.html">북마크 관리</a></h2>
+        <div id="bookmarks"></div>
       </section>
 
       <section id="recent-section" hidden>

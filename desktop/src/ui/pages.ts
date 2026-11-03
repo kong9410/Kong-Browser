@@ -1,5 +1,5 @@
 // 앱 안쪽 페이지(시작 페이지, 방문 기록) 공용: preload-page 가 이 페이지에만 노출하는 API
-import type { Bookmark, HistoryEntry, InternalRequest } from "../shared";
+import type { BookmarkData, HistoryEntry, InternalRequest } from "../shared";
 
 declare global {
   interface Window {
@@ -13,8 +13,13 @@ export const internal = {
   history: (query = "", limit = 500) => call<HistoryEntry[]>({ op: "history", query, limit }),
   removeVisit: (id: string) => call<void>({ op: "removeVisit", id }),
   clearHistory: () => call<void>({ op: "clearHistory" }),
-  bookmarks: () => call<Bookmark[]>({ op: "bookmarks" }),
+  bookmarks: () => call<BookmarkData>({ op: "bookmarks" }),
   removeBookmark: (url: string) => call<void>({ op: "removeBookmark", url }),
+  renameBookmark: (url: string, title: string) => call<void>({ op: "renameBookmark", url, title }),
+  moveBookmark: (url: string, folder: string | null) => call<void>({ op: "moveBookmark", url, folder }),
+  addFolder: (name: string) => call<void>({ op: "addFolder", name }),
+  renameFolder: (id: string, name: string) => call<void>({ op: "renameFolder", id, name }),
+  removeFolder: (id: string) => call<void>({ op: "removeFolder", id }),
 };
 
 export const hostOf = (url: string) => {

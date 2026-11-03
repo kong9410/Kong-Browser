@@ -313,3 +313,9 @@ svg {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 북마크 바의 폴더 */
+.bm.folder svg {
+  width: 15px;
+  height: 15px;
+  color: #c48a1b;
+}
