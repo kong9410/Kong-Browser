@@ -36,6 +36,8 @@ export const IPC = {
   /** main → 자동완성 목록 창: 그릴 후보와 선택 위치 */
   suggestList: "suggest:list",
   openHistory: "ui:open-history",
+  /** 오른쪽 dock 보이기/숨기기 */
+  toggleDock: "ui:toggle-dock",
   /** 앱 안쪽 페이지(시작 페이지, 방문 기록) → main: 기록·북마크 조회/삭제 (invoke) */
   internal: "kong:internal",
   /** 툴바 → main: 페이지 영역 위치 (툴바 높이, 오른쪽 dock 폭) */
@@ -137,4 +139,6 @@ export interface BrowserState extends TabState {
   bookmarks: BookmarkData;
   /** 북마크 바 표시 (Ctrl+Shift+B, 기본 표시) */
   bookmarkBar: boolean;
+  /** 오른쪽 dock 표시 (기본 표시) */
+  dockOpen: boolean;
 }

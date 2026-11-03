@@ -8,6 +8,7 @@ import { dedupeKey, DEDUPE_MS, shouldReport, toReport } from "../../transformer/
 import type { Status } from "../../transformer/src/recipe";
 import * as bm from "./bookmarks.js";
 import { IPC, type BrowserState, type InternalRequest, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
+import { parseSettings, type Settings } from "./settings.js";
 import * as store from "./store.js";
 import { suggest, toUrl, type Suggestion } from "./suggest.js";
 
@@ -45,23 +46,19 @@ function loadRecipes(): Recipe[] {
 let win: BrowserWindow;
 /** 탭 줄 높이와 색 (toolbar.css 의 .tabstrip 과 같아야 창 버튼이 자연스럽게 이어진다) */
 const TABSTRIP_H = 40;
-const TABSTRIP_BG = "#e6e6e3";
+const TABSTRIP_BG = "#f1f3f4"; // toolbar.css --tabstrip 과 같게
 /** 페이지 영역: 위로는 탭 줄 + 툴바 높이, 오른쪽으로는 dock 폭만큼 비운다. 툴바 화면이 알려준다 */
 let pageTop = 84;
 let pageRight = 0;
 const recipes = loadRecipes();
 
 // 사용자 설정 (통일 화면의 왼쪽 메뉴 펼침 상태 등): %APPDATA%/Kong Browser/settings.json
-interface Settings {
-  navOpen: boolean;
-  bookmarkBar: boolean;
-}
 const SETTINGS_FILE = () => path.join(app.getPath("userData"), "settings.json");
 function loadSettings(): Settings {
   try {
-    return { navOpen: true, bookmarkBar: true, ...JSON.parse(fs.readFileSync(SETTINGS_FILE(), "utf8")) };
+    return parseSettings(JSON.parse(fs.readFileSync(SETTINGS_FILE(), "utf8")));
   } catch {
-    return { navOpen: true, bookmarkBar: true }; // 기본: 왼쪽 메뉴 펼침, 북마크 바 표시
+    return parseSettings(null); // 기본: 왼쪽 메뉴 펼침, 북마크 바·dock 표시
   }
 }
 function saveSettings(s: Settings) {
@@ -130,12 +127,14 @@ function pushUI() {
     loading: t.state.loading,
     active: t === active,
   }));
+  const settings = loadSettings();
   const state: BrowserState = {
     ...active.state,
     tabs: info,
     bookmarked: store.isBookmarked(active.state.url),
     bookmarks: store.bookmarkData(),
-    bookmarkBar: loadSettings().bookmarkBar,
+    bookmarkBar: settings.bookmarkBar,
+    dockOpen: settings.dockOpen,
   };
   win.webContents.send(IPC.state, state);
   // 다시 실행하면 지금 탭들을 그대로 복원 (0.5초씩 모아서 저장)
@@ -317,9 +316,10 @@ function hideSuggestions() {
 /** 방문 기록 페이지 */
 const openHistory = () => openInternal(HISTORY_URL);
 
-function toggleBookmarkBar() {
+/** 북마크 바·dock 보이기/숨기기 */
+function toggleSetting(key: "bookmarkBar" | "dockOpen") {
   const s = loadSettings();
-  saveSettings({ ...s, bookmarkBar: !s.bookmarkBar });
+  saveSettings({ ...s, [key]: !s[key] });
   setTimeout(pushUI, 50); // 설정 파일 쓰기 뒤에
 }
 
@@ -332,7 +332,7 @@ function handleShortcut(input: Input): boolean {
   const nav = wc.navigationHistory;
   const step = (d: number) => activate(tabs[(tabs.indexOf(active!) + d + tabs.length) % tabs.length]);
   if ((ctrl && key === "l") || input.key === "F6") win.webContents.send(IPC.focusAddress);
-  else if (ctrl && input.shift && key === "b") toggleBookmarkBar();
+  else if (ctrl && input.shift && key === "b") toggleSetting("bookmarkBar");
   else if (ctrl && key === "d") toggleBookmark();
   else if (ctrl && key === "h") openHistory();
   else if (ctrl && input.shift && key === "o") openBookmarks();
@@ -478,6 +478,7 @@ ipcMain.on(IPC.openUrl, (_e, url: string, where: "current" | "tab" | "background
 });
 ipcMain.on(IPC.toggleBookmark, () => toggleBookmark());
 ipcMain.on(IPC.openHistory, () => openHistory());
+ipcMain.on(IPC.toggleDock, () => toggleSetting("dockOpen"));
 // 북마크 바에서 오른쪽 클릭
 ipcMain.on(IPC.bookmarkMenu, (_e, url: string) => {
   Menu.buildFromTemplate([

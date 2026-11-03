@@ -3,7 +3,7 @@
    (사이트의 숨김용 유틸 클래스 등은 살아 있어야 하므로 all: revert 로 전부 지우지는 않는다) */
 
 #kong-root {
-  --k-bg: #f7f7f5;
+  --k-bg: #ffffff;
   --k-card: #ffffff;
   --k-fg: #1d1d1f;
   --k-muted: #86868b;
@@ -27,7 +27,7 @@
 
 html.kong-on,
 html.kong-on body {
-  background: #f7f7f5 !important;
+  background: #ffffff !important;
   margin: 0 !important;
   padding: 0 !important;
   min-width: 0 !important;
@@ -365,9 +365,14 @@ html.kong-on #kong-root .k-hidden {
     grid-template-areas: "nav main" "nav side";
   }
 }
+/* 글 목록·본문 칸: 얇고 옅은 테두리 (열 폭은 그대로, 안쪽 여백만큼 내용이 좁아짐) */
 #kong-root > .k-main {
   grid-area: main;
   min-width: 0;
+  padding: 20px 24px 28px;
+  border: 1px solid var(--k-line);
+  border-radius: 14px;
+  background: var(--k-card);
 }
 #kong-root > :is(.k-nav, .k-nav-open) {
   grid-area: nav;

@@ -1,9 +1,11 @@
 :root {
-  --bg: #f3f3f1;
-  --field: #ffffff;
+  --bg: #ffffff;
+  /* 흰 툴바 위의 주소창·버튼 바탕 (Chrome 과 같은 옅은 회색) */
+  --field: #f1f3f4;
+  --tabstrip: #f1f3f4;
   --fg: #1d1d1f;
   --muted: #86868b;
-  --line: #dcdcdf;
+  --line: #e3e3e6;
   --accent: #4f46e5;
   --accent-soft: #eef2ff;
   --warn-bg: #fff7e6;
@@ -157,7 +159,7 @@ svg {
   height: 40px;
   padding: 8px 8px 0;
   padding-right: max(146px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px));
-  background: #e6e6e3;
+  background: var(--tabstrip);
   -webkit-app-region: drag;
 }
 .tabstrip :is(.tab, button) {
@@ -187,7 +189,7 @@ svg {
   cursor: default;
 }
 .tab:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.04);
 }
 .tab.active {
   background: var(--bg);
@@ -290,6 +292,10 @@ svg {
 }
 
 /* ---------- 북마크 바 ---------- */
+/* 흰 툴바와 흰 페이지 사이 경계 */
+#toolbar {
+  border-bottom: 1px solid var(--line);
+}
 .bookmark-bar {
   display: flex;
   align-items: center;
@@ -368,17 +374,22 @@ svg {
   border-left: 1px solid var(--line);
   background: var(--bg);
 }
+/* 아이콘은 동그란 칸 안에 */
 .dock-item {
   flex: none;
   position: relative;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 50%;
+  background: var(--field);
+}
+.dock-item:hover {
+  background: #e8eaed;
 }
 .dock-item img {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
 }
 .dock-badge {
   width: 24px;
@@ -386,15 +397,15 @@ svg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 7px;
+  border-radius: 50%;
   color: #fff;
   font-size: 12px;
   font-weight: 700;
 }
 /* 지금 보고 있는 사이트: 왼쪽에 막대 표시 */
 .dock-item.on {
-  background: var(--field);
-  box-shadow: 0 0 0 1px var(--line);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1.5px var(--accent);
 }
 .dock-item.on::before {
   content: "";
@@ -405,4 +416,21 @@ svg {
   width: 3px;
   border-radius: 2px;
   background: var(--accent);
+}
+/* dock 맨 아래 숨기기 버튼 */
+.dock-hide {
+  flex: none;
+  margin-top: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--muted);
+}
+.dock-hide svg {
+  width: 16px;
+  height: 16px;
+}
+/* 툴바의 dock 버튼: dock 이 보일 때 강조색 */
+#dock-toggle.on {
+  color: var(--accent);
 }

@@ -51,6 +51,7 @@ const bookmarkBtn = $<HTMLButtonElement>("bookmark");
 const historyBtn = $<HTMLButtonElement>("history");
 const bookmarkBar = $("bookmark-bar");
 const dock = $("dock");
+const dockToggle = $<HTMLButtonElement>("dock-toggle");
 
 let loading = false;
 let editing = false;
@@ -69,6 +70,7 @@ newTab.onclick = () => ui.newTab();
 // ☆ = 북마크 추가, ★ = 폴더로 이동 / 삭제 / 관리 메뉴
 bookmarkBtn.onclick = () => (bookmarked ? ui.starMenu(rectOf(bookmarkBtn)) : ui.toggleBookmark());
 historyBtn.onclick = () => ui.openHistory();
+dockToggle.onclick = () => ui.toggleDock();
 // ---------- 주소창 + 자동완성 ----------
 // 목록은 main 이 페이지 위에 띄우는 별도 창에 그린다. 여기서는 입력과 선택 위치만 관리한다.
 let suggestions: Suggestion[] = [];
@@ -149,6 +151,7 @@ let activeId = -1;
 ui.onState((s: BrowserState) => {
   renderTabs(s.tabs);
   markDock(s.url);
+  showDock(s.dockOpen);
   // 다른 탭으로 바뀌면 주소창 편집 중이던 내용은 버리고 그 탭의 주소를 보여준다
   const now = s.tabs.find((t) => t.active)?.id ?? -1;
   if (now !== activeId) {
@@ -331,6 +334,13 @@ function bookmarkItem(b: Bookmark): HTMLElement {
 // ---------- 오른쪽 dock: 국내 주요 커뮤니티 ----------
 
 function renderDock() {
+  // 맨 아래 숨기기 버튼 (다시 보이기는 툴바의 dock 버튼)
+  const hide = document.createElement("button");
+  hide.className = "dock-hide";
+  hide.title = "dock 숨기기";
+  hide.setAttribute("aria-label", "dock 숨기기");
+  hide.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>';
+  hide.onclick = () => ui.toggleDock();
   dock.replaceChildren(
     ...DOCK_SITES.map((site) => {
       const b = document.createElement("button");
@@ -358,7 +368,15 @@ ${site.url}`;
       };
       return b;
     }),
+    hide,
   );
+}
+/** dock 보이기/숨기기 (설정에 기억). 숨기면 페이지가 오른쪽 끝까지 */
+function showDock(open: boolean) {
+  dock.hidden = !open;
+  dockToggle.classList.toggle("on", open);
+  dockToggle.setAttribute("aria-pressed", String(open));
+  dockToggle.title = dockToggle.ariaLabel = open ? "커뮤니티 dock 숨기기" : "커뮤니티 dock 보이기";
 }
 /** 지금 보고 있는 사이트를 dock 에서 강조 */
 function markDock(url: string) {

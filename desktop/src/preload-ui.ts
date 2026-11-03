@@ -18,6 +18,7 @@ const api = {
   toggleBookmark: () => ipcRenderer.send(IPC.toggleBookmark),
   bookmarkMenu: (url: string) => ipcRenderer.send(IPC.bookmarkMenu, url),
   openHistory: () => ipcRenderer.send(IPC.openHistory),
+  toggleDock: () => ipcRenderer.send(IPC.toggleDock),
   openBookmarks: () => ipcRenderer.send(IPC.openBookmarks),
   starMenu: (at: Rect) => ipcRenderer.send(IPC.starMenu, at),
   folderMenu: (id: string, at: Rect) => ipcRenderer.send(IPC.folderMenu, id, at),
