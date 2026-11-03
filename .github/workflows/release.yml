@@ -1,0 +1,94 @@
+# 릴리스: v* 태그를 push 하면 Windows·macOS 앱을 빌드해서 GitHub 릴리스에 올린다
+# - Windows: 설치 파일(NSIS) + 설치 없이 실행하는 파일(portable), x64
+# - macOS: dmg + zip, Intel(x64) / Apple Silicon(arm64). 개발자 인증서가 없어 ad-hoc 서명 (scripts/after-pack.cjs)
+# 태그 이름에 '-' 가 있으면(예: v0.0.0-beta) 시험판(prerelease)으로 올린다
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 엔진 단위 테스트
+        working-directory: transformer
+        run: |
+          npm ci
+          npm test
+      - name: 데스크톱 단위 테스트·타입 검사
+        working-directory: desktop
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
+  build:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist
+          - os: macos-latest
+            script: dist:mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 빌드
+        working-directory: desktop
+        env:
+          # 인증서 자동 탐색 끔 (서명 없이 빌드)
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          npm ci
+          npm run ${{ matrix.script }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.os }}
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Kong Browser ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: files/*
+          body: |
+            커뮤니티(루리웹, 디시인사이드) 화면을 통일해서 보여주는 브라우저입니다.
+
+            ## 내려받기
+            | 운영체제 | 파일 |
+            |---|---|
+            | Windows 설치 | `KongBrowser-*-Setup.exe` |
+            | Windows 설치 없이 실행 | `KongBrowser-*-Portable.exe` |
+            | macOS (Apple Silicon: M1 이후) | `KongBrowser-*-mac-arm64.dmg` |
+            | macOS (Intel) | `KongBrowser-*-mac-x64.dmg` |
+
+            ## 처음 실행할 때
+            코드 서명 인증서가 없는 시험판이라 운영체제가 경고를 띄웁니다.
+            - **Windows**: "Windows의 PC 보호" 창에서 **추가 정보 → 실행**
+            - **macOS**: 앱을 응용 프로그램 폴더로 옮긴 뒤 처음 한 번 **오른쪽 클릭 → 열기**. 막히면 **시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기**
+              (또는 터미널에서 `xattr -dr com.apple.quarantine "/Applications/Kong Browser.app"`)

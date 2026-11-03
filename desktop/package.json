@@ -1,18 +1,19 @@
 {
   "name": "kong-browser",
   "productName": "Kong Browser",
-  "version": "0.1.0",
+  "version": "0.0.0-beta",
   "private": true,
   "description": "커뮤니티 화면을 통일해서 보여주는 브라우저",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsx scripts/build.mts",
     "start": "tsx scripts/build.mts && electron .",
-    "dist": "tsx scripts/build.mts && electron-builder --win nsis",
+    "dist": "tsx scripts/build.mts && electron-builder --win --publish never",
     "typecheck": "tsc --noEmit",
     "e2e": "tsx scripts/build.mts && tsx scripts/e2e.mts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dist:mac": "tsx scripts/build.mts && electron-builder --mac --publish never"
   },
   "build": {
     "appId": "com.kong.browser",
@@ -31,11 +32,53 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "KongBrowser-${version}-Setup.${ext}"
+    },
+    "afterPack": "scripts/after-pack.cjs",
+    "portable": {
+      "artifactName": "KongBrowser-${version}-Portable.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "artifactName": "KongBrowser-${version}-mac-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "KongBrowser-${version}-mac-${arch}.${ext}"
     }
   },
   "devDependencies": {
