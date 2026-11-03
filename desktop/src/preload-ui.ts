@@ -20,6 +20,7 @@ const api = {
   openHistory: () => ipcRenderer.send(IPC.openHistory),
   toggleDock: () => ipcRenderer.send(IPC.toggleDock),
   openBookmarks: () => ipcRenderer.send(IPC.openBookmarks),
+  downloadsMenu: (at: Rect) => ipcRenderer.send(IPC.downloadsMenu, at),
   starMenu: (at: Rect) => ipcRenderer.send(IPC.starMenu, at),
   folderMenu: (id: string, at: Rect) => ipcRenderer.send(IPC.folderMenu, id, at),
   /** 자동완성: 후보를 계산해 목록 창에 띄우고, 후보를 돌려받는다 (Enter 처리용) */

@@ -1,9 +1,14 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 8,
+  "version": 9,
   "minEngine": 1,
   "siteName": "디시인사이드",
+  "logo": {
+    "sel": [
+      "header.dcheader h1.dclogo a.logo_img"
+    ]
+  },
   "menu": [
     {
       "label": "디시 메뉴",
@@ -225,6 +230,11 @@
       "pager": {
         "sel": [
           ".bottom_paging_box"
+        ]
+      },
+      "search": {
+        "sel": [
+          "form[name=frmSearch]"
         ]
       }
     }

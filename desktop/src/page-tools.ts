@@ -72,3 +72,12 @@ export function installScrollButtons() {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install, { once: true });
   else install();
 }
+
+/**
+ * 사이트가 막아 둔 오른쪽 클릭·글 선택·복사를 푼다 (디시는 글 속 이미지의 오른쪽 클릭을 막음).
+ * 페이지 스크립트보다 먼저(document-start) window 의 캡처 단계에서 이벤트가 사이트 처리기로 가지 않게 한다.
+ * 기본 동작(브라우저 메뉴, 선택, 복사)은 그대로. 레시피가 있는 커뮤니티 사이트에서만 쓴다 (다른 사이트의 자체 메뉴는 존중)
+ */
+export function allowCopy() {
+  for (const type of ["contextmenu", "selectstart", "copy"]) window.addEventListener(type, (e) => e.stopImmediatePropagation(), true);
+}

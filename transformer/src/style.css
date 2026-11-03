@@ -85,6 +85,20 @@ html.kong-on #kong-root .k-hidden {
   letter-spacing: 0.04em;
   color: var(--k-accent);
 }
+/* 사이트 로고 (누르면 사이트 홈) */
+#kong-root a.k-logo {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  text-decoration: none;
+}
+#kong-root a.k-logo img {
+  display: block;
+  height: 22px;
+  width: auto;
+  max-width: 180px;
+  object-fit: contain;
+}
 #kong-root h1.k-title {
   margin: 4px 0 8px;
   padding: 0;
@@ -310,6 +324,10 @@ html.kong-on #kong-root .k-hidden {
   color: var(--k-fg);
   text-decoration: none;
 }
+/* 목록·메뉴의 링크를 끌면 링크가 끌려가는 대신 글자가 선택되도록 (드래그해서 복사) */
+#kong-root :is(a.k-row, .k-nav a, .k-side a) {
+  -webkit-user-drag: none;
+}
 /* 읽은 글: 앱의 방문 기록으로 표시 (Electron 은 :visited 를 지원하지 않음) */
 #kong-root a.k-row:visited .k-row-title,
 #kong-root a.k-row.k-visited .k-row-title {
@@ -376,12 +394,12 @@ html.kong-on #kong-root .k-hidden {
   --k-sidew: clamp(220px, 13vw, 340px);
   --k-mainw: clamp(720px, 47vw, 1200px);
   grid-template-columns: var(--k-navw) minmax(0, var(--k-mainw)) var(--k-sidew);
-  grid-template-areas: "nav main side";
+  grid-template-areas: "top top top" "nav main side";
 }
 @media (max-width: 1150px) {
   #kong-root {
     grid-template-columns: var(--k-navw) minmax(0, var(--k-mainw));
-    grid-template-areas: "nav main" "nav side";
+    grid-template-areas: "top top" "nav main" "nav side";
   }
 }
 /* 글 목록·본문 칸: 얇고 옅은 테두리 (열 폭은 그대로, 안쪽 여백만큼 내용이 좁아짐) */
@@ -392,6 +410,17 @@ html.kong-on #kong-root .k-hidden {
   border: 1px solid var(--k-line);
   border-radius: 14px;
   background: var(--k-card);
+}
+/* 맨 위 줄: 사이트 로고 */
+#kong-root > .k-top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 4px;
+}
+#kong-root > .k-top .k-site {
+  font-size: 15px;
 }
 #kong-root > :is(.k-nav, .k-nav-open) {
   grid-area: nav;
@@ -614,4 +643,71 @@ html.kong-on #kong-root .k-hidden {
 #kong-root[data-page="hub"] .k-ad > *,
 #kong-root[data-page="hub"] .k-ad iframe {
   max-width: 100% !important;
+}
+
+/* ---------- 폰 (760px 이하): 한 열, 메뉴는 ☰ 버튼으로 여는 서랍 ----------
+   폰 앱은 사이트의 PC 화면을 받아 쓰므로(레시피 하나로 PC·폰 모두) 같은 뼈대를 좁은 폭에 맞춘다 */
+#kong-root .k-nav-backdrop {
+  display: none;
+}
+@media (max-width: 760px) {
+  #kong-root {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "top" "open" "main" "side";
+    column-gap: 0;
+    row-gap: 12px;
+    padding: 8px 8px 48px;
+  }
+  #kong-root.k-has-nav > .k-nav-open {
+    display: inline-flex !important;
+    grid-area: open;
+    position: static;
+  }
+  #kong-root > .k-nav {
+    position: fixed;
+    z-index: 2147483001;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 82vw);
+    max-height: none;
+    border-radius: 0 14px 14px 0;
+    display: none !important;
+  }
+  #kong-root.k-has-nav.k-drawer > .k-nav {
+    display: block !important;
+  }
+  #kong-root.k-drawer > .k-nav-backdrop {
+    display: block;
+    position: fixed;
+    z-index: 2147483000;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+  }
+  #kong-root > .k-main {
+    padding: 14px 12px 20px;
+    border-radius: 12px;
+  }
+  #kong-root .k-side {
+    position: static;
+    max-height: none;
+  }
+  /* 폰 화면보다 넓은 광고는 칸 폭에 맞춘다 */
+  #kong-root .k-ad {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  #kong-root .k-ad > *,
+  #kong-root .k-ad iframe {
+    max-width: 100% !important;
+  }
+}
+
+/* ---------- 게시판 안 검색 (목록 아래) ---------- */
+#kong-root .k-search {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--k-line);
 }

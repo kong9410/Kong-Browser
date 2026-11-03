@@ -447,3 +447,46 @@ svg {
 #dock-toggle.on {
   color: var(--accent);
 }
+/* 다운로드 버튼: 받는 중이면 둘레에 진행 고리 */
+.downloads {
+  position: relative;
+}
+.downloads .dl-ring {
+  position: absolute;
+  inset: 2px;
+  width: 28px;
+  height: 28px;
+  transform: rotate(-90deg);
+  display: none;
+}
+.downloads.active .dl-ring {
+  display: block;
+}
+.downloads.active {
+  color: var(--accent);
+}
+.dl-ring circle {
+  fill: none;
+  stroke-width: 3;
+}
+.dl-ring .dl-track {
+  stroke: var(--line);
+}
+.dl-ring .dl-bar {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: var(--dl, 0) 100;
+  transition: stroke-dasharray 0.2s;
+}
+.downloads .dl-arrow {
+  width: 16px;
+  height: 16px;
+}
+.downloads.indeterminate .dl-ring {
+  animation: dl-spin 1s linear infinite;
+}
+@keyframes dl-spin {
+  to {
+    transform: rotate(270deg);
+  }
+}

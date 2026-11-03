@@ -12,6 +12,7 @@ describe("탭 아이콘", () => {
     expect(iconFor("file:///C:/app/dist/ui/start.html", null)).toEqual({ builtin: "home" });
     expect(iconFor("file:///C:/app/dist/ui/history.html", null)).toEqual({ builtin: "history" });
     expect(iconFor("file:///C:/app/dist/ui/bookmarks.html", "x")).toEqual({ builtin: "bookmarks" });
+    expect(iconFor("file:///C:/app/dist/ui/downloads.html", null)).toEqual({ builtin: "downloads" });
   });
   it("주소가 없거나 웹 주소가 아니면 기본 아이콘", () => {
     expect(iconFor("", null)).toEqual({ builtin: "page" });

@@ -1,7 +1,9 @@
 // 엔진 단위 테스트: 작은 HTML 조각 + 가짜 DOM 으로 탐지·판정·메뉴 읽기를 검사한다
 import { beforeEach, describe, expect, it } from "vitest";
 import { judge } from "./judge.js";
-import { buildBoard, buildHub } from "./layout.js";
+import { buildBoard, buildHub, mount } from "./layout.js";
+import { readLogo, siteMark } from "./logo.js";
+import { setNavOptions } from "./nav.js";
 import { cleanText, hit, locate, pickPage, type LocatedBoard, type LocatedHub } from "./locate.js";
 import { extractMenu } from "./menu.js";
 import type { Recipe } from "./recipe.js";
@@ -230,5 +232,80 @@ describe("읽은 글 표시 (앱의 방문 기록)", () => {
     expect(rows[1].classList.contains("k-visited")).toBe(true);
     expect(isVisited("https://example.test/board/1/read/2")).toBe(true);
     setVisited([]);
+  });
+});
+
+describe("폰 화면", () => {
+  it("통합 화면을 붙이면 기기 폭으로 그리도록 viewport 를 바꾼다 (사이트의 width=1159 대신)", () => {
+    page("https://example.test/ps", `<div class="hub"><div id="ad_top">광고</div></div>`);
+    document.head.innerHTML = `<meta name="viewport" content="width=1159"><title>PS5 | 테스트</title>`;
+    mount(buildHub(locate(document, pickPage(recipe, document).page!) as LocatedHub, recipe));
+    expect(document.querySelectorAll('meta[name="viewport"]')).toHaveLength(1);
+    expect(document.querySelector<HTMLMetaElement>('meta[name="viewport"]')?.content).toBe("width=device-width, initial-scale=1");
+  });
+
+  it("좁은 화면에서 ☰ 메뉴는 서랍으로 열고, 바깥을 누르면 닫힌다 (PC 펼침 설정은 그대로)", () => {
+    (window as unknown as { happyDOM: { setViewport(v: { width: number; height: number }): void } }).happyDOM.setViewport({ width: 400, height: 800 });
+    const toggles: boolean[] = [];
+    setNavOptions({ open: true, onToggle: (v) => toggles.push(v) });
+    page("https://example.test/ps", `<ul id="gnb"><li><a href="/ps">PS</a></li></ul><div class="hub"></div>`);
+    const root = buildHub(locate(document, pickPage(recipe, document).page!) as LocatedHub, recipe);
+    root.querySelector<HTMLButtonElement>(".k-nav-open")!.click();
+    expect(root.classList.contains("k-drawer")).toBe(true);
+    root.querySelector<HTMLElement>(".k-nav-backdrop")!.click();
+    expect(root.classList.contains("k-drawer")).toBe(false);
+    expect(toggles).toEqual([]);
+    (window as unknown as { happyDOM: { setViewport(v: { width: number; height: number }): void } }).happyDOM.setViewport({ width: 1280, height: 800 });
+  });
+});
+
+describe("사이트 로고 (누르면 홈)", () => {
+  it("로고 링크 안의 그림을 읽어 머리에 로고 링크로 그린다", () => {
+    page("https://example.test/board/1", `<div id="hd"><a href="https://www.example.test"><img src="/img/logo.png" alt="로고"></a></div>`);
+    expect(readLogo({ ...recipe, logo: { sel: ["#hd a"] } })).toEqual({ href: "https://www.example.test/", src: "https://example.test/img/logo.png" });
+    const mark = siteMark({ ...recipe, logo: { sel: ["#hd a"] } }) as HTMLAnchorElement;
+    expect(mark.tagName).toBe("A");
+    expect(mark.href).toBe("https://www.example.test/");
+    expect(mark.querySelector("img")?.getAttribute("alt")).toBe("테스트");
+  });
+
+  it("그림이 CSS 배경이면 그 주소를 쓴다 (글자를 숨긴 로고)", () => {
+    page("https://example.test/board/1", `<h1><a class="logo" href="/" style="background-image: url('https://cdn.test/logo.svg')"><span>테스트</span></a></h1>`);
+    expect(readLogo({ ...recipe, logo: { sel: ["h1 a.logo"] } })?.src).toBe("https://cdn.test/logo.svg");
+  });
+
+  it("로고를 못 찾으면 사이트 이름 글자", () => {
+    page("https://example.test/board/1", `<div></div>`);
+    const mark = siteMark({ ...recipe, logo: { sel: ["#none a"] } });
+    expect(mark.tagName).toBe("DIV");
+    expect(mark.textContent).toBe("테스트");
+  });
+});
+
+describe("게시판 안 검색", () => {
+  it("사이트의 검색 영역을 목록 아래(페이지 번호 다음)로 옮긴다", () => {
+    const rows = [1, 2, 3].map((i) => `<tr class="row"><td><a href="/board/1/read/${i}">글${i}</a></td></tr>`).join("");
+    page("https://example.test/board/1", `<table class="list">${rows}</table><div class="paging">1 2</div><form class="sch"><input name="q"></form>`);
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    const board = r.pages.find((p) => p.id === "board") as Extract<Recipe["pages"][number], { type: "board" }>;
+    board.pager = { sel: [".paging"] };
+    board.search = { sel: ["form.sch"] };
+    const l = locate(document, pickPage(r, document).page!) as LocatedBoard;
+    expect(judge(l, r).verdict).toBe("ok");
+    const main = buildBoard(l, r).root.querySelector(".k-main")!;
+    expect([...main.children].slice(-2).map((e) => e.className)).toEqual(["k-pager k-move", "k-search k-move"]);
+    expect(main.querySelector(".k-search input[name=q]")).not.toBeNull();
+  });
+});
+
+describe("사이트 로고 위치", () => {
+  it("본문 머리가 아니라 통합 화면 맨 위 줄에", () => {
+    const rows = [1, 2, 3].map((i) => `<tr class="row"><td><a href="/board/1/read/${i}">글${i}</a></td></tr>`).join("");
+    page("https://example.test/board/1", `<div id="hd"><a href="/"><img src="/logo.png"></a></div><table class="list">${rows}</table>`);
+    const r: Recipe = { ...recipe, logo: { sel: ["#hd a"] } };
+    const root = buildBoard(locate(document, pickPage(r, document).page!) as LocatedBoard, r).root;
+    expect(root.firstElementChild?.className).toBe("k-top");
+    expect(root.querySelector(".k-top a.k-logo img")).not.toBeNull();
+    expect(root.querySelector(".k-main .k-site")).toBeNull();
   });
 });

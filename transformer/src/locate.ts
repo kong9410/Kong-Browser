@@ -49,6 +49,7 @@ export interface LocatedBoard {
   rows: LocatedRow[];
   pager: Hit | null;
   more: Hit | null;
+  search: Hit | null;
 }
 
 export interface LocatedHub {
@@ -203,6 +204,7 @@ export function locateBoard(doc: Document, page: BoardPage): LocatedBoard {
     rows: scope ? locateRows(scope, page.rows) : [],
     pager: hit(doc, page.pager),
     more: hit(doc, page.more),
+    search: hit(doc, page.search),
   };
 }
 

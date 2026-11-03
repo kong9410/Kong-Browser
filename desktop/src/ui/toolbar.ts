@@ -10,6 +10,7 @@ const BUILTIN: Record<BuiltinIcon, string> = {
   home: `<svg viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6.5 9.5V19h11V9.5"/></svg>`,
   history: `<svg viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4M12 7.5V12l3 2"/></svg>`,
   bookmarks: `<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>`,
+  downloads: `<svg viewBox="0 0 24 24"><path d="M12 4.5v11M7.5 11l4.5 4.5 4.5-4.5M5.5 19.5h13"/></svg>`,
   page: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.3 3.6 5.2 3.6 8.5s-1.1 6.2-3.6 8.5c-2.5-2.3-3.6-5.2-3.6-8.5s1.1-6.2 3.6-8.5z"/></svg>`,
 };
 
@@ -52,6 +53,7 @@ const historyBtn = $<HTMLButtonElement>("history");
 const bookmarkBar = $("bookmark-bar");
 const dock = $("dock");
 const dockToggle = $<HTMLButtonElement>("dock-toggle");
+const downloadsBtn = $<HTMLButtonElement>("downloads");
 
 let loading = false;
 let editing = false;
@@ -70,6 +72,10 @@ newTab.onclick = () => ui.newTab();
 // ☆ = 북마크 추가, ★ = 폴더로 이동 / 삭제 / 관리 메뉴
 bookmarkBtn.onclick = () => (bookmarked ? ui.starMenu(rectOf(bookmarkBtn)) : ui.toggleBookmark());
 historyBtn.onclick = () => ui.openHistory();
+downloadsBtn.onclick = () => {
+  const r = downloadsBtn.getBoundingClientRect();
+  ui.downloadsMenu({ x: r.x, y: r.y, width: r.width, height: r.height });
+};
 dockToggle.onclick = () => ui.toggleDock();
 // ---------- 주소창 + 자동완성 ----------
 // 목록은 main 이 페이지 위에 띄우는 별도 창에 그린다. 여기서는 입력과 선택 위치만 관리한다.
@@ -152,6 +158,7 @@ ui.onState((s: BrowserState) => {
   renderTabs(s.tabs);
   markDock(s.url);
   showDock(s.dockOpen);
+  showDownloads(s.downloads);
   // 다른 탭으로 바뀌면 주소창 편집 중이던 내용은 버리고 그 탭의 주소를 보여준다
   const now = s.tabs.find((t) => t.active)?.id ?? -1;
   if (now !== activeId) {
@@ -371,6 +378,16 @@ ${site.url}`;
     }),
     hide,
   );
+}
+/** 다운로드 버튼: 한 번이라도 받으면 나타나고, 받는 중이면 둘레에 진행 고리 (크기를 모르면 도는 고리) */
+function showDownloads(d: BrowserState["downloads"]) {
+  downloadsBtn.hidden = !d;
+  if (!d) return;
+  const on = d.active > 0;
+  downloadsBtn.classList.toggle("active", on);
+  downloadsBtn.classList.toggle("indeterminate", on && d.ratio === null);
+  downloadsBtn.style.setProperty("--dl", String(Math.round((d.ratio ?? 0.25) * 100)));
+  downloadsBtn.title = on ? `다운로드 중 ${d.active}개${d.ratio !== null ? ` · ${Math.floor(d.ratio * 100)}%` : ""}` : "다운로드";
 }
 /** dock 보이기/숨기기 (설정에 기억). 숨기면 페이지가 오른쪽 끝까지 */
 function showDock(open: boolean) {

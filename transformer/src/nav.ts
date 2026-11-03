@@ -3,11 +3,13 @@
 // 원래 메뉴는 원본 화면과 함께 숨겨진다. 링크는 원래 주소 그대로라 누르면 일반 링크처럼 이동한다.
 //
 //   #kong-root (최대 세 열, CSS grid)
-//   ├─ aside.k-nav        왼쪽 메뉴 열 (접을 수 있음)
+//   ├─ header.k-top       맨 위 줄: 사이트 로고 (누르면 사이트 홈)
+//   ├─ aside.k-nav       왼쪽 메뉴 열 (접을 수 있음)
 //   ├─ button.k-nav-open  접혀 있을 때만 보이는 [☰ 메뉴]
 //   ├─ div.k-main         게시글/목록 (기존 통일 화면)
 //   └─ aside.k-side       오른쪽 열: 루리웹 게시판 BEST, 디시 전체글/개념글/공지·말머리 (창이 좁으면 본문 아래로)
 import { findAll, hit } from "./locate.js";
+import { siteMark } from "./logo.js";
 import { extractMenu, readLinks } from "./menu.js";
 import type { Menu, MenuGroup, Recipe, SideBlock } from "./recipe.js";
 
@@ -59,6 +61,10 @@ function render(list: HTMLElement, menu: Pick<Menu, "groups">) {
   }
 }
 
+/** 폰 크기 화면 (style.css 의 폰 배치와 같은 기준) */
+export const PHONE_MAX = 760;
+const isPhone = () => window.matchMedia?.(`(max-width: ${PHONE_MAX}px)`).matches ?? false;
+
 /** 본문(main)을 감싸 두 열짜리 #kong-root 를 만든다. 레시피에 menu 가 없거나 읽은 메뉴가 없으면 한 열 그대로 */
 export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "board" | "hub"): HTMLElement {
   const root = el("div");
@@ -83,8 +89,12 @@ export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "bo
     root.classList.toggle("k-nav-closed", !v);
     if (user) options.onToggle?.(v);
   };
-  close.onclick = () => setOpen(false, true);
-  open.onclick = () => setOpen(true, true);
+  // 폰(좁은 화면)에서는 메뉴가 본문 위에 덮이는 서랍. 열고 닫은 상태는 기억하지 않는다 (PC 의 펼침 설정과 별개)
+  const backdrop = el("div", "k-nav-backdrop");
+  const setDrawer = (v: boolean) => root.classList.toggle("k-drawer", v);
+  backdrop.onclick = () => setDrawer(false);
+  close.onclick = () => (isPhone() ? setDrawer(false) : setOpen(false, true));
+  open.onclick = () => (isPhone() ? setDrawer(true) : setOpen(true, true));
 
   let last = "";
   const draw = () => {
@@ -135,7 +145,11 @@ export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "bo
     drawSide();
   };
 
-  root.append(nav, open, main, side);
+  // 맨 위 줄: 사이트 로고 (누르면 사이트 홈). 세 열 전체 폭
+  const top = el("header", "k-top");
+  top.appendChild(siteMark(recipe));
+
+  root.append(top, nav, backdrop, open, main, side);
   draw();
   drawSide();
   setOpen(options.open ?? true, false);

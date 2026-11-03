@@ -67,7 +67,6 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
   const root = h("div");
 
   const head = h("header", "k-head");
-  head.appendChild(h("div", "k-site", recipe.siteName));
   const title = h("h1", "k-title");
   if (f.category?.value) title.appendChild(h("span", "k-cat", f.category.value));
   title.appendChild(document.createTextNode(f.title?.value ?? ""));
@@ -225,7 +224,7 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
   const root = h("div");
 
   const head = h("header", "k-head");
-  head.append(h("div", "k-site", recipe.siteName), h("h1", "k-title", l.boardName?.value ?? "게시판"));
+  head.append(h("h1", "k-title", l.boardName?.value ?? "게시판"));
   root.appendChild(head);
 
   const list = h("div", "k-rows");
@@ -263,7 +262,11 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
   };
   for (const r of l.rows) view.addRow(r);
 
-  for (const box of [moveSlot("k-more", l.more, l.page.more), moveSlot("k-pager", l.pager, l.page.pager)])
+  for (const box of [
+    moveSlot("k-more", l.more, l.page.more),
+    moveSlot("k-pager", l.pager, l.page.pager),
+    moveSlot("k-search", l.search, l.page.search),
+  ])
     if (box) root.appendChild(box);
   // 왼쪽 메뉴 열과 함께 두 열로 감싼다 (메뉴가 없는 사이트면 한 열 그대로)
   view.root = buildShell(root, recipe, "board");
@@ -276,7 +279,7 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
 export function buildHub(l: LocatedHub, recipe: Recipe): HTMLElement {
   const root = h("div");
   const head = h("header", "k-head");
-  head.append(h("div", "k-site", recipe.siteName), h("h1", "k-title", l.title?.value ?? recipe.siteName));
+  head.append(h("h1", "k-title", l.title?.value ?? recipe.siteName));
   root.appendChild(head);
   for (const ad of l.ads) {
     const box = h("div", "k-ad k-move");
@@ -288,6 +291,21 @@ export function buildHub(l: LocatedHub, recipe: Recipe): HTMLElement {
 
 // ---------- 화면에 붙이기 ----------
 
+/**
+ * 폰에서 PC 페이지를 받으면 사이트가 정한 넓은 화면 폭(루리웹 width=1159, 디시는 없음 = 980)으로 그려진다.
+ * 통합 화면은 폭에 맞게 바뀌므로 기기 폭으로 그리게 한다 (PC 브라우저는 viewport 를 무시하므로 영향 없음)
+ */
+function fitViewport() {
+  const content = "width=device-width, initial-scale=1";
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "viewport";
+    (document.head ?? document.documentElement).appendChild(meta);
+  }
+  meta.content = content;
+}
+
 export function mount(root: HTMLElement, hide: string[] = []) {
   const style = h("style");
   style.id = "kong-style";
@@ -295,6 +313,7 @@ export function mount(root: HTMLElement, hide: string[] = []) {
   style.textContent = css + hide.map((s) => `${s}{display:none!important}`).join("");
   (document.head ?? document.documentElement).appendChild(style);
   document.documentElement.classList.add("kong-on");
+  fitViewport();
 
   // 지금 있는 원본 화면만 숨긴다. 이후 사이트가 body 에 붙이는 팝업(이미지 뷰어, 알림 등)은 그대로 보이게
   for (const child of Array.from(document.body.children)) child.classList.add("k-hidden");

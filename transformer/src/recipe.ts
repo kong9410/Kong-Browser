@@ -110,6 +110,8 @@ export interface BoardPage {
   rows: RowSpec;
   /** move. 페이지 번호 */
   pager?: Field;
+  /** move. 게시판 안 검색 (목록 아래, 페이지 번호 다음에 놓인다) */
+  search?: Field;
   /** move. "더보기" 버튼 (누르면 사이트가 원본 목록에 행을 추가 → 감시해서 반영) */
   more?: Field;
   hide?: string[];
@@ -182,6 +184,8 @@ export interface Recipe {
   version: number;
   minEngine: number;
   siteName: string;
+  /** 사이트 맨 위의 로고 링크 (누르면 사이트 홈). 통합 화면 머리에 로고로 다시 그린다 */
+  logo?: Field;
   menu?: MenuSpec[];
   side?: SideBlock[];
   pages: Page[];

@@ -18,3 +18,10 @@ desktop.ini
 .DS_Store
 .vscode/
 .idea/
+
+# Android (android/)
+android/.gradle/
+android/**/build/
+android/local.properties
+android/.kotlin/
+*.apk

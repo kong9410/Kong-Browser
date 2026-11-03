@@ -27,6 +27,8 @@ export const IPC = {
   /** 북마크 바의 폴더를 눌렀을 때: 안의 북마크 메뉴 */
   folderMenu: "ui:folder-menu",
   openBookmarks: "ui:open-bookmarks",
+  /** 툴바 다운로드 버튼 → main: 다운로드 목록 메뉴 */
+  downloadsMenu: "ui:downloads-menu",
   /** 주소창 자동완성: 툴바 → main (invoke, 후보 목록을 돌려받음) */
   suggest: "ui:suggest",
   suggestSelect: "ui:suggest-select",
@@ -97,7 +99,14 @@ export type InternalRequest =
   | { op: "moveBookmark"; url: string; folder: string | null }
   | { op: "addFolder"; name: string }
   | { op: "renameFolder"; id: string; name: string }
-  | { op: "removeFolder"; id: string };
+  | { op: "removeFolder"; id: string }
+  | { op: "downloads"; query?: string }
+  | { op: "downloadAction"; id: number; action: DownloadAction }
+  | { op: "clearDownloads" }
+  | { op: "openDownloadsFolder" };
+
+/** 다운로드 내역 페이지의 버튼 */
+export type DownloadAction = "open" | "show" | "remove" | "retry" | "cancel" | "pause" | "resume";
 
 /** 화면 위 사각형 (툴바 화면 기준 = 창 기준). 메뉴·자동완성 목록을 띄울 자리 */
 export interface Rect {
@@ -143,4 +152,6 @@ export interface BrowserState extends TabState {
   bookmarkBar: boolean;
   /** 오른쪽 dock 표시 (기본 표시) */
   dockOpen: boolean;
+  /** 툴바 다운로드 버튼: 진행 중인 다운로드 수와 전체 진행률(0~1, 크기를 모르면 null). 다운로드가 한 번도 없으면 null */
+  downloads: { count: number; active: number; ratio: number | null } | null;
 }

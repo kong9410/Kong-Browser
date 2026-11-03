@@ -80,6 +80,7 @@ function judgeBoard(l: LocatedBoard, recipe: Recipe, failed: string[], warnings:
   const valid = l.rows.filter((r) => r.title && r.href);
   if (valid.length < 3) failed.push(`rows:few(${valid.length})`);
   if (l.page.boardName && !l.boardName?.value) warnings.push("boardName");
+  if (l.page.search && !l.search?.el) warnings.push("search");
 
   // 행 링크가 같은 사이트의 게시글 주소인지: 사이드바/다른 게시판 목록이 섞였는지 잡는다
   const postMatches = recipe.pages.filter((p) => p.type === "post").map((p) => new RegExp(p.match));

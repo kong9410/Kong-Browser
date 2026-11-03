@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>다운로드 내역</title>
+    <link rel="stylesheet" href="pages.css" />
+  </head>
+  <body>
+    <main>
+      <div class="head">
+        <h1>다운로드 내역</h1>
+        <div class="head-actions">
+          <button id="folder" class="plain" type="button">다운로드 폴더 열기</button>
+          <button id="clear" class="danger" type="button">목록 모두 지우기</button>
+        </div>
+      </div>
+      <input id="q" class="search" type="search" placeholder="파일 이름이나 주소로 검색" autocomplete="off" />
+      <div id="list"></div>
+      <p id="empty" class="muted" hidden>다운로드 내역이 없습니다.</p>
+    </main>
+    <script src="downloads.js"></script>
+  </body>
+</html>

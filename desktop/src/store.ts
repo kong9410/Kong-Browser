@@ -1,4 +1,4 @@
-// 사용자 데이터 저장: 탭 세션, 북마크, 방문 기록 (%APPDATA%/Kong Browser/*.json)
+// 사용자 데이터 저장: 탭 세션, 북마크, 방문 기록, 다운로드 내역 (%APPDATA%/Kong Browser/*.json)
 // 모두 이 PC 에만 저장되고 서버로 보내지 않는다.
 import fs from "node:fs";
 import path from "node:path";
@@ -98,3 +98,9 @@ export function clearHistory() {
   history = [];
   writeLater("history.json", history);
 }
+
+// ---------- 다운로드 내역 ----------
+// 목록 자체는 main.ts 가 들고 있고(진행 중 상태 포함), 여기서는 읽기·저장만
+
+export const loadDownloads = (): unknown => readJson<unknown>("downloads.json", []);
+export const saveDownloads = (list: unknown) => writeLater("downloads.json", list);

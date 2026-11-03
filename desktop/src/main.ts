@@ -3,14 +3,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, ipcMain, Menu, nativeTheme, WebContentsView, type Input, type WebContents } from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeTheme, session as electronSession, shell, WebContentsView, type DownloadItem, type Input, type WebContents } from "electron";
 import { dedupeKey, DEDUPE_MS, shouldReport, toReport } from "../../transformer/src/report";
 import type { Status } from "../../transformer/src/recipe";
 import * as bm from "./bookmarks.js";
+import { contextItems, type ContextAction } from "./context-menu.js";
+import { DOWNLOADS_MAX, isActive, overall, restoreDownloads, searchDownloads, statusText, uniqueName, type DownloadInfo } from "./downloads.js";
 import { IPC, type BrowserState, type InternalRequest, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
 import { parseSettings, type Settings } from "./settings.js";
 import * as store from "./store.js";
-import { suggest, toUrl, type Suggestion } from "./suggest.js";
+import { SEARCH_URL, suggest, toUrl, type Suggestion } from "./suggest.js";
 
 // 테스트에서 매번 깨끗한 사용자 데이터로 시작할 수 있게 (탭 복원·북마크·기록이 이전 실행에 영향받지 않도록)
 if (process.env.KONG_USER_DATA) app.setPath("userData", process.env.KONG_USER_DATA);
@@ -20,6 +22,7 @@ const fileUrl = (...p: string[]) => pathToFileURL(path.join(__dirname, ...p)).hr
 const START_URL = fileUrl("ui", "start.html");
 const HISTORY_URL = fileUrl("ui", "history.html");
 const BOOKMARKS_URL = fileUrl("ui", "bookmarks.html");
+const DOWNLOADS_URL = fileUrl("ui", "downloads.html");
 /** 앱 안쪽 페이지(시작 페이지, 방문 기록, 북마크 관리)의 주소 앞부분: 이 페이지들만 기록·북마크 API 를 쓸 수 있다 */
 const INTERNAL_PREFIX = decodeURIComponent(fileUrl("ui") + "/").toLowerCase();
 const isInternal = (url: string) => decodeURIComponent(url).toLowerCase().startsWith(INTERNAL_PREFIX);
@@ -140,6 +143,7 @@ function pushUI() {
     bookmarks: store.bookmarkData(),
     bookmarkBar: settings.bookmarkBar,
     dockOpen: settings.dockOpen,
+    downloads: downloads.length ? { count: downloads.length, active: 0, ratio: null, ...overall(downloads) } : null,
   };
   win.webContents.send(IPC.state, state);
   // 다시 실행하면 지금 탭들을 그대로 복원 (0.5초씩 모아서 저장)
@@ -194,6 +198,7 @@ function createTab(url: string, opts: { activate?: boolean; after?: Tab | null }
   wc.on("did-start-loading", () => update(tab, { loading: true }));
   wc.on("did-stop-loading", () => update(tab, { loading: false }));
   wc.on("before-input-event", (e, input) => handleShortcut(input) && e.preventDefault());
+  wc.on("context-menu", (_e, params) => showContextMenu(tab, params));
 
   wc.loadURL(url);
   if (opts.activate !== false || !active) activate(tab);
@@ -287,6 +292,7 @@ function openInternal(page: string) {
   } else createTab(page, { after: active });
 }
 const openBookmarks = () => openInternal(BOOKMARKS_URL);
+const openDownloads = () => openInternal(DOWNLOADS_URL);
 
 // ---------- 주소창 자동완성 목록 (페이지 위에 겹쳐 뜨는 작은 창) ----------
 // 페이지(WebContentsView)는 툴바 화면보다 위에 그려지므로, 목록은 별도의 view 로 페이지 위에 띄운다.
@@ -335,6 +341,42 @@ function syncOriginal(tab: Tab) {
     tab.view.webContents.reload();
 }
 
+/** 페이지 오른쪽 클릭 메뉴: 링크·이미지(저장·복사)·선택한 글(복사·검색)·입력칸 (Electron 은 기본 메뉴가 없다) */
+function showContextMenu(tab: Tab | null, p: Electron.ContextMenuParams) {
+  // tab 이 null 이면 툴바(주소창)
+  const wc = tab ? tab.view.webContents : win.webContents;
+  const nav = wc.navigationHistory;
+  const run: Record<ContextAction, () => void> = {
+    openLinkTab: () => createTab(p.linkURL, { activate: false, after: tab ?? active }),
+    copyLink: () => clipboard.writeText(p.linkURL),
+    openImageTab: () => createTab(p.srcURL, { after: tab ?? active }),
+    saveImage: () => wc.downloadURL(p.srcURL), // 다운로드 폴더에 저장 (다운로드 내역에도 남음)
+    copyImage: () => wc.copyImageAt(p.x, p.y),
+    copyImageUrl: () => clipboard.writeText(p.srcURL),
+    cut: () => wc.cut(),
+    copy: () => wc.copy(),
+    paste: () => wc.paste(),
+    // 클립보드의 주소(또는 검색어)로 바로 이동
+    pasteAndGo: () => {
+      const text = clipboard.readText().trim();
+      if (text) current()?.loadURL(toUrl(text));
+    },
+    selectAll: () => wc.selectAll(),
+    search: () => createTab(SEARCH_URL + encodeURIComponent(p.selectionText.trim()), { after: tab ?? active }),
+    back: () => nav.goBack(),
+    forward: () => nav.goForward(),
+    reload: () => wc.reload(),
+    inspect: () => wc.inspectElement(p.x, p.y),
+  };
+  const items = contextItems({ ...p, canGoBack: nav.canGoBack(), canGoForward: nav.canGoForward(), toolbar: !tab });
+  if (!items.length) return;
+  Menu.buildFromTemplate(
+    items.map((i): Electron.MenuItemConstructorOptions =>
+      "separator" in i ? { type: "separator" } : { label: i.label, enabled: i.enabled ?? true, click: run[i.id] },
+    ),
+  ).popup({ window: win });
+}
+
 /** 단축키: 툴바와 페이지 어느 쪽에 포커스가 있어도 동작 */
 function handleShortcut(input: Input): boolean {
   if (input.type !== "keyDown" || !active) return false;
@@ -347,6 +389,7 @@ function handleShortcut(input: Input): boolean {
   else if (ctrl && input.shift && key === "b") toggleSetting("bookmarkBar");
   else if (ctrl && key === "d") toggleBookmark();
   else if (ctrl && key === "h") openHistory();
+  else if (ctrl && key === "j") openDownloads();
   else if (ctrl && input.shift && key === "o") openBookmarks();
   else if (ctrl && key === "t") openBlankTab();
   else if (ctrl && (key === "w" || input.key === "F4")) closeTab(active);
@@ -390,6 +433,8 @@ function createWindow() {
   win.removeMenu();
   win.on("resize", layout);
   win.webContents.on("before-input-event", (e, input) => handleShortcut(input) && e.preventDefault());
+  // 주소창 오른쪽 클릭: 잘라내기·복사·붙여넣기·붙여넣고 이동·모두 선택
+  win.webContents.on("context-menu", (_e, params) => showContextMenu(null, params));
   win.loadFile(path.join(__dirname, "ui", "index.html"));
 
   // 시작: 주소를 주고 실행하면 그 주소만, 아니면 지난번 탭들을 복원 (없으면 시작 페이지)
@@ -577,6 +622,15 @@ ipcMain.handle(IPC.internal, (e, req: InternalRequest) => {
       return editBookmarks((d) => bm.renameFolder(d, req.id, req.name));
     case "removeFolder":
       return editBookmarks((d) => bm.removeFolder(d, req.id));
+    case "downloads":
+      // 다 받은 파일이 아직 있는지도 (지웠거나 옮긴 파일은 "삭제됨"으로 표시)
+      return searchDownloads(downloads, req.query).map((d) => ({ ...d, exists: d.state !== "completed" || fs.existsSync(d.path) }));
+    case "downloadAction":
+      return downloadAction(req.id, req.action);
+    case "clearDownloads":
+      return clearDownloads();
+    case "openDownloadsFolder":
+      return void shell.openPath(app.getPath("downloads"));
   }
 });
 
@@ -590,7 +644,134 @@ ipcMain.on(IPC.layout, (_e, box: { top: number; right: number }) => {
   }
 });
 
-app.whenReady().then(createWindow);
+// ---------- 다운로드 ----------
+// Chrome 처럼 묻지 않고 사용자 "다운로드" 폴더에 저장하고, 툴바 버튼에 진행을 보여준다.
+// 내역은 downloads.json 에 남아 다시 실행해도 다운로드 내역 페이지(Ctrl+J)에서 볼 수 있다
+let downloads: DownloadInfo[] = [];
+const downloadItems = new Map<number, DownloadItem>();
+let downloadSeq = 1;
+let downloadPush: NodeJS.Timeout | null = null;
+/** 진행 이벤트는 자주 오므로 0.2초에 한 번만 툴바에 알린다 */
+const pushDownloadsSoon = () =>
+  (downloadPush ??= setTimeout(() => {
+    downloadPush = null;
+    pushUI();
+  }, 200));
+
+/** 내역 저장: 시작·끝·삭제 때만 (진행 중 바이트 수는 저장하지 않아도 된다) */
+function saveDownloads() {
+  if (downloads.length > DOWNLOADS_MAX) {
+    // 오래된 것부터, 받는 중인 것은 남긴다
+    for (let i = downloads.length - 1; i >= 0 && downloads.length > DOWNLOADS_MAX; i--) if (!isActive(downloads[i])) downloads.splice(i, 1);
+  }
+  store.saveDownloads(downloads);
+}
+
+function downloadAction(id: number, action: import("./shared.js").DownloadAction) {
+  const d = downloads.find((x) => x.id === id);
+  if (!d) return;
+  const item = downloadItems.get(id);
+  switch (action) {
+    case "open":
+      return void shell.openPath(d.path);
+    case "show":
+      return shell.showItemInFolder(d.path);
+    case "retry":
+      return current()?.downloadURL(d.url);
+    case "cancel":
+      return item?.cancel();
+    case "pause":
+      return item?.pause();
+    case "resume":
+      return item?.resume();
+    case "remove":
+      // 받는 중이면 취소하고 목록에서 뺀다 (받은 파일은 지우지 않는다)
+      item?.cancel();
+      downloads = downloads.filter((x) => x.id !== id);
+      saveDownloads();
+      return pushUI();
+  }
+}
+
+/** 목록 모두 지우기: 받는 중인 것은 남긴다 (파일은 그대로) */
+function clearDownloads() {
+  downloads = downloads.filter(isActive);
+  saveDownloads();
+  pushUI();
+}
+
+function trackDownloads() {
+  downloads = restoreDownloads(store.loadDownloads());
+  downloadSeq = downloads.reduce((m, d) => Math.max(m, d.id), 0) + 1;
+  electronSession.defaultSession.on("will-download", (_e, item) => {
+    const dir = app.getPath("downloads");
+    // 아직 받는 중인 같은 이름 파일도 피한다 (디스크에는 다 받은 뒤에 생김)
+    const taken = (n: string) => fs.existsSync(path.join(dir, n)) || downloads.some((d) => isActive(d) && d.name === n);
+    const name = uniqueName(item.getFilename(), taken);
+    const d: DownloadInfo = {
+      id: downloadSeq++,
+      name,
+      path: path.join(dir, name),
+      url: item.getURL(),
+      received: 0,
+      total: item.getTotalBytes(),
+      state: "progressing",
+      startedAt: Date.now(),
+    };
+    item.setSavePath(d.path);
+    downloads.unshift(d);
+    downloadItems.set(d.id, item);
+    saveDownloads();
+    item.on("updated", (_ev, st) => {
+      d.received = item.getReceivedBytes();
+      d.total = item.getTotalBytes();
+      d.state = st === "interrupted" ? "interrupted" : item.isPaused() ? "paused" : "progressing";
+      pushDownloadsSoon();
+    });
+    item.once("done", (_ev, st) => {
+      d.received = item.getReceivedBytes();
+      d.state = st;
+      downloadItems.delete(d.id);
+      saveDownloads();
+      pushUI();
+    });
+    pushUI();
+  });
+}
+
+/** 툴바 다운로드 버튼: 최근 다운로드 목록 (누르면 열기 / 폴더에서 보기 / 취소) */
+ipcMain.on(IPC.downloadsMenu, (_e, at: Rect) => {
+  // 최근 15개 (전체는 다운로드 내역 페이지)
+  const items: Electron.MenuItemConstructorOptions[] = downloads.slice(0, 15).map((d) => {
+    const item = downloadItems.get(d.id);
+    const label = `${d.name.length > 50 ? d.name.slice(0, 50) + "…" : d.name}  —  ${statusText(d)}`;
+    const sub: Electron.MenuItemConstructorOptions[] =
+      d.state === "completed"
+        ? [
+            { label: "열기", click: () => shell.openPath(d.path) },
+            { label: "폴더에서 보기", click: () => shell.showItemInFolder(d.path) },
+          ]
+        : item
+          ? [
+              item.isPaused() ? { label: "계속", click: () => item.resume() } : { label: "일시 중지", click: () => item.pause() },
+              { label: "취소", click: () => item.cancel() },
+            ]
+          : [{ label: "다시 받기", click: () => current()?.downloadURL(d.url) }];
+    return { label, submenu: sub };
+  });
+  items.push(
+    { type: "separator" },
+    { label: "다운로드 내역 전체 보기", accelerator: "CmdOrCtrl+J", click: openDownloads },
+    { label: "다운로드 폴더 열기", click: () => shell.openPath(app.getPath("downloads")) },
+    { label: "목록 지우기", enabled: downloads.some((d) => !isActive(d)), click: clearDownloads },
+  );
+  Menu.buildFromTemplate(items).popup({ window: win, x: Math.round(at.x), y: Math.round(at.y + at.height) });
+});
+
+app.whenReady().then(() => {
+  trackDownloads();
+  createWindow();
+});
 app.on("before-quit", () => store.flush());
 app.on("window-all-closed", () => {
   store.flush();
