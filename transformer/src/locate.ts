@@ -1,5 +1,5 @@
 // ① 탐지: 레시피대로 요소를 찾기만 한다. 여기서는 DOM 을 절대 바꾸지 않는다.
-import type { BoardPage, CommentSpec, Field, Page, PostPage, Recipe, RowSpec } from "./recipe.js";
+import type { BoardPage, CommentSpec, Field, HubPage, Page, PostPage, Recipe, RowSpec } from "./recipe.js";
 
 export interface Hit {
   el: Element | null;
@@ -38,6 +38,8 @@ export interface LocatedRow {
   likes: string | null;
   commentCount: string | null;
   notice: boolean;
+  image: boolean;
+  video: boolean;
 }
 
 export interface LocatedBoard {
@@ -49,7 +51,14 @@ export interface LocatedBoard {
   more: Hit | null;
 }
 
-export type Located = LocatedPost | LocatedBoard;
+export interface LocatedHub {
+  page: HubPage;
+  title: Hit | null;
+  /** 옮길 광고 요소들 (문서 순서) */
+  ads: Element[];
+}
+
+export type Located = LocatedPost | LocatedBoard | LocatedHub;
 
 const EMPTY: Hit = { el: null, value: null, sel: null, count: 0 };
 
@@ -155,6 +164,16 @@ export function locatePost(doc: Document, page: PostPage): LocatedPost {
   };
 }
 
+/** 행 자신이나 그 안에 표시(sel)가 있는지 */
+function marked(item: Element, sel: string | undefined): boolean {
+  if (!sel) return false;
+  try {
+    return item.matches(sel) || qsa(item, sel).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function locateRows(scope: Element, spec: RowSpec): LocatedRow[] {
   return findAll(scope, spec.item).els.map((item) => ({
     item,
@@ -169,7 +188,9 @@ export function locateRows(scope: Element, spec: RowSpec): LocatedRow[] {
     views: val(item, spec.views),
     likes: val(item, spec.likes),
     commentCount: val(item, spec.commentCount),
-    notice: spec.notice ? item.matches(spec.notice) || qsa(item, spec.notice).length > 0 : false,
+    notice: marked(item, spec.notice),
+    image: marked(item, spec.image),
+    video: marked(item, spec.video),
   }));
 }
 
@@ -185,6 +206,16 @@ export function locateBoard(doc: Document, page: BoardPage): LocatedBoard {
   };
 }
 
+export function locateHub(doc: Document, page: HubPage): LocatedHub {
+  return {
+    page,
+    title: hit(doc, page.title),
+    ads: page.ads ? findAll(doc, page.ads.sel).els : [],
+  };
+}
+
 export function locate(doc: Document, page: Page): Located {
-  return page.type === "post" ? locatePost(doc, page) : locateBoard(doc, page);
+  if (page.type === "post") return locatePost(doc, page);
+  if (page.type === "hub") return locateHub(doc, page);
+  return locateBoard(doc, page);
 }

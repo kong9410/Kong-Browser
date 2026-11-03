@@ -88,6 +88,12 @@ export interface RowSpec {
   commentCount?: Field;
   /** item 이 공지 행이면 매칭 */
   notice?: string;
+  /** item 자신 또는 내부에서 매칭되면 이미지가 있는 글 (사이트의 그림 아이콘 등) */
+  image?: string;
+  /** item 자신 또는 내부에서 매칭되면 동영상이 있는 글 */
+  video?: string;
+  /** 읽은 글 표시용: 글을 가리키는 쿼리 이름 (예: 디시 ["id", "no"]). 없으면 주소 경로만으로 같은 글인지 본다 */
+  visitParams?: string[];
   /**
    * 게시판을 식별하는 정규식 (첫 캡처 그룹). 현재 페이지 URL 과 각 행 링크에서 뽑은 값이 같아야 "이 게시판의 글".
    * 다른 게시판 글(사이드바, 인기글 등)이 목록에 섞였는지 검산한다. 예: "/board/([0-9]+)", "[?&]id=([^&]+)"
@@ -109,7 +115,23 @@ export interface BoardPage {
   hide?: string[];
 }
 
-export type Page = PostPage | BoardPage;
+/**
+ * 게시판에 들어가기 전의 사이트 첫 화면 (예: 루리웹 /ps, /nin). 뉴스·추천글 등 원본 내용은 숨기고,
+ * 가운데 칸에는 제목과 광고만 남긴다. 메뉴·오른쪽 열은 다른 페이지와 같다.
+ */
+export interface HubPage {
+  id: string;
+  type: "hub";
+  match: string;
+  probe: string[];
+  /** 화면 제목 (예: "PS5"). 없으면 사이트 이름 */
+  title?: Field;
+  /** move. 가운데 칸에 남길 광고. 찾은 요소 전부를 문서 순서대로 옮긴다 */
+  ads?: Field;
+  hide?: string[];
+}
+
+export type Page = PostPage | BoardPage | HubPage;
 
 /**
  * 통일 화면 왼쪽 메뉴 열에 놓을 사이트 메뉴 (설계 8-2절). 사이트 페이지의 메뉴 링크를 읽어 왼쪽 열에 다시 배치한다.

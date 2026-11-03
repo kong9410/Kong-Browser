@@ -60,7 +60,7 @@ function render(list: HTMLElement, menu: Pick<Menu, "groups">) {
 }
 
 /** 본문(main)을 감싸 두 열짜리 #kong-root 를 만든다. 레시피에 menu 가 없거나 읽은 메뉴가 없으면 한 열 그대로 */
-export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "board"): HTMLElement {
+export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "board" | "hub"): HTMLElement {
   const root = el("div");
   root.id = ROOT_ID;
   root.dataset.page = page;

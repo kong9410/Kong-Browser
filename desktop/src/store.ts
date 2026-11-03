@@ -78,6 +78,10 @@ export function setVisitTitle(url: string, title: string) {
     writeLater("history.json", history);
   }
 }
+/** 읽은 글 표시용: 이 호스트의 방문 주소 */
+export const visitedOn = (host: string): string[] =>
+  host ? allHistory().filter((e) => e.url.startsWith(`https://${host}/`) || e.url.startsWith(`http://${host}/`)).map((e) => e.url) : [];
+
 /** 자동완성용: 전체 기록 */
 export const historyEntries = (): readonly HistoryEntry[] => allHistory();
 

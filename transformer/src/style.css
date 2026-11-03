@@ -310,8 +310,10 @@ html.kong-on #kong-root .k-hidden {
   color: var(--k-fg);
   text-decoration: none;
 }
-#kong-root a.k-row:visited .k-row-title {
-  color: var(--k-muted);
+/* 읽은 글: 앱의 방문 기록으로 표시 (Electron 은 :visited 를 지원하지 않음) */
+#kong-root a.k-row:visited .k-row-title,
+#kong-root a.k-row.k-visited .k-row-title {
+  color: #8e8e9a;
 }
 #kong-root .k-row-title {
   font-size: 15.5px;
@@ -327,6 +329,23 @@ html.kong-on #kong-root .k-hidden {
   color: var(--k-accent);
   font-size: 13px;
   font-weight: 700;
+}
+#kong-root .k-media {
+  display: inline-flex;
+  margin-left: 5px;
+  vertical-align: -2px;
+  color: var(--k-muted);
+}
+#kong-root .k-media svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+}
+#kong-root .k-media-video svg path {
+  fill: currentColor;
 }
 #kong-root .k-badge {
   margin-right: 6px;
@@ -355,7 +374,7 @@ html.kong-on #kong-root .k-hidden {
 #kong-root {
   --k-navw: clamp(200px, 11vw, 280px);
   --k-sidew: clamp(220px, 13vw, 340px);
-  --k-mainw: clamp(760px, 52vw, 1320px);
+  --k-mainw: clamp(720px, 47vw, 1200px);
   grid-template-columns: var(--k-navw) minmax(0, var(--k-mainw)) var(--k-sidew);
   grid-template-areas: "nav main side";
 }
@@ -585,4 +604,14 @@ html.kong-on #kong-root .k-hidden {
   visibility: visible !important;
   opacity: 1 !important;
   margin-top: 6px !important;
+}
+
+/* ---------- 첫 화면 (게시판에 들어가기 전, 예: 루리웹 /ps): 제목 + 광고만 ---------- */
+#kong-root[data-page="hub"] .k-ad {
+  overflow: hidden;
+}
+/* 본문 칸보다 넓은 광고(1165px 배너 등)는 칸에 맞춘다 */
+#kong-root[data-page="hub"] .k-ad > *,
+#kong-root[data-page="hub"] .k-ad iframe {
+  max-width: 100% !important;
 }

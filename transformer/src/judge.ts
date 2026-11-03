@@ -1,6 +1,6 @@
 // ② 판정: ok / degraded / broken. broken 이면 DOM 을 건드리지 않고 원본을 보여준다.
 // 설계: docs/DESIGN.md 7-1절
-import type { Hit, Located, LocatedBoard, LocatedPost } from "./locate.js";
+import type { Hit, Located, LocatedBoard, LocatedHub, LocatedPost } from "./locate.js";
 import type { Field, Recipe } from "./recipe.js";
 
 export interface Judgement {
@@ -107,10 +107,17 @@ function judgeBoard(l: LocatedBoard, recipe: Recipe, failed: string[], warnings:
   if (noTitle) warnings.push(`rows:incomplete(${noTitle})`);
 }
 
+/** 첫 화면: probe 가 맞으면 그 자체로 정상. 제목·광고를 못 찾으면 경고만 (광고 차단 등) */
+function judgeHub(l: LocatedHub, warnings: string[]) {
+  if (l.page.title && !l.title?.value) warnings.push("title");
+  if (l.page.ads && !l.ads.length) warnings.push("ads");
+}
+
 export function judge(l: Located, recipe: Recipe): Judgement {
   const failed: string[] = [];
   const warnings: string[] = [];
   if (l.page.type === "post") judgePost(l as LocatedPost, recipe, failed, warnings);
+  else if (l.page.type === "hub") judgeHub(l as LocatedHub, warnings);
   else judgeBoard(l as LocatedBoard, recipe, failed, warnings);
   return { verdict: failed.length ? "broken" : warnings.length ? "degraded" : "ok", failed, warnings };
 }

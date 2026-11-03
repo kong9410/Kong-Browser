@@ -1,8 +1,9 @@
 // 엔진 진입점. 앱/개발 도구는 document-start 에 이 번들을 넣고 kong.boot(레시피들) 만 호출하면 된다.
 import { hideNow, reveal } from "./hide.js";
 import { checkCommentCount, judge } from "./judge.js";
-import { buildBoard, buildPost, mount, type PostView } from "./layout.js";
-import { findAll, hit, locate, pickPage, type Located, type LocatedBoard, type LocatedPost } from "./locate.js";
+import { buildBoard, buildHub, buildPost, mount, type PostView } from "./layout.js";
+import { setVisited } from "./visited.js";
+import { findAll, hit, locate, pickPage, type Located, type LocatedBoard, type LocatedHub, type LocatedPost } from "./locate.js";
 import { extractMenu } from "./menu.js";
 import { revealCurrent, setNavOptions } from "./nav.js";
 import { observeBoard, observePost } from "./observe.js";
@@ -84,6 +85,9 @@ export function run(recipe: Recipe): Status {
       revealCurrent();
       if (post.page.comments?.lazy && post.comments.length === 0) lateView = view;
       observePost(post.page, view, () => lateCheck?.());
+    } else if (located.page.type === "hub") {
+      mount(buildHub(located as LocatedHub, recipe), page.hide);
+      revealCurrent();
     } else {
       const view = buildBoard(located as LocatedBoard, recipe);
       mount(view.root, page.hide);
@@ -121,9 +125,12 @@ export function run(recipe: Recipe): Status {
 export interface BootOptions {
   /** 왼쪽 메뉴를 펼친 채로 시작할지 (앱이 기억한 값). 기본 true */
   navOpen?: boolean;
+  /** 이 사이트의 방문 기록 주소들 (목록에서 읽은 글 표시) */
+  visited?: string[];
 }
 
 export function boot(recipes: Recipe | Recipe[], opts: BootOptions = {}) {
+  setVisited(opts.visited ?? []);
   setNavOptions({
     open: opts.navOpen ?? true,
     onToggle: (open) => {
@@ -193,6 +200,9 @@ export function inspect(recipe: Recipe) {
       replies: p.comments.filter((c) => c.isReply).length,
       sampleComment: short(p.comments[0]?.content?.textContent?.trim()),
     };
+  } else if (l.page.type === "hub") {
+    const hb = l as LocatedHub;
+    detail = { title: hb.title?.value ?? null, ads: hb.ads.map((e) => (e.id ? "#" + e.id : e.tagName.toLowerCase())) };
   } else {
     const b = l as LocatedBoard;
     detail = {

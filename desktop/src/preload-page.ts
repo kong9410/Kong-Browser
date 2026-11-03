@@ -23,7 +23,7 @@ if (window.top === window) {
   const config = ipcRenderer.sendSync(IPC.pageConfig, location.href) as PageConfig;
   const recipes = config.recipes as Recipe[];
   // 원본 보기가 아니면 재배치 (왼쪽 메뉴 열도 통일 화면의 일부)
-  if (!config.off && recipes.length) boot(recipes, { navOpen: config.navOpen });
+  if (!config.off && recipes.length) boot(recipes, { navOpen: config.navOpen, visited: config.visited });
   // 맨 위/맨 아래 버튼은 모든 페이지에 (브라우저 기능)
   installScrollButtons();
 }

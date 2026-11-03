@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "bbs.ruliweb.com",
-  "version": 4,
+  "version": 6,
   "minEngine": 1,
   "siteName": "루리웹",
   "menu": [
@@ -221,11 +221,35 @@
           "sel": [
             ".num_reply"
           ]
-        }
+        },
+        "image": ".subject_link i.icon-picture",
+        "video": ".subject_link i.icon-youtube-play"
       },
       "pager": {
         "sel": [
           ".paging_wrapper"
+        ]
+      }
+    },
+    {
+      "id": "hub",
+      "type": "hub",
+      "match": "^/(ps|nin|xbox|pc|vr|mobile)/?(\\?.*)?$",
+      "probe": [
+        "#subtop .main_center"
+      ],
+      "title": {
+        "sel": [
+          "head > title"
+        ],
+        "pattern": "^(.+?)\\s*\\|"
+      },
+      "ads": {
+        "sel": [
+          "#ad_main_ti_new, #ad_sub_top_05, #ad_sub_top_02"
+        ],
+        "exclude": [
+          "#ad_main_ti_close"
         ]
       }
     }

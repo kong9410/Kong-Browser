@@ -54,14 +54,19 @@ const recipes = loadRecipes();
 
 // 사용자 설정 (통일 화면의 왼쪽 메뉴 펼침 상태 등): %APPDATA%/Kong Browser/settings.json
 const SETTINGS_FILE = () => path.join(app.getPath("userData"), "settings.json");
+// 파일은 처음 한 번만 읽고 이후는 메모리 값 (바꾼 직후 새로고침한 페이지가 곧바로 새 값을 받도록)
+let settings: Settings | null = null;
 function loadSettings(): Settings {
+  if (settings) return settings;
   try {
-    return parseSettings(JSON.parse(fs.readFileSync(SETTINGS_FILE(), "utf8")));
+    settings = parseSettings(JSON.parse(fs.readFileSync(SETTINGS_FILE(), "utf8")));
   } catch {
-    return parseSettings(null); // 기본: 왼쪽 메뉴 펼침, 북마크 바·dock 표시
+    settings = parseSettings(null); // 기본: 왼쪽 메뉴 펼침, 북마크 바·dock 표시, 통합 화면
   }
+  return settings;
 }
 function saveSettings(s: Settings) {
+  settings = s;
   fs.writeFile(SETTINGS_FILE(), JSON.stringify(s, null, 2), () => {});
 }
 
@@ -80,8 +85,8 @@ interface Tab {
   view: WebContentsView;
   state: TabState;
   favicon: string | null;
-  /** "원본 보기"를 켠 페이지 URL. 다른 페이지로 이동하면 자연히 재배치가 다시 적용된다 (탭마다 따로) */
-  originalUrl: string | null;
+  /** 지금 페이지를 원본으로 불러왔는지 (불러올 때의 토글 값). 아직 안 불러왔으면 null */
+  loadedOriginal: boolean | null;
 }
 
 let tabs: Tab[] = [];
@@ -112,7 +117,7 @@ function update(tab: Tab, patch: Partial<TabState> = {}) {
     tab.state.canGoBack = nav.canGoBack();
     tab.state.canGoForward = nav.canGoForward();
   }
-  tab.state.original = tab.originalUrl !== null && tab.originalUrl === tab.state.url;
+  tab.state.original = loadSettings().original;
   tab.state.hasRecipe = recipes.some((r) => r.host === hostOf(tab.state.url));
   pushUI();
 }
@@ -159,7 +164,7 @@ function createTab(url: string, opts: { activate?: boolean; after?: Tab | null }
       nodeIntegration: false,
     },
   });
-  const tab: Tab = { id: nextId++, view, state: newTabState(), favicon: null, originalUrl: null };
+  const tab: Tab = { id: nextId++, view, state: newTabState(), favicon: null, loadedOriginal: null };
   const at = opts.after ? tabs.indexOf(opts.after) + 1 : tabs.length;
   tabs.splice(at, 0, tab);
 
@@ -204,6 +209,7 @@ function activate(tab: Tab) {
   win.contentView.addChildView(tab.view);
   layout();
   tab.view.webContents.focus();
+  syncOriginal(tab); // 다른 탭에서 원본/통합을 바꿨으면 이 탭도 맞춘다
   pushUI();
 }
 
@@ -320,7 +326,13 @@ const openHistory = () => openInternal(HISTORY_URL);
 function toggleSetting(key: "bookmarkBar" | "dockOpen") {
   const s = loadSettings();
   saveSettings({ ...s, [key]: !s[key] });
-  setTimeout(pushUI, 50); // 설정 파일 쓰기 뒤에
+  pushUI();
+}
+
+/** 지금 토글 값과 다르게 불러온 페이지면 다시 불러온다 (원본 ↔ 통합) */
+function syncOriginal(tab: Tab) {
+  if (tab.loadedOriginal !== null && tab.state.hasRecipe && tab.loadedOriginal !== loadSettings().original)
+    tab.view.webContents.reload();
 }
 
 /** 단축키: 툴바와 페이지 어느 쪽에 포커스가 있어도 동작 */
@@ -412,10 +424,13 @@ function createWindow() {
 
 ipcMain.on(IPC.pageConfig, (e, url: string) => {
   const tab = tabOf(e.sender);
+  const off = !!tab && loadSettings().original;
+  if (tab) tab.loadedOriginal = off;
   const config: PageConfig = {
     recipes: tab ? recipes : [],
-    off: !!tab && url === tab.originalUrl,
+    off,
     navOpen: loadSettings().navOpen,
+    visited: tab && !off ? store.visitedOn(hostOf(url)) : [],
   };
   e.returnValue = config;
 });
@@ -455,9 +470,12 @@ ipcMain.on(IPC.reload, () => current()?.reload());
 ipcMain.on(IPC.stop, () => current()?.stop());
 ipcMain.on(IPC.toggleOriginal, () => {
   if (!active) return;
-  // 원본 보기 ↔ 통일 화면: 주입 여부만 바꿔서 새로고침
-  active.originalUrl = active.originalUrl === active.state.url ? null : active.state.url;
-  active.view.webContents.reload();
+  // 원본 ↔ 통합: 앱 전체 토글. 지금 탭은 바로 새로고침하고, 다른 탭은 열 때 맞춘다 (syncOriginal)
+  const s = loadSettings();
+  saveSettings({ ...s, original: !s.original });
+  for (const t of tabs) t.state.original = !s.original;
+  syncOriginal(active);
+  pushUI();
 });
 ipcMain.on(IPC.newTab, () => openBlankTab());
 ipcMain.on(IPC.closeTab, (_e, id: number) => {

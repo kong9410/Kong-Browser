@@ -2,9 +2,10 @@
 // text 슬롯 = 원본 텍스트를 읽어 엔진이 만든 요소에 넣음 / move 슬롯 = 원본 노드를 통째로 이동 (이벤트·지연로딩 유지)
 // 설계: docs/DESIGN.md 4절
 import { findAll, hit } from "./locate.js";
-import type { Hit, LocatedBoard, LocatedComment, LocatedPost, LocatedRow } from "./locate.js";
+import type { Hit, LocatedBoard, LocatedComment, LocatedHub, LocatedPost, LocatedRow } from "./locate.js";
 import type { Field, Recipe } from "./recipe.js";
 import { buildShell, ROOT_ID } from "./nav.js";
+import { isVisited, markVisited } from "./visited.js";
 import css from "./style.css";
 
 export { ROOT_ID };
@@ -208,6 +209,18 @@ export interface BoardView {
   addRow(r: LocatedRow): void;
 }
 
+const MEDIA_SVG = {
+  image: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M5 17.5l4.5-4.5 3 3 2.5-2.5 4 4"/>',
+  video: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M10.5 9.3v5.4l4.4-2.7z"/>',
+};
+/** 이미지·동영상이 있는 글 표시 (제목 뒤 작은 아이콘) */
+function mediaIcon(kind: "image" | "video") {
+  const s = h("span", `k-media k-media-${kind}`);
+  s.title = kind === "image" ? "이미지" : "동영상";
+  s.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${MEDIA_SVG[kind]}</svg>`;
+  return s;
+}
+
 export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
   const root = h("div");
 
@@ -226,10 +239,19 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
       if (!r.title || !r.href) return;
       const a = h("a", `k-row${r.notice ? " k-notice" : ""}`);
       a.href = r.href;
+      // 읽은 글은 제목 색을 바꾼다 (사이트의 방문한 링크 색처럼)
+      const params = l.page.rows.visitParams;
+      if (isVisited(r.href, params)) a.classList.add("k-visited");
+      a.addEventListener("click", () => {
+        a.classList.add("k-visited");
+        markVisited(a.href);
+      });
       const t = h("div", "k-row-title");
       if (r.notice) t.appendChild(h("span", "k-badge", "공지"));
       if (r.category) t.appendChild(h("span", "k-cat", r.category.replace(/^\[|\]$/g, "")));
       t.appendChild(document.createTextNode(r.title));
+      if (r.image) t.appendChild(mediaIcon("image"));
+      if (r.video) t.appendChild(mediaIcon("video"));
       const n = r.commentCount?.replace(/[^0-9]/g, "");
       if (n && n !== "0") t.appendChild(h("span", "k-ccount", n));
       a.appendChild(t);
@@ -246,6 +268,22 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
   // 왼쪽 메뉴 열과 함께 두 열로 감싼다 (메뉴가 없는 사이트면 한 열 그대로)
   view.root = buildShell(root, recipe, "board");
   return view;
+}
+
+// ---------- 첫 화면 (게시판에 들어가기 전) ----------
+
+/** 제목 + 광고만. 원본 내용(뉴스·추천글 등)은 숨겨진 채로 둔다 */
+export function buildHub(l: LocatedHub, recipe: Recipe): HTMLElement {
+  const root = h("div");
+  const head = h("header", "k-head");
+  head.append(h("div", "k-site", recipe.siteName), h("h1", "k-title", l.title?.value ?? recipe.siteName));
+  root.appendChild(head);
+  for (const ad of l.ads) {
+    const box = h("div", "k-ad k-move");
+    moveInto(box, ad, l.page.ads);
+    root.appendChild(box);
+  }
+  return buildShell(root, recipe, "hub");
 }
 
 // ---------- 화면에 붙이기 ----------

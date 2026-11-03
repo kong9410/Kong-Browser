@@ -74,7 +74,7 @@ async function shot(app: ElectronApplication, toolbar: Page, name: string) {
   let s = await go(app, toolbar, BOARD);
   const rows = await inPage<number>(app, `document.querySelectorAll("#kong-root a.k-row").length`);
   check("주소창 입력 → 게시판 통일 화면", s.verdict === "ok" && rows > 20, { verdict: s.verdict, rows });
-  check("툴바 표시: 통일 화면", (await toolbar.textContent("#mode")) === "통일 화면");
+  check("툴바 표시: 통합 화면", (await toolbar.textContent("#mode")) === "통합 화면");
   // Windows 가 다크 모드여도 앱은 밝은 모드
   const dark = await inPage<boolean>(app, `matchMedia("(prefers-color-scheme: dark)").matches`);
   const bg = await inPage<string>(app, `getComputedStyle(document.getElementById("kong-root")).backgroundColor`);
@@ -187,10 +187,14 @@ async function shot(app: ElectronApplication, toolbar: Page, name: string) {
   const ob = await btns();
   check("원본 화면에서도 맨 아래 버튼", ob.down, ob);
   await shot(app, toolbar, "original");
+  // 원본 토글은 페이지를 옮겨도 유지
+  s = await go(app, toolbar, "https://bbs.ruliweb.com/community/board/300143");
+  const keptOriginal = s.original && (await inPage<boolean>(app, `!document.getElementById("kong-root")`));
+  check("원본 토글이 다른 페이지에서도 유지", keptOriginal, { original: s.original, url: s.url });
   await toolbar.click("#original");
   await new Promise((r) => setTimeout(r, 1000));
   s = await waitVerdict(app);
-  check("다시 통일 화면", !s.original && s.verdict === "ok");
+  check("다시 통합 화면", !s.original && s.verdict === "ok");
 
   // 디시인사이드: 목록, 늦게 붙는 댓글(AJAX), 댓글 페이지
   s = await go(app, toolbar, "https://gall.dcinside.com/board/lists/?id=programming");

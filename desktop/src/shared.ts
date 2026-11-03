@@ -54,6 +54,8 @@ export interface PageConfig {
   off: boolean;
   /** 통일 화면의 왼쪽 메뉴를 펼친 채로 시작할지 (사용자가 마지막으로 고른 상태, 기본 펼침) */
   navOpen: boolean;
+  /** 이 사이트(같은 호스트)의 방문 기록 주소. 목록에서 읽은 글 표시용 */
+  visited: string[];
 }
 
 export interface Bookmark {
@@ -122,9 +124,9 @@ export interface TabState {
   canGoBack: boolean;
   canGoForward: boolean;
   loading: boolean;
-  /** 사용자가 이 페이지를 원본으로 보고 있음 */
+  /** 원본 화면으로 보는 중 (툴바의 원본/통합 토글, 앱 전체에 적용) */
   original: boolean;
-  /** 이 사이트에 레시피가 있는지 (원본 보기 버튼 활성화용) */
+  /** 이 사이트에 레시피가 있는지 (원본/통합 토글 표시용) */
   hasRecipe: boolean;
   /** 엔진 판정. 레시피가 없는 페이지면 null */
   verdict: "ok" | "degraded" | "broken" | "none" | null;

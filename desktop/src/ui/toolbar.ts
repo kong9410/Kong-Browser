@@ -166,13 +166,14 @@ ui.onState((s: BrowserState) => {
 
   // 재배치 상태 표시
   if (s.original) setMode("원본", "original");
-  else if (s.verdict === "ok" || s.verdict === "degraded") setMode("통일 화면", "unified");
+  else if (s.verdict === "ok" || s.verdict === "degraded") setMode("통합 화면", "unified");
   else if (s.verdict === "broken") setMode("원본", "broken");
   else setMode("", "");
 
   original.hidden = !s.hasRecipe;
-  original.textContent = s.original ? "통일 화면으로" : "원본 보기";
-  original.classList.toggle("active", s.original);
+  // 토글: 켜진 쪽이 지금 화면 (원본 | 통합)
+  original.classList.toggle("is-original", s.original);
+  original.setAttribute("aria-checked", String(s.original));
 
   // 북마크 ☆/★: 웹 페이지에서만
   bookmarkBtn.hidden = !/^https?:/.test(s.url);

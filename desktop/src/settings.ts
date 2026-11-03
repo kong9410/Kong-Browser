@@ -7,9 +7,11 @@ export interface Settings {
   bookmarkBar: boolean;
   /** 오른쪽 dock 표시 */
   dockOpen: boolean;
+  /** 원본 화면으로 보기 (툴바의 원본/통합 토글). 페이지를 옮겨도, 다시 실행해도 유지 */
+  original: boolean;
 }
 
-export const DEFAULT_SETTINGS: Readonly<Settings> = { navOpen: true, bookmarkBar: true, dockOpen: true };
+export const DEFAULT_SETTINGS: Readonly<Settings> = { navOpen: true, bookmarkBar: true, dockOpen: true, original: false };
 
 /** 저장된 값 읽기: 없거나 이상한 값은 기본값으로 (예전 버전 파일에 없던 항목도 기본값) */
 export function parseSettings(raw: unknown): Settings {

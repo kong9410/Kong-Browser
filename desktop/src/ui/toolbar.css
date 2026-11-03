@@ -116,24 +116,37 @@ svg {
   background: var(--warn-bg);
   color: var(--warn-fg);
 }
-.pill {
+/* 원본 | 통합 토글: 지금 보고 있는 쪽이 채워진다 */
+.mode-switch {
   width: auto;
   height: 30px;
-  padding: 0 12px;
+  padding: 2px;
+  gap: 2px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--field);
-  font: inherit;
+}
+.mode-switch:hover:not(:disabled) {
+  background: var(--field);
+}
+.mode-switch .seg {
+  padding: 0 10px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  color: var(--muted);
   font-weight: 600;
   white-space: nowrap;
 }
-.pill.active {
-  border-color: var(--accent);
+.mode-switch .seg-unified,
+.mode-switch.is-original .seg-original {
   background: var(--accent);
   color: #fff;
 }
-.pill.active:hover {
-  background: var(--accent);
+.mode-switch.is-original .seg-unified {
+  background: none;
+  color: var(--muted);
 }
 .banner {
   padding: 8px 16px;
