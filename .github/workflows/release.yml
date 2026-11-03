@@ -71,6 +71,11 @@ jobs:
         with:
           path: files
           merge-multiple: true
+      # 같은 태그로 다시 릴리스할 때: 이전 릴리스(파일 포함)를 지우고 새로 만든다 (태그는 그대로)
+      - name: 같은 태그의 이전 릴리스 지우기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete "${{ github.ref_name }}" --repo "${{ github.repository }}" --yes || true
       - uses: softprops/action-gh-release@v2
         with:
           name: Kong Browser ${{ github.ref_name }}
