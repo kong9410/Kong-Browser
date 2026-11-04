@@ -146,7 +146,8 @@ address.onkeydown = (e) => {
     }
   }
 };
-ui.onFocusAddress(() => {
+ui.onFocusAddress((keep) => {
+  if (keep && document.activeElement === address) return;
   address.focus();
   address.select();
 });

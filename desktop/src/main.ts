@@ -138,6 +138,8 @@ interface Tab {
   pinned: boolean;
   /** 아직 답하지 않은 권한 요청 (앞의 것부터 묻는다) */
   asks: PermissionAsk[];
+  /** 새 탭: 주소창이 커서를 갖는다 (페이지가 처음 뜰 때 포커스를 가져가도 되돌림). 페이지를 누르거나 다른 곳으로 가면 끝 */
+  focusAddress?: boolean;
 }
 
 let wins: Win[] = [];
@@ -473,7 +475,15 @@ function reopenClosed(w: Win) {
 function createTab(
   w: Win,
   url: string,
-  opts: { activate?: boolean; after?: Tab | null; at?: number; pinned?: boolean; restore?: { entries: Electron.NavigationEntry[]; index?: number } } = {},
+  opts: {
+    activate?: boolean;
+    after?: Tab | null;
+    at?: number;
+    pinned?: boolean;
+    restore?: { entries: Electron.NavigationEntry[]; index?: number };
+    /** 새 탭: 주소창에 커서 */
+    focusAddress?: boolean;
+  } = {},
 ): Tab {
   const view = new WebContentsView({
     webPreferences: {
@@ -485,7 +495,7 @@ function createTab(
     },
   });
   const pinned = !!opts.pinned;
-  const tab: Tab = { id: nextId++, w, view, state: newTabState(), favicon: null, loadedOriginal: null, pinned, asks: [] };
+  const tab: Tab = { id: nextId++, w, view, state: newTabState(), favicon: null, loadedOriginal: null, pinned, asks: [], focusAddress: opts.focusAddress };
   const want = opts.at ?? (opts.after && w.tabs.includes(opts.after) ? w.tabs.indexOf(opts.after) + 1 : w.tabs.length);
   w.tabs.splice(clampPosition(want, pinned, w.tabs.filter((t) => t.pinned).length, w.tabs.length), 0, tab);
 
@@ -522,6 +532,11 @@ function createTab(
   });
   wc.on("did-navigate", (_e, u) => {
     tab.favicon = null;
+    // 새 탭의 시작 페이지가 뜰 때 Chromium 이 페이지에 포커스를 돌려주므로 주소창으로 되돌린다 (다른 주소로 가면 끝)
+    if (tab.focusAddress) {
+      if (samePage(u, START_URL)) tab.w.active === tab && focusAddressBar(tab.w, true);
+      else tab.focusAddress = false;
+    }
     if (/^https?:/.test(u)) store.addVisit(u, u); // 제목은 page-title-updated 에서 채움
     // 다른 페이지로 왔으면 이전 페이지가 묻던 권한은 거절, 배율은 이 사이트에 기억한 것으로
     dropAsks(tab);
@@ -591,6 +606,14 @@ function createTab(
   wc.on("did-start-loading", () => update(tab, { loading: true }));
   wc.on("did-stop-loading", () => update(tab, { loading: false }));
   wc.on("before-input-event", (e, input) => handleShortcut(tab.w, input) && e.preventDefault());
+  // 새 탭: 페이지가 만들어지거나 뜨면서 포커스를 가져가면 바로 주소창으로 되돌린다
+  wc.on("focus", () => {
+    if (tab.focusAddress && tab.w.active === tab) setTimeout(() => tab.focusAddress && tab.w.active === tab && focusAddressBar(tab.w, true), 0); // focus 이벤트 안에서 바로 옮기면 무시됨
+  });
+  // 새 탭에서 페이지를 직접 누르면 그때부터는 페이지가 포커스를 가져도 된다
+  wc.on("input-event", (_e, input) => {
+    if (tab.focusAddress && input.type === "mouseDown") tab.focusAddress = false;
+  });
   wc.on("context-menu", (_e, params) => showContextMenu(tab.w, tab, params));
 
   if (opts.restore) {
@@ -613,7 +636,9 @@ function activate(tab: Tab) {
   // 페이지 위 작은 창은 새 페이지 view 보다 위에
   for (const kind of ["find", "prompt"] as const) if (overlayShown(w, kind)) w.win.contentView.addChildView(w.overlays[kind]!);
   layout(w);
-  tab.view.webContents.focus();
+  // 새 탭이면 주소창에, 아니면 페이지에 커서
+  if (tab.focusAddress) focusAddressBar(w);
+  else tab.view.webContents.focus();
   syncPrompt(w); // 이 탭에 답하지 않은 권한 요청이 있으면 묻고, 없으면 닫는다
   syncOriginal(tab); // 다른 탭에서 원본/통합을 바꿨으면 이 탭도 맞춘다
   pushUI(w);
@@ -805,10 +830,18 @@ function closeTab(tab: Tab) {
 }
 
 /** 새 탭을 열고 주소창에 커서 (Ctrl+T, [+]) */
-function openBlankTab(w: Win) {
-  createTab(w, START_URL);
+function openBlankTab(w: Win, after?: Tab) {
+  createTab(w, START_URL, { after, focusAddress: true });
+}
+
+/**
+ * 주소창에 커서. keep = 이미 주소창에 있으면 그대로 (입력 중인 글자를 선택해 덮어쓰지 않게) —
+ * 페이지가 뜬 뒤 포커스를 되돌릴 때. 아니면 주소 전체 선택 (Ctrl+L)
+ */
+function focusAddressBar(w: Win, keep = false) {
+  if (w.win.isDestroyed()) return;
   w.win.webContents.focus();
-  w.win.webContents.send(IPC.focusAddress);
+  w.win.webContents.send(IPC.focusAddress, keep);
 }
 
 /**
@@ -977,6 +1010,9 @@ function ensureSuggestView(w: Win): WebContentsView {
   });
   v.setBackgroundColor("#00000000");
   v.webContents.loadFile(path.join(__dirname, "ui", "suggest.html"));
+  // 목록은 마우스로만 고르므로 키보드 포커스를 가져가면 안 된다: 처음 만들어질 때 포커스를 가져가
+  // 주소창 입력이 끊기던 문제 (새 탭에서 첫 글자를 치면 입력이 풀림). 가져가면 바로 주소창으로 되돌린다
+  v.webContents.on("focus", () => setTimeout(() => focusAddressBar(w, true), 0));
   w.suggestView = v;
   return v;
 }
@@ -1071,7 +1107,7 @@ function handleShortcut(w: Win, input: Input): boolean {
   if (input.key === "Escape" && !w.findOpen && !w.immersive && active.state.loading) wc.stop();
   if (input.key === "F11") toggleF11(w);
   else if (w.immersive) return false; // 전체 화면 동영상·F11 중에는 다른 단축키를 페이지에 그대로
-  else if ((ctrl && key === "l") || input.key === "F6") win.webContents.send(IPC.focusAddress);
+  else if ((ctrl && key === "l") || input.key === "F6") focusAddressBar(w);
   else if (ctrl && key === "f") openFind(w);
   else if (input.key === "Escape" && w.findOpen) closeFind(w);
   else if (ctrl && (key === "=" || key === "+" || input.code === "NumpadAdd")) setZoom(active, stepZoom(wc.getZoomFactor(), 1));
@@ -1181,7 +1217,8 @@ function createWindow(opts: { urls?: string[]; active?: number; bounds?: Bounds;
   win.loadFile(path.join(__dirname, "ui", "index.html"));
 
   const urls = opts.urls ?? [];
-  urls.forEach((u, i) => createTab(w, u, { activate: false, pinned: i < (opts.pinned ?? 0) }));
+  // 시작 페이지 탭은 주소창에 커서 (새 창·처음 실행)
+  urls.forEach((u, i) => createTab(w, u, { activate: false, pinned: i < (opts.pinned ?? 0), focusAddress: samePage(u, START_URL) }));
   if (w.tabs.length) activate(w.tabs[Math.min(Math.max(opts.active ?? 0, 0), w.tabs.length - 1)]);
   return w;
 }
@@ -1323,11 +1360,7 @@ onUI(IPC.tabMenu, (w, id: number) => {
   const wc = tab.view.webContents;
   const index = w.tabs.indexOf(tab);
   const run: Record<TabMenuAction, () => void> = {
-    newTab: () => {
-      createTab(w, START_URL, { after: tab });
-      w.win.webContents.focus();
-      w.win.webContents.send(IPC.focusAddress);
-    },
+    newTab: () => openBlankTab(w, tab),
     reload: () => reloadPage(wc),
     duplicate: () => createTab(w, tab.state.url, { after: tab, pinned: tab.pinned, restore: { entries: wc.navigationHistory.getAllEntries(), index: wc.navigationHistory.getActiveIndex() } }),
     pin: () => togglePin(tab),
