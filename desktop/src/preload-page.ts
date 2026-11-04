@@ -31,5 +31,10 @@ if (window.top === window) {
   installScrollButtons();
   // 글쓰기 화면 등에서 '나가시겠어요?' 확인 창 (Electron 은 창 없이 이동을 막기만 하므로)
   installLeaveGuard();
+  // 마우스 옆 버튼 뒤로/앞으로: Windows 는 main 이 창의 app-command 로 받으므로 그 밖의 운영체제에서만
+  if (process.platform !== "win32")
+    addEventListener("mouseup", (e) => {
+      if (e.button === 3 || e.button === 4) ipcRenderer.send(IPC.pageHistory, e.button === 3 ? "back" : "forward");
+    });
   ipcRenderer.on(IPC.leaveAsk, () => askLeave(() => ipcRenderer.invoke(IPC.leaveGo)));
 }

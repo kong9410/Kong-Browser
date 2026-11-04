@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>페이지에서 찾기</title>
+    <link rel="stylesheet" href="overlay.css" />
+    <style>
+      .card {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: 48px;
+        padding: 0 6px 0 12px;
+      }
+      .card:focus-within {
+        border-color: #c7d2fe;
+      }
+      .search {
+        flex: none;
+        color: var(--muted);
+        margin-right: 6px;
+      }
+      #q {
+        flex: 1;
+        min-width: 0;
+        height: 32px;
+        border: 0;
+        outline: 0;
+        font: inherit;
+        font-size: 14px;
+        background: transparent;
+        color: var(--fg);
+        user-select: text;
+      }
+      #count {
+        flex: none;
+        min-width: 48px;
+        padding: 0 8px;
+        text-align: right;
+        color: var(--muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+      #count.none {
+        color: #d93025;
+      }
+      .sep {
+        width: 1px;
+        height: 20px;
+        background: var(--line);
+        margin: 0 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <svg class="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></svg>
+      <input id="q" type="text" spellcheck="false" autocomplete="off" placeholder="페이지에서 찾기" aria-label="페이지에서 찾기" />
+      <span id="count"></span>
+      <span class="sep"></span>
+      <button id="prev" class="icon-btn" title="이전 (Shift+Enter)" aria-label="이전"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" /></svg></button>
+      <button id="next" class="icon-btn" title="다음 (Enter)" aria-label="다음"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg></button>
+      <button id="close" class="icon-btn" title="닫기 (Esc)" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+    </div>
+    <script src="find.js"></script>
+  </body>
+</html>

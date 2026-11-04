@@ -100,5 +100,12 @@ export function clearHistory() {
 // ---------- 다운로드 내역 ----------
 // 목록 자체는 main.ts 가 들고 있고(진행 중 상태 포함), 여기서는 읽기·저장만
 
+// ---------- 사이트 권한·확대/축소 (사이트별로 기억) ----------
+
+export const loadPermissions = (): unknown => readJson<unknown>("permissions.json", {});
+export const savePermissions = (p: unknown) => writeLater("permissions.json", p);
+export const loadZoom = (): unknown => readJson<unknown>("zoom.json", {});
+export const saveZoom = (z: unknown) => writeLater("zoom.json", z);
+
 export const loadDownloads = (): unknown => readJson<unknown>("downloads.json", []);
 export const saveDownloads = (list: unknown) => writeLater("downloads.json", list);

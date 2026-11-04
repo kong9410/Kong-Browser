@@ -96,6 +96,21 @@ svg {
   font-size: 14px;
   user-select: text;
 }
+/* 확대/축소 배율 (100% 가 아닐 때만): 누르면 기본 크기로 */
+.zoom {
+  flex: none;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.zoom:hover:not(:disabled) {
+  background: #e0e7ff;
+}
 .mode {
   flex: none;
   padding: 2px 8px;
@@ -279,6 +294,52 @@ html[data-platform="darwin"].fullscreen .tabstrip {
 }
 .tab:hover .tab-close {
   opacity: 1;
+}
+/* 고정 탭: 아이콘만, 좁게 */
+.tab.pinned {
+  flex: none;
+  width: 44px;
+  min-width: 44px;
+  justify-content: center;
+  padding: 0;
+  gap: 2px;
+}
+.tab.pinned .tab-title {
+  display: none;
+}
+/* 소리 나는 탭 / 음소거한 탭 */
+.tab-sound {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  padding: 0;
+  color: #6e6e73;
+}
+.tab-sound svg {
+  width: 15px;
+  height: 15px;
+}
+.tab-sound.muted {
+  color: #d93025;
+}
+.tab-sound:hover {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+.tab.pinned .tab-sound {
+  position: absolute;
+  right: 1px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--tabstrip);
+}
+.tab.pinned.active .tab-sound {
+  background: var(--bg);
+}
+.tab.pinned .tab-sound svg {
+  width: 12px;
+  height: 12px;
 }
 .new-tab {
   flex: none;

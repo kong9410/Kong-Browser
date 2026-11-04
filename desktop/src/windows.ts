@@ -12,6 +12,8 @@ export interface WindowSession {
   tabs: string[];
   active: number;
   bounds?: Bounds;
+  /** 앞에서부터 이만큼은 고정 탭 */
+  pinned?: number;
 }
 export interface Session {
   windows: WindowSession[];
@@ -26,7 +28,10 @@ function parseWindow(raw: unknown): WindowSession | null {
   const tabs = Array.isArray(r.tabs) ? r.tabs.filter((t): t is string => typeof t === "string") : [];
   if (!tabs.length) return null;
   const active = typeof r.active === "number" ? Math.min(Math.max(0, r.active), tabs.length - 1) : 0;
-  return isBounds(r.bounds) ? { tabs, active, bounds: r.bounds } : { tabs, active };
+  const w: WindowSession = { tabs, active };
+  if (isBounds(r.bounds)) w.bounds = r.bounds;
+  if (typeof r.pinned === "number" && r.pinned > 0) w.pinned = Math.min(Math.floor(r.pinned), tabs.length);
+  return w;
 }
 
 /** session.json 읽기. 예전 형식({tabs, active}, 창 하나)도 읽는다. 탭이 없는 창은 버린다 */

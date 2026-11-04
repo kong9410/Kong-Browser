@@ -51,6 +51,17 @@ export const IPC = {
   /** 툴바 → main: 페이지 영역 위치 (툴바 높이, 오른쪽 dock 폭) */
   layout: "ui:layout",
   ready: "ui:ready",
+  /** 탭 오른쪽 클릭 메뉴 (새로고침·복제·고정·음소거·닫기…) */
+  tabMenu: "ui:tab-menu",
+  /** 탭의 스피커 아이콘: 음소거 켜기/끄기 */
+  toggleMute: "ui:toggle-mute",
+  /** 주소창의 확대/축소 표시를 누름: 기본 크기(100%)로 */
+  zoomReset: "ui:zoom-reset",
+  /** 페이지 preload → main: 마우스 옆 버튼 뒤로/앞으로 (Windows 는 app-command 로 받음) */
+  pageHistory: "kong:page-history",
+  /** main ↔ 페이지 위에 겹쳐 뜨는 작은 창(찾기 막대·권한 묻기) */
+  overlayIn: "overlay:in",
+  overlayOut: "overlay:out",
   /** main → 툴바 */
   state: "ui:state",
   focusAddress: "ui:focus-address",
@@ -130,6 +141,11 @@ export interface TabInfo {
   favicon: string | null;
   loading: boolean;
   active: boolean;
+  /** 고정 탭 (왼쪽에 아이콘만) */
+  pinned: boolean;
+  /** 소리가 나는 중 / 음소거 (탭에 스피커 아이콘) */
+  audible: boolean;
+  muted: boolean;
 }
 
 /** 탭 하나의 상태 (툴바에는 지금 탭의 것이 보인다) */
@@ -146,7 +162,19 @@ export interface TabState {
   /** 엔진 판정. 레시피가 없는 페이지면 null */
   verdict: "ok" | "degraded" | "broken" | "none" | null;
   failed: string[];
+  /** 확대/축소 배율 (1 = 100%). 100% 가 아니면 주소창에 표시 */
+  zoom: number;
 }
+
+/** 페이지 위 작은 창(찾기 막대·권한 묻기)과 main 이 주고받는 메시지 */
+export type OverlayIn =
+  | { type: "findOpen"; text: string }
+  | { type: "findResult"; active: number; total: number }
+  | { type: "prompt"; site: string; label: string; more: number };
+export type OverlayOut =
+  | { type: "find"; text: string; forward: boolean; next: boolean }
+  | { type: "findClose" }
+  | { type: "answer"; allow: boolean | null };
 
 /** 툴바 화면에 보내는 상태: 지금 탭의 상태 + 탭 줄 + 북마크 */
 export interface BrowserState extends TabState {

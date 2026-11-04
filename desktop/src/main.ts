@@ -10,8 +10,11 @@ import * as bm from "./bookmarks.js";
 import { contextItems, type ContextAction } from "./context-menu.js";
 import { isFresh } from "./leave-dialog.js";
 import { DOWNLOADS_MAX, isActive, overall, restoreDownloads, searchDownloads, statusText, uniqueName, type DownloadInfo } from "./downloads.js";
-import { IPC, type BrowserState, type InternalRequest, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
+import { IPC, type BrowserState, type InternalRequest, type OverlayIn, type OverlayOut, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
+import { decide, isAllowed, parsePermissions, remember, siteName, type PermissionStore } from "./permissions.js";
 import { isPopup, popupSize } from "./popup.js";
+import { clampPosition, pushClosed, tabMenuItems, type ClosedTab, type TabMenuAction } from "./tabs.js";
+import { isDefaultZoom, parseZoom, setSiteZoom, stepZoom, type ZoomStore } from "./zoom.js";
 import { parseSettings, type Settings } from "./settings.js";
 import * as store from "./store.js";
 import { SEARCH_URL, suggest, toUrl, type Suggestion } from "./suggest.js";
@@ -94,6 +97,24 @@ interface Win {
   /** 주소창 자동완성 목록 (페이지 위에 겹쳐 뜨는 작은 view) */
   suggestView: WebContentsView | null;
   suggestions: Suggestion[];
+  /** 페이지가 창 전체를 덮음: 동영상 전체 화면(HTML) 또는 F11. 툴바·탭 줄 없이 */
+  immersive: boolean;
+  /** 동영상 전체 화면 때문에 창을 전체 화면으로 바꿨는지 (끝나면 되돌림) */
+  htmlFullscreen: boolean;
+  /** 페이지 위 작은 창: 찾기 막대(Ctrl+F)와 권한 묻기 */
+  overlays: Partial<Record<OverlayKind, WebContentsView>>;
+  /** 찾기 막대가 열려 있음 (지금 탭에 대해) */
+  findOpen: boolean;
+}
+
+type OverlayKind = "find" | "prompt";
+
+/** 사이트가 요청한 권한 하나 (탭마다 차례로 묻는다) */
+interface PermissionAsk {
+  origin: string;
+  keys: string[];
+  label: string;
+  reply: (allow: boolean) => void;
 }
 
 interface Tab {
@@ -107,6 +128,10 @@ interface Tab {
   loadedOriginal: boolean | null;
   /** 앱이 마지막으로 시킨 이동 (주소창·뒤로·새로고침 등): 사이트가 막았다가 '나가기' 를 고르면 다시 한다 */
   intent?: { at: number; run: () => void };
+  /** 고정 탭 (탭 줄 왼쪽에 아이콘만, 다시 실행해도 고정) */
+  pinned: boolean;
+  /** 아직 답하지 않은 권한 요청 (앞의 것부터 묻는다) */
+  asks: PermissionAsk[];
 }
 
 let wins: Win[] = [];
@@ -134,6 +159,7 @@ function newTabState(): TabState {
     hasRecipe: false,
     verdict: null,
     failed: [],
+    zoom: 1,
   };
 }
 
@@ -163,6 +189,9 @@ function pushUI(w: Win) {
     favicon: t.favicon,
     loading: t.state.loading,
     active: t === active,
+    pinned: t.pinned,
+    audible: !t.view.webContents.isDestroyed() && t.view.webContents.isCurrentlyAudible(),
+    muted: !t.view.webContents.isDestroyed() && t.view.webContents.isAudioMuted(),
   }));
   const settings = loadSettings();
   const state: BrowserState = {
@@ -189,16 +218,257 @@ const windowSession = (w: Win): WindowSession => ({
   tabs: w.tabs.map((t) => t.state.url || START_URL),
   active: Math.max(0, w.active ? w.tabs.indexOf(w.active) : 0),
   bounds: w.win.isDestroyed() ? undefined : w.win.getNormalBounds(),
+  pinned: w.tabs.filter((t) => t.pinned).length || undefined,
 });
 
-function layout(w: Win) {
-  if (!w.active) return;
+/** 페이지 영역 (전체 화면 동영상·F11 이면 창 전체) */
+function pageBounds(w: Win) {
   const [width, height] = w.win.getContentSize();
-  w.active.view.setBounds({ x: 0, y: w.pageTop, width: Math.max(0, width - w.pageRight), height: Math.max(0, height - w.pageTop) });
+  if (w.immersive) return { x: 0, y: 0, width, height };
+  return { x: 0, y: w.pageTop, width: Math.max(0, width - w.pageRight), height: Math.max(0, height - w.pageTop) };
 }
 
-/** 새 탭. after 를 주면 그 탭 바로 오른쪽에 (링크로 연 탭), 아니면 맨 끝에 */
-function createTab(w: Win, url: string, opts: { activate?: boolean; after?: Tab | null } = {}): Tab {
+function layout(w: Win) {
+  if (!w.active || w.win.isDestroyed()) return;
+  w.active.view.setBounds(pageBounds(w));
+  placeOverlays(w);
+}
+
+// ---------- 페이지 위 작은 창: 찾기 막대, 권한 묻기 ----------
+// 페이지(WebContentsView)가 툴바 화면보다 위에 그려지므로 자동완성 목록처럼 따로 view 를 띄운다
+
+const OVERLAY_SIZE: Record<OverlayKind, { width: number; height: number }> = {
+  find: { width: 400, height: 66 },
+  prompt: { width: 380, height: 138 }, // "요청이 n개 더 있어요" 줄이 있으면 +20 (투명한 여백도 페이지 클릭을 막으므로 딱 맞게)
+};
+
+function overlayView(w: Win, kind: OverlayKind): WebContentsView {
+  const have = w.overlays[kind];
+  if (have) return have;
+  const v = new WebContentsView({
+    webPreferences: { preload: path.join(__dirname, "preload-overlay.js"), contextIsolation: true, sandbox: true, nodeIntegration: false },
+  });
+  v.setBackgroundColor("#00000000");
+  v.webContents.loadFile(path.join(__dirname, "ui", `${kind}.html`));
+  v.webContents.on("before-input-event", (e, input) => handleShortcut(w, input) && e.preventDefault());
+  w.overlays[kind] = v;
+  return v;
+}
+
+const overlayShown = (w: Win, kind: OverlayKind) => {
+  const v = w.overlays[kind];
+  return !!v && !w.win.isDestroyed() && w.win.contentView.children.includes(v);
+};
+
+/** 작은 창에 메시지 (아직 불러오는 중이면 다 불러온 뒤에) */
+function sendOverlay(v: WebContentsView, m: OverlayIn) {
+  if (v.webContents.isLoading()) v.webContents.once("did-finish-load", () => v.webContents.send(IPC.overlayIn, m));
+  else v.webContents.send(IPC.overlayIn, m);
+}
+
+function showOverlay(w: Win, kind: OverlayKind): WebContentsView {
+  const v = overlayView(w, kind);
+  w.win.contentView.addChildView(v); // 이미 있으면 맨 위로
+  placeOverlays(w);
+  return v;
+}
+
+function hideOverlay(w: Win, kind: OverlayKind) {
+  const v = w.overlays[kind];
+  if (v && overlayShown(w, kind)) w.win.contentView.removeChildView(v);
+}
+
+/** 찾기 막대는 페이지 오른쪽 위, 권한 묻기는 주소창 왼쪽 아래 (Chrome 과 같은 자리) */
+function placeOverlays(w: Win) {
+  const page = pageBounds(w);
+  if (overlayShown(w, "find")) {
+    const s = OVERLAY_SIZE.find;
+    w.overlays.find!.setBounds({ x: Math.max(0, page.x + page.width - s.width - 12), y: page.y, width: Math.min(s.width, page.width), height: s.height });
+  }
+  if (overlayShown(w, "prompt")) {
+    const s = OVERLAY_SIZE.prompt;
+    const more = (w.active?.asks.length ?? 0) > 1 ? 20 : 0;
+    w.overlays.prompt!.setBounds({ x: page.x + 96, y: Math.max(0, page.y - 6), width: Math.min(s.width, page.width), height: s.height + more });
+  }
+}
+
+// 찾기 (Ctrl+F)
+let lastFind = "";
+
+function openFind(w: Win) {
+  if (!w.active || w.immersive) return;
+  w.findOpen = true;
+  const v = showOverlay(w, "find");
+  v.webContents.focus();
+  sendOverlay(v, { type: "findOpen", text: lastFind });
+}
+
+function closeFind(w: Win, focusPage = true) {
+  if (!w.findOpen) return;
+  w.findOpen = false;
+  hideOverlay(w, "find");
+  const wc = current(w);
+  if (wc && !wc.isDestroyed()) {
+    wc.stopFindInPage("keepSelection");
+    if (focusPage) wc.focus();
+  }
+}
+
+// 사이트 권한
+let permissions: PermissionStore | null = null;
+const permissionStore = () => (permissions ??= parsePermissions(store.loadPermissions()));
+
+/** 요청한 쪽 주소의 origin (앱 안쪽 페이지는 file:) */
+const originOf = (url: string) => {
+  if (url.startsWith("file:")) return "file:";
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+};
+
+/** 지금 탭에 답하지 않은 권한 요청이 있으면 묻는 창을, 없으면 닫는다 */
+function syncPrompt(w: Win) {
+  const ask = w.active?.asks[0];
+  if (!ask || w.immersive) return hideOverlay(w, "prompt");
+  const v = showOverlay(w, "prompt"); // 자리·높이도 맞춤 (요청 수가 바뀌면 높이가 바뀐다)
+  sendOverlay(v, { type: "prompt", site: siteName(ask.origin), label: ask.label, more: w.active!.asks.length - 1 });
+}
+
+/** 지금 탭의 첫 요청에 답함. allow: true 허용·false 차단(둘 다 기억), null 이번만 차단 */
+function answerPrompt(w: Win, allow: boolean | null) {
+  const tab = w.active;
+  const ask = tab?.asks.shift();
+  if (!tab || !ask) return syncPrompt(w);
+  if (allow !== null) {
+    permissions = remember(permissionStore(), ask.origin, ask.keys, allow ? "allow" : "block");
+    store.savePermissions(permissions);
+  }
+  ask.reply(allow === true);
+  // 같은 사이트의 같은 요청이 더 있으면 같은 답으로
+  if (allow !== null)
+    tab.asks = tab.asks.filter((a) => {
+      const same = a.origin === ask.origin && a.keys.every((k) => ask.keys.includes(k));
+      if (same) a.reply(allow);
+      return !same;
+    });
+  syncPrompt(w);
+  if (!tab.asks.length) tab.view.webContents.focus();
+}
+
+/** 탭이 다른 페이지로 가거나 닫히면 묻던 요청은 거절 */
+function dropAsks(tab: Tab) {
+  if (!tab.asks.length) return;
+  for (const a of tab.asks) a.reply(false);
+  tab.asks = [];
+  if (tab.w.active === tab) syncPrompt(tab.w);
+}
+
+function installPermissions() {
+  const ses = electronSession.defaultSession;
+  ses.setPermissionRequestHandler((wc, permission, reply, details) => {
+    const d = details as Electron.MediaAccessPermissionRequest;
+    const origin = originOf(d.securityOrigin || details.requestingUrl || wc.getURL());
+    const v = decide(permissionStore(), origin, permission, d.mediaTypes);
+    if (v.kind !== "ask") return reply(v.kind === "allow");
+    // 탭에서 온 요청만 묻는다 (사이트 팝업 창 등은 차단)
+    const tab = tabOf(wc);
+    if (!tab) return reply(false);
+    tab.asks.push({ origin, keys: v.keys, label: v.label, reply });
+    if (tab.w.active === tab) syncPrompt(tab.w);
+  });
+  // 페이지가 권한 상태를 물을 때 (Notification.permission 등): 허용해 둔 것만
+  ses.setPermissionCheckHandler((_wc, permission, requestingOrigin, details) =>
+    isAllowed(permissionStore(), originOf(requestingOrigin || details.requestingUrl || ""), permission, details.mediaType),
+  );
+}
+
+// 확대/축소 (사이트별로 기억)
+let zooms: ZoomStore | null = null;
+const zoomStore = () => (zooms ??= parseZoom(store.loadZoom()));
+
+/** 이 탭의 배율을 바꾸고 같은 사이트의 다른 탭에도 (Chrome 처럼 사이트별) */
+function setZoom(tab: Tab, factor: number) {
+  const host = hostOf(tab.state.url);
+  const web = /^https?:/.test(tab.state.url);
+  for (const t of allTabs()) {
+    if (t !== tab && !(web && hostOf(t.state.url) === host)) continue;
+    if (t.view.webContents.isDestroyed()) continue;
+    t.view.webContents.setZoomFactor(factor);
+    t.state.zoom = factor;
+  }
+  if (web) {
+    zooms = setSiteZoom(zoomStore(), host, factor);
+    store.saveZoom(zooms);
+  }
+  pushAll();
+}
+
+/** 새 페이지에 들어가면 그 사이트에 기억한 배율로 (없으면 100%) */
+function applySiteZoom(tab: Tab) {
+  const wc = tab.view.webContents;
+  const want = /^https?:/.test(tab.state.url) ? (zoomStore()[hostOf(tab.state.url)] ?? 1) : 1;
+  if (Math.abs(wc.getZoomFactor() - want) > 0.001) wc.setZoomFactor(want);
+  tab.state.zoom = want;
+}
+
+// 전체 화면: 동영상(HTML) 전체 화면과 F11 은 툴바·탭 줄 없이 페이지만
+function setImmersive(w: Win, on: boolean) {
+  if (w.immersive === on) return;
+  w.immersive = on;
+  if (on) {
+    closeFind(w, false);
+    hideSuggestions(w);
+    hideOverlay(w, "prompt");
+  } else syncPrompt(w);
+  layout(w);
+  pushUI(w);
+}
+
+function toggleF11(w: Win) {
+  if (w.win.isFullScreen()) {
+    w.win.setFullScreen(false);
+    setImmersive(w, false);
+  } else {
+    setImmersive(w, true);
+    w.win.setFullScreen(true);
+  }
+}
+
+/** 탭 고정/해제: 고정하면 고정 구역 끝으로, 풀면 보통 탭 맨 앞으로 */
+function togglePin(tab: Tab) {
+  const w = tab.w;
+  w.tabs.splice(w.tabs.indexOf(tab), 1);
+  tab.pinned = !tab.pinned;
+  w.tabs.splice(w.tabs.filter((t) => t.pinned).length, 0, tab);
+  pushUI(w);
+}
+
+function toggleMute(tab: Tab) {
+  const wc = tab.view.webContents;
+  wc.setAudioMuted(!wc.isAudioMuted());
+  pushUI(tab.w);
+}
+
+// 닫은 탭 다시 열기 (Ctrl+Shift+T)
+let closedTabs: ClosedTab[] = [];
+
+function reopenClosed(w: Win) {
+  const t = closedTabs.pop();
+  if (!t) return;
+  createTab(w, t.url, { at: t.position, pinned: t.pinned, restore: t.entries?.length ? { entries: t.entries, index: t.index } : undefined });
+}
+
+/**
+ * 새 탭. after 를 주면 그 탭 바로 오른쪽에 (링크로 연 탭), at 을 주면 그 자리에, 아니면 맨 끝에.
+ * 고정 탭은 왼쪽 고정 구역, 보통 탭은 그 오른쪽에만. restore 를 주면 뒤로/앞으로 기록까지 되살린다 (닫은 탭 다시 열기)
+ */
+function createTab(
+  w: Win,
+  url: string,
+  opts: { activate?: boolean; after?: Tab | null; at?: number; pinned?: boolean; restore?: { entries: Electron.NavigationEntry[]; index?: number } } = {},
+): Tab {
   const view = new WebContentsView({
     webPreferences: {
       // 엔진은 preload 에서 격리된 world 로 실행. 페이지는 Node/PC 파일에 접근 불가
@@ -208,9 +478,10 @@ function createTab(w: Win, url: string, opts: { activate?: boolean; after?: Tab 
       nodeIntegration: false,
     },
   });
-  const tab: Tab = { id: nextId++, w, view, state: newTabState(), favicon: null, loadedOriginal: null };
-  const at = opts.after && w.tabs.includes(opts.after) ? w.tabs.indexOf(opts.after) + 1 : w.tabs.length;
-  w.tabs.splice(at, 0, tab);
+  const pinned = !!opts.pinned;
+  const tab: Tab = { id: nextId++, w, view, state: newTabState(), favicon: null, loadedOriginal: null, pinned, asks: [] };
+  const want = opts.at ?? (opts.after && w.tabs.includes(opts.after) ? w.tabs.indexOf(opts.after) + 1 : w.tabs.length);
+  w.tabs.splice(clampPosition(want, pinned, w.tabs.filter((t) => t.pinned).length, w.tabs.length), 0, tab);
 
   const wc = view.webContents;
   // 새 창: 사이트가 크기를 정해 연 팝업(window.open(url, name, "width=…"))은 진짜 팝업 창으로(여는 창과 연결 유지,
@@ -246,8 +517,39 @@ function createTab(w: Win, url: string, opts: { activate?: boolean; after?: Tab 
   wc.on("did-navigate", (_e, u) => {
     tab.favicon = null;
     if (/^https?:/.test(u)) store.addVisit(u, u); // 제목은 page-title-updated 에서 채움
+    // 다른 페이지로 왔으면 이전 페이지가 묻던 권한은 거절, 배율은 이 사이트에 기억한 것으로
+    dropAsks(tab);
+    tab.state.url = u;
+    applySiteZoom(tab);
     update(tab, { url: u });
   });
+  // 찾기 결과 (몇 번째 / 모두 몇 개)
+  wc.on("found-in-page", (_e, r) => {
+    const w2 = tab.w;
+    if (w2.active === tab && w2.findOpen && r.finalUpdate !== false && w2.overlays.find)
+      sendOverlay(w2.overlays.find, { type: "findResult", active: r.activeMatchOrdinal, total: r.matches });
+  });
+  // Ctrl+마우스 휠
+  wc.on("zoom-changed", (_e, dir) => setZoom(tab, stepZoom(wc.getZoomFactor(), dir === "in" ? 1 : -1)));
+  // 동영상 전체 화면: 창을 전체 화면으로 하고 페이지가 창 전체를 덮게
+  wc.on("enter-html-full-screen", () => {
+    const w2 = tab.w;
+    if (!w2.win.isFullScreen()) {
+      w2.htmlFullscreen = true;
+      w2.win.setFullScreen(true);
+    }
+    setImmersive(w2, true);
+  });
+  wc.on("leave-html-full-screen", () => {
+    const w2 = tab.w;
+    if (w2.htmlFullscreen) {
+      w2.htmlFullscreen = false;
+      w2.win.setFullScreen(false);
+    }
+    setImmersive(w2, false);
+  });
+  // 소리 나는 탭 표시
+  wc.on("audio-state-changed", () => pushUI(tab.w));
   wc.on("did-navigate-in-page", (_e, u, isMainFrame) => isMainFrame && update(tab, { url: u }));
   wc.on("page-title-updated", (_e, title) => {
     if (/^https?:/.test(tab.state.url)) store.setVisitTitle(tab.state.url, title);
@@ -262,7 +564,10 @@ function createTab(w: Win, url: string, opts: { activate?: boolean; after?: Tab 
   wc.on("before-input-event", (e, input) => handleShortcut(tab.w, input) && e.preventDefault());
   wc.on("context-menu", (_e, params) => showContextMenu(tab.w, tab, params));
 
-  wc.loadURL(url);
+  if (opts.restore) {
+    tab.state.url = url;
+    wc.navigationHistory.restore(opts.restore).catch(() => wc.loadURL(url));
+  } else wc.loadURL(url);
   if (opts.activate !== false || !w.active) activate(tab);
   else pushUI(w);
   return tab;
@@ -272,11 +577,15 @@ function activate(tab: Tab) {
   const w = tab.w;
   if (w.active === tab) return;
   hideSuggestions(w);
+  closeFind(w, false); // 찾기는 그 탭에 대한 것
   if (w.active) w.win.contentView.removeChildView(w.active.view);
   w.active = tab;
   w.win.contentView.addChildView(tab.view);
+  // 페이지 위 작은 창은 새 페이지 view 보다 위에
+  for (const kind of ["find", "prompt"] as const) if (overlayShown(w, kind)) w.win.contentView.addChildView(w.overlays[kind]!);
   layout(w);
   tab.view.webContents.focus();
+  syncPrompt(w); // 이 탭에 답하지 않은 권한 요청이 있으면 묻고, 없으면 닫는다
   syncOriginal(tab); // 다른 탭에서 원본/통합을 바꿨으면 이 탭도 맞춘다
   pushUI(w);
 }
@@ -329,6 +638,15 @@ ipcMain.handle(IPC.leaveGo, (e) => {
 
 function closeTab(tab: Tab) {
   const w = tab.w;
+  // 닫은 탭 기억 (Ctrl+Shift+T 로 뒤로/앞으로 기록까지 되살림)
+  const nav = tab.view.webContents.navigationHistory;
+  closedTabs = pushClosed(
+    closedTabs,
+    { url: tab.state.url, entries: nav.getAllEntries(), index: nav.getActiveIndex(), position: w.tabs.indexOf(tab), pinned: tab.pinned },
+    (u) => samePage(u, START_URL),
+  );
+  dropAsks(tab);
+  if (w.active === tab) closeFind(w, false);
   const left = detachFrom(tab);
   tab.view.webContents.close();
   if (left) return pushUI(w);
@@ -354,16 +672,19 @@ function openBlankTab(w: Win) {
  */
 function moveTab(tab: Tab, dest: Win, to: number) {
   const src = tab.w;
+  // 고정 탭은 고정 구역 안에서만, 보통 탭은 그 오른쪽에서만
+  const place = (list: Tab[]) => clampPosition(to, tab.pinned, list.filter((t) => t.pinned).length, list.length);
   if (src === dest) {
     const from = src.tabs.indexOf(tab);
     if (from < 0) return;
     src.tabs.splice(from, 1);
-    src.tabs.splice(Math.max(0, Math.min(to, src.tabs.length)), 0, tab);
+    src.tabs.splice(place(src.tabs), 0, tab);
     return pushUI(src);
   }
+  dropAsks(tab);
   const left = detachFrom(tab);
   tab.w = dest;
-  dest.tabs.splice(Math.max(0, Math.min(to, dest.tabs.length)), 0, tab);
+  dest.tabs.splice(place(dest.tabs), 0, tab);
   activate(tab);
   dest.win.focus();
   if (left) pushUI(src);
@@ -540,7 +861,15 @@ function handleShortcut(w: Win, input: Input): boolean {
   const wc = active.view.webContents;
   const nav = wc.navigationHistory;
   const step = (d: number) => activate(tabs[(tabs.indexOf(active!) + d + tabs.length) % tabs.length]);
-  if ((ctrl && key === "l") || input.key === "F6") win.webContents.send(IPC.focusAddress);
+  if (input.key === "F11") toggleF11(w);
+  else if (w.immersive) return false; // 전체 화면 동영상·F11 중에는 다른 단축키를 페이지에 그대로
+  else if ((ctrl && key === "l") || input.key === "F6") win.webContents.send(IPC.focusAddress);
+  else if (ctrl && key === "f") openFind(w);
+  else if (input.key === "Escape" && w.findOpen) closeFind(w);
+  else if (ctrl && (key === "=" || key === "+" || input.code === "NumpadAdd")) setZoom(active, stepZoom(wc.getZoomFactor(), 1));
+  else if (ctrl && (key === "-" || input.code === "NumpadSubtract")) setZoom(active, stepZoom(wc.getZoomFactor(), -1));
+  else if (ctrl && (key === "0" || input.code === "Numpad0")) setZoom(active, 1);
+  else if (ctrl && input.shift && key === "t") reopenClosed(w);
   else if (ctrl && input.shift && key === "b") toggleSetting("bookmarkBar");
   else if (ctrl && key === "d") toggleBookmark(w);
   else if (ctrl && key === "h") openHistory(w);
@@ -565,7 +894,7 @@ function handleShortcut(w: Win, input: Input): boolean {
 }
 
 /** 창 하나를 만든다. urls 를 주면 그 탭들로, 안 주면 빈 창(끌어 온 탭을 받을 창) */
-function createWindow(opts: { urls?: string[]; active?: number; bounds?: Bounds } = {}): Win {
+function createWindow(opts: { urls?: string[]; active?: number; bounds?: Bounds; pinned?: number } = {}): Win {
   const win = new BrowserWindow({
     width: 1280,
     height: 900,
@@ -587,15 +916,42 @@ function createWindow(opts: { urls?: string[]; active?: number; bounds?: Bounds 
     },
   });
   win.removeMenu();
-  const w: Win = { win, tabs: [], active: null, pageTop: 84, pageRight: 0, suggestView: null, suggestions: [] };
+  const w: Win = {
+    win,
+    tabs: [],
+    active: null,
+    pageTop: 84,
+    pageRight: 0,
+    suggestView: null,
+    suggestions: [],
+    immersive: false,
+    htmlFullscreen: false,
+    overlays: {},
+    findOpen: false,
+  };
   wins.push(w);
   lastFocused = w;
   win.on("focus", () => (lastFocused = w));
   win.on("resize", () => layout(w));
   win.on("moved", saveSession);
   // 전체 화면에서는 macOS 창 버튼이 숨으므로 탭 줄이 그 자리를 비우지 않는다
-  win.on("enter-full-screen", () => pushUI(w));
-  win.on("leave-full-screen", () => pushUI(w));
+  win.on("enter-full-screen", () => {
+    layout(w);
+    pushUI(w);
+  });
+  win.on("leave-full-screen", () => {
+    // 다른 방법(macOS 초록 버튼 등)으로 전체 화면을 끝내도 툴바를 되살린다
+    w.htmlFullscreen = false;
+    setImmersive(w, false);
+    layout(w);
+    pushUI(w);
+  });
+  // 마우스 옆 버튼 뒤로/앞으로 (Windows: 창이 app-command 로 받는다. macOS·Linux 는 페이지 preload 가 알림)
+  win.on("app-command", (_e, cmd) => {
+    const nav = current(w)?.navigationHistory;
+    if (cmd === "browser-backward" && nav?.canGoBack()) nav.goBack();
+    else if (cmd === "browser-forward" && nav?.canGoForward()) nav.goForward();
+  });
   win.on("close", () => {
     // 앱 전체를 끄는 게 아니라 이 창만 닫는 것이면 세션에서 이 창을 뺀다 (마지막 창은 다시 실행할 때 복원)
     if (wins.length > 1) {
@@ -614,7 +970,7 @@ function createWindow(opts: { urls?: string[]; active?: number; bounds?: Bounds 
   win.loadFile(path.join(__dirname, "ui", "index.html"));
 
   const urls = opts.urls ?? [];
-  urls.forEach((u) => createTab(w, u, { activate: false }));
+  urls.forEach((u, i) => createTab(w, u, { activate: false, pinned: i < (opts.pinned ?? 0) }));
   if (w.tabs.length) activate(w.tabs[Math.min(Math.max(opts.active ?? 0, 0), w.tabs.length - 1)]);
   return w;
 }
@@ -628,7 +984,7 @@ function start() {
   const argUrl = process.argv.find((a) => /^https?:\/\//.test(a));
   const session = store.loadSession();
   if (argUrl) createWindow({ urls: [argUrl] });
-  else if (session.windows.length) for (const s of session.windows) createWindow({ urls: s.tabs, active: s.active, bounds: s.bounds });
+  else if (session.windows.length) for (const s of session.windows) createWindow({ urls: s.tabs, active: s.active, bounds: s.bounds, pinned: s.pinned });
   else createWindow({ urls: [START_URL] });
   wins[0]?.win.focus();
 
@@ -745,6 +1101,67 @@ onUI(IPC.tabDragEnd, (_w, id: number) => {
 onUI(IPC.openUrl, (w, url: string, where: "current" | "tab" | "background") => {
   if (where === "current") current(w)?.loadURL(url);
   else createTab(w, url, { activate: where === "tab", after: w.active });
+});
+// 탭 오른쪽 클릭 메뉴
+onUI(IPC.tabMenu, (w, id: number) => {
+  const tab = findTab(id);
+  if (!tab || tab.w !== w) return;
+  const wc = tab.view.webContents;
+  const index = w.tabs.indexOf(tab);
+  const run: Record<TabMenuAction, () => void> = {
+    newTab: () => {
+      createTab(w, START_URL, { after: tab });
+      w.win.webContents.focus();
+      w.win.webContents.send(IPC.focusAddress);
+    },
+    reload: () => wc.reload(),
+    duplicate: () => createTab(w, tab.state.url, { after: tab, pinned: tab.pinned, restore: { entries: wc.navigationHistory.getAllEntries(), index: wc.navigationHistory.getActiveIndex() } }),
+    pin: () => togglePin(tab),
+    mute: () => toggleMute(tab),
+    close: () => closeTab(tab),
+    closeOthers: () => w.tabs.filter((t) => t !== tab).forEach(closeTab),
+    closeRight: () => w.tabs.slice(index + 1).forEach(closeTab),
+    reopen: () => reopenClosed(w),
+  };
+  const items = tabMenuItems({ index, count: w.tabs.length, pinned: tab.pinned, muted: wc.isAudioMuted(), hasClosed: closedTabs.length > 0 });
+  Menu.buildFromTemplate(
+    items.map((i): Electron.MenuItemConstructorOptions =>
+      "separator" in i
+        ? { type: "separator" }
+        : {
+            label: i.label,
+            enabled: i.enabled ?? true,
+            click: run[i.id],
+            accelerator: i.id === "close" ? "CmdOrCtrl+W" : i.id === "reopen" ? "CmdOrCtrl+Shift+T" : i.id === "reload" ? "F5" : undefined,
+            registerAccelerator: false,
+          },
+    ),
+  ).popup({ window: w.win });
+});
+onUI(IPC.toggleMute, (_w, id: number) => {
+  const tab = findTab(id);
+  if (tab) toggleMute(tab);
+});
+onUI(IPC.zoomReset, (w) => w.active && setZoom(w.active, 1));
+// 찾기 막대·권한 묻기 창에서
+ipcMain.on(IPC.overlayOut, (e, m: OverlayOut) => {
+  const w = wins.find((x) => Object.values(x.overlays).some((v) => v?.webContents === e.sender));
+  if (!w) return;
+  if (m.type === "find") {
+    lastFind = m.text;
+    const wc = current(w);
+    if (!wc) return;
+    if (!m.text) wc.stopFindInPage("clearSelection");
+    // findNext: 새로 찾기면 true, 같은 말로 다음/이전이면 false (Electron 의 뜻)
+    else wc.findInPage(m.text, { forward: m.forward, findNext: !m.next });
+  } else if (m.type === "findClose") closeFind(w);
+  else if (m.type === "answer") answerPrompt(w, m.allow);
+});
+// 마우스 옆 버튼 (macOS·Linux: 페이지 preload 가 알림)
+ipcMain.on(IPC.pageHistory, (e, dir: "back" | "forward") => {
+  const nav = tabOf(e.sender)?.view.webContents.navigationHistory;
+  if (dir === "back" && nav?.canGoBack()) nav.goBack();
+  else if (dir === "forward" && nav?.canGoForward()) nav.goForward();
 });
 onUI(IPC.toggleBookmark, (w) => toggleBookmark(w));
 onUI(IPC.openHistory, (w) => openHistory(w));
@@ -984,6 +1401,7 @@ onUI(IPC.downloadsMenu, (w, at: Rect) => {
 });
 
 app.whenReady().then(() => {
+  installPermissions();
   trackDownloads();
   start();
 });

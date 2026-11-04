@@ -56,6 +56,7 @@ const bookmarkBar = $("bookmark-bar");
 const dock = $("dock");
 const dockToggle = $<HTMLButtonElement>("dock-toggle");
 const downloadsBtn = $<HTMLButtonElement>("downloads");
+const zoomBtn = $<HTMLButtonElement>("zoom");
 
 let loading = false;
 let editing = false;
@@ -79,6 +80,8 @@ downloadsBtn.onclick = () => {
   ui.downloadsMenu({ x: r.x, y: r.y, width: r.width, height: r.height });
 };
 dockToggle.onclick = () => ui.toggleDock();
+// 주소창의 확대/축소 표시: 누르면 기본 크기로
+zoomBtn.onclick = () => ui.zoomReset();
 // ---------- 주소창 + 자동완성 ----------
 // 목록은 main 이 페이지 위에 띄우는 별도 창에 그린다. 여기서는 입력과 선택 위치만 관리한다.
 let suggestions: Suggestion[] = [];
@@ -180,6 +183,12 @@ ui.onState((s: BrowserState) => {
   else if (s.verdict === "broken") setMode("원본", "broken");
   else setMode("", "");
 
+  // 확대/축소: 100% 가 아니면 주소창 안에 배율 (Ctrl+0 또는 눌러서 기본으로)
+  const zoomed = Math.abs(s.zoom - 1) > 0.001;
+  zoomBtn.hidden = !zoomed;
+  zoomBtn.textContent = `${Math.round(s.zoom * 100)}%`;
+  zoomBtn.title = `확대/축소 ${Math.round(s.zoom * 100)}% — 누르면 기본 크기(100%)로 (Ctrl+0)`;
+
   original.hidden = !s.hasRecipe;
   // 토글: 켜진 쪽이 지금 화면 (원본 | 통합)
   original.classList.toggle("is-original", s.original);
@@ -209,7 +218,7 @@ function renderTabs(tabs: TabInfo[]) {
   tabsBox.replaceChildren(
     ...tabs.map((t) => {
       const el = document.createElement("div");
-      el.className = "tab" + (t.active ? " active" : "") + (t.loading ? " loading" : "");
+      el.className = "tab" + (t.active ? " active" : "") + (t.loading ? " loading" : "") + (t.pinned ? " pinned" : "");
       el.setAttribute("role", "tab");
       el.setAttribute("aria-selected", String(t.active));
       el.title = t.title || t.url;
@@ -254,11 +263,33 @@ function renderTabs(tabs: TabInfo[]) {
         e.stopPropagation();
         ui.closeTab(t.id);
       };
-      el.append(icon, label, close);
+      el.oncontextmenu = (e) => {
+        e.preventDefault();
+        ui.tabMenu(t.id);
+      };
+      el.append(icon, label);
+      // 소리 나는 탭·음소거한 탭: 스피커 아이콘 (누르면 음소거 켜기/끄기)
+      if (t.audible || t.muted) {
+        const sound = document.createElement("button");
+        sound.className = "tab-sound" + (t.muted ? " muted" : "");
+        sound.title = t.muted ? "음소거 해제" : "이 탭 음소거";
+        sound.setAttribute("aria-label", sound.title);
+        sound.innerHTML = t.muted ? SPEAKER_OFF : SPEAKER_ON;
+        sound.onmousedown = (e) => e.stopPropagation();
+        sound.onclick = (e) => {
+          e.stopPropagation();
+          ui.toggleMute(t.id);
+        };
+        el.append(sound);
+      }
+      if (!t.pinned) el.append(close);
       return el;
     }),
   );
 }
+
+const SPEAKER_ON = `<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>`;
+const SPEAKER_OFF = `<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>`;
 
 // ---------- 탭 끌어서 순서 바꾸기 ----------
 
