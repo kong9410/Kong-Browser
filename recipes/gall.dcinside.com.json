@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 13,
+  "version": 18,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
@@ -147,12 +147,30 @@
           "required": true,
           "raw": [
             ".comment_dccon"
-          ]
+          ],
+          "context": true
         },
         "more": {
           "sel": [
             ".cmt_paging"
           ]
+        },
+        "whoNode": {
+          "sel": [
+            ".cmt_nickbox .gall_writer",
+            ".gall_writer"
+          ],
+          "raw": [
+            ".writer_nikcon",
+            ".ip",
+            "[class*=icon]"
+          ]
+        },
+        "replyWrite": {
+          "sel": [
+            ".comment_box .cmt_write_box.small"
+          ],
+          "keepStyle": true
         }
       },
       "fit": {
@@ -160,8 +178,26 @@
           ".img_comment .addbox"
         ],
         "fill": [
-          ".img_comment .cmt_txtbox"
+          ".img_comment .cmt_txtbox",
+          ":is(.k-cmt-write, .k-reply-write) .cmt_write_box .cmt_txt_cont"
+        ],
+        "full": [
+          ":is(.k-cmt-write, .k-reply-write) .cmt_write_box .cmt_write",
+          ":is(.k-cmt-write, .k-reply-write) .cmt_write_box .cmt_write textarea",
+          ":is(.k-cmt-write, .k-reply-write) .cmt_write_box .cmt_cont_bottm"
         ]
+      },
+      "write": {
+        "sel": [
+          ".view_bottom_btnbox button.write"
+        ]
+      },
+      "commentWrite": {
+        "sel": [
+          "#focus_cmt > .cmt_write_box",
+          ".view_comment > .cmt_write_box:not([id^=img_cmt_write_box_])"
+        ],
+        "keepStyle": true
       }
     },
     {
@@ -250,6 +286,52 @@
         "exclude": [
           ".select_area",
           ".option_box"
+        ]
+      },
+      "write": {
+        "sel": [
+          ".list_bottom_btnbox button.write",
+          ".switch_btnbox a.btn_write"
+        ]
+      }
+    },
+    {
+      "id": "write",
+      "type": "hub",
+      "match": "^/(mgallery/|mini/)?board/write/",
+      "probe": [
+        "#write_wrap"
+      ],
+      "title": {
+        "sel": [
+          "head > title"
+        ]
+      },
+      "blocks": {
+        "sel": [
+          "#write_wrap"
+        ],
+        "keepStyle": true
+      },
+      "fit": {
+        "tight": [
+          "#write_wrap"
+        ],
+        "full": [
+          "#write_wrap form",
+          "#write_wrap fieldset",
+          "#write_wrap .input_write_tit",
+          "#write_wrap #subject",
+          "#write_wrap .note-editor"
+        ],
+        "static": [
+          "#write_wrap .note-toolbar .note-mybutton:has(#chk_html)"
+        ],
+        "right": [
+          {
+            "sel": "#write_wrap .note-mybutton .note-btn:has(#chk_html)",
+            "px": 56
+          }
         ]
       }
     }

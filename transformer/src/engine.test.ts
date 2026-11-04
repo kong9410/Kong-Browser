@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { judge } from "./judge.js";
 import { buildBoard, buildHub, buildPost, fitCss, mount } from "./layout.js";
+import { inContext } from "./keep.js";
 import { readLogo, siteMark } from "./logo.js";
 import { setNavOptions } from "./nav.js";
 import { observeHub } from "./observe.js";
@@ -411,7 +412,8 @@ describe("fit: 사이트의 고정 폭 한 줄을 칸에 맞춤", () => {
     const css = fitCss({ row: [".img_comment .addbox"], fill: [".img_comment .cmt_txtbox"] });
     expect(css).toContain(":is(#kong-root .img_comment .addbox){display:flex!important");
     expect(css).toContain(":is(#kong-root .img_comment .addbox)>*{float:none!important;flex:none}");
-    expect(css).toContain(":is(#kong-root .img_comment .cmt_txtbox){float:none!important;width:auto!important;flex:1 1 auto!important");
+    expect(css).toContain(":is(#kong-root .img_comment .cmt_txtbox){float:none!important;width:auto!important;flex:1 1 0!important");
+    expect(fitCss({ full: [".w textarea"] })).toBe(":is(#kong-root .w textarea){width:100%!important;max-width:100%!important;box-sizing:border-box!important}");
     expect(fitCss(undefined)).toBe("");
   });
   it("디시 레시피: 이미지 댓글 한 줄(닉네임 + 글 + 날짜)", async () => {
@@ -419,6 +421,148 @@ describe("fit: 사이트의 고정 폭 한 줄을 칸에 맞춤", () => {
     const dc = JSON.parse(fs.readFileSync("../recipes/gall.dcinside.com.json", "utf8")) as Recipe;
     const post = dc.pages.find((p) => p.type === "post") as Extract<Recipe["pages"][number], { type: "post" }>;
     // 한 줄은 .addbox: 닉네임(.cmt_nickbox)·글(.cmt_txtbox)·날짜(.fr) 가 모두 그 안에 있다
-    expect(post.fit).toEqual({ row: [".img_comment .addbox"], fill: [".img_comment .cmt_txtbox"] });
+    expect(post.fit?.row).toContain(".img_comment .addbox");
+    expect(post.fit?.fill).toContain(".img_comment .cmt_txtbox");
+  });
+});
+
+describe("글쓰기 버튼, 댓글 쓰기 칸", () => {
+  it("게시판: 사이트의 [글쓰기] 를 제목 오른쪽으로", () => {
+    const rows = [1, 2, 3].map((i) => `<tr class="row"><td><a href="/board/1/read/${i}">글${i}</a></td></tr>`).join("");
+    page("https://example.test/board/1", `<table class="list">${rows}</table><div class="btns"><button class="write" onclick="goWrite()">글쓰기</button></div>`);
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    (r.pages.find((p) => p.id === "board") as Extract<Recipe["pages"][number], { type: "board" }>).write = { sel: [".btns .write"] };
+    const l = locate(document, pickPage(r, document).page!) as LocatedBoard;
+    const head = buildBoard(l, r).root.querySelector(".k-head")!;
+    expect(head.classList.contains("k-head-row")).toBe(true);
+    expect(head.querySelector(".k-head-tools button.write.k-write")?.textContent).toBe("글쓰기");
+  });
+
+  it("게시글: [목록]·[글쓰기] 한 줄, 댓글 쓰기 칸은 댓글 목록 바로 아래, [등록] 은 주 버튼", () => {
+    page(
+      "https://example.test/board/1/read/10",
+      `<div class="view"><h1 class="subject">제목</h1><div class="content">본문</div>
+       <div class="buttons"><a href="/board/1">목록</a><button class="w">글쓰기</button></div>
+       <ul class="cmts"><li class="c"><span class="t">댓글</span></li></ul>
+       <div class="cmt_write"><textarea></textarea><button class="add">등록</button></div></div>`,
+    );
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    const post = r.pages.find((p) => p.id === "post") as Extract<Recipe["pages"][number], { type: "post" }>;
+    post.write = { sel: [".buttons .w"] };
+    post.commentWrite = { sel: [".cmt_write"], primary: [".add"] };
+    post.comments = { item: ["li.c"], content: { sel: [".t"] } };
+    const root = buildPost(locate(document, pickPage(r, document).page!) as LocatedPost, r).root;
+    const row = root.querySelector(".k-list")!;
+    expect([...row.children].map((e) => e.textContent)).toEqual(["목록", "글쓰기"]);
+    const main = root.querySelector(".k-main")!;
+    const order = [...main.children].map((e) => e.className.split(" ")[0]);
+    expect(order.indexOf("k-cmt-write")).toBe(order.indexOf("k-comments") + 1);
+    expect(main.querySelector(".k-cmt-write .add")?.classList.contains("k-primary")).toBe(true);
+  });
+});
+
+describe("댓글 글쓴이: 사이트 표시 그대로 (아이콘·IP)", () => {
+  it("whoNode 가 있으면 닉네임 옆 아이콘·IP 를 포함한 사이트 요소를 머리에, 없으면 글자", () => {
+    page(
+      "https://example.test/board/1/read/10",
+      `<div class="view"><h1 class="subject">제목</h1><div class="content">본문</div><ul>
+        <li class="c"><span class="w" data-nick="고닉"><span class="nickname"><em>고닉</em></span><a class="nikcon"><img src="fix_nik.gif"></a></span><span class="t">a</span></li>
+        <li class="c"><span class="w" data-nick="ㅇㅇ"><span class="nickname"><em>ㅇㅇ</em><span class="ip">(1.2)</span></span></span><span class="t">b</span></li>
+      </ul></div>`,
+    );
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    const post = r.pages.find((p) => p.id === "post") as Extract<Recipe["pages"][number], { type: "post" }>;
+    post.comments = {
+      item: ["li.c"],
+      who: { sel: [".w"], attr: "data-nick" },
+      whoNode: { sel: [".w"], raw: [".nikcon", ".ip"] },
+      content: { sel: [".t"] },
+    };
+    const root = buildPost(locate(document, pickPage(r, document).page!) as LocatedPost, r).root;
+    const heads = [...root.querySelectorAll(".k-cmt-head .k-who")];
+    expect(heads.map((w) => w.textContent)).toEqual(["고닉", "ㅇㅇ(1.2)"]);
+    expect(heads[0].querySelector("img")?.getAttribute("src")).toBe("fix_nik.gif");
+    expect(heads[0].querySelector(".nikcon")?.classList.contains("k-raw")).toBe(true);
+    expect(heads[1].querySelector(".ip")?.classList.contains("k-raw")).toBe(true);
+  });
+});
+
+describe("대댓글: 댓글을 누르면 사이트가 여는 답글 쓰기 칸", () => {
+  const html = `<div class="view"><h1 class="subject">제목</h1><div class="content">본문</div>
+    <ul class="cmts">
+      <li id="c1" class="c"><div class="info" data-no="1"><span class="t">첫 댓글</span></div></li>
+      <li id="c2" class="c"><div class="info" data-no="2"><span class="t">둘째 댓글</span></div></li>
+    </ul></div>`;
+  const setup = () => {
+    page("https://example.test/board/1/read/10", html);
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    const post = r.pages.find((p) => p.id === "post") as Extract<Recipe["pages"][number], { type: "post" }>;
+    post.comments = { item: ["li.c"], content: { sel: [".t"], context: true }, replyWrite: { sel: [".cmts .reply_form"] } };
+    const view = buildPost(locate(document, pickPage(r, document).page!) as LocatedPost, r);
+    mount(view.root);
+    return view;
+  };
+
+  it("context: 옮긴 댓글 내용이 원래 조상(속성 포함) 껍데기 안에 있어 사이트가 조상에서 댓글 번호를 찾을 수 있다", () => {
+    const view = setup();
+    const t = view.root.querySelector(".k-cmt-body .t")!;
+    expect(t.closest(".info")?.getAttribute("data-no")).toBe("1");
+    // 원본을 숨기는 엔진 표시는 껍데기에 옮기지 않는다
+    expect(view.root.querySelector(".k-cmt-body .k-hidden")).toBeNull();
+  });
+
+  it("원본 쪽에 생긴 답글 칸을 바로 앞 댓글 아래로 옮기고, 사이트가 원래 자리를 지우면 같이 사라진다", () => {
+    const view = setup();
+    // 사이트: 첫 댓글 뒤에 답글 칸을 끼워 넣음 (숨겨진 원본 목록)
+    const holder = document.createElement("li");
+    holder.id = "reply_empty_1";
+    holder.innerHTML = `<div class="reply_form"><textarea></textarea></div>`;
+    document.getElementById("c1")!.after(holder);
+    view.syncReplyForms();
+    const forms = [...view.root.querySelectorAll(".k-reply-write")];
+    expect(forms).toHaveLength(1);
+    expect(forms[0].previousElementSibling?.textContent).toContain("첫 댓글");
+    // 사이트가 칸을 닫음 (원래 자리 통째로 지움)
+    holder.remove();
+    view.syncReplyForms();
+    expect(view.root.querySelectorAll(".k-reply-write")).toHaveLength(0);
+  });
+});
+
+describe("inContext (원래 조상 껍데기)", () => {
+  it("속성(id·class·data-*)은 옮겨 적고, style·인라인 처리기·엔진 표시(k-hidden 등)는 빼고, 껍데기 표시를 붙인다", () => {
+    page(
+      "https://example.test/",
+      `<div id="top" class="wrap k-hidden" style="width:1160px" onclick="x()" data-kong-done="1"><ul class="list" p-no="7"><li><span class="t">글</span></li></ul></div>`,
+    );
+    const wrapped = inContext(document.querySelector(".t")!);
+    expect(wrapped.tagName).toBe("DIV");
+    expect(wrapped.id).toBe("top");
+    expect([...wrapped.classList]).toEqual(["wrap", "k-ctx"]);
+    expect(wrapped.hasAttribute("style") || wrapped.hasAttribute("onclick") || wrapped.hasAttribute("data-kong-done")).toBe(false);
+    expect(wrapped.querySelector("ul.list.k-ctx")?.getAttribute("p-no")).toBe("7");
+  });
+});
+
+describe("fit: 넓은 화면 기준 배치를 칸에 맞춤 (디시 글쓰기 화면)", () => {
+  it("tight·static·right 규칙", () => {
+    const css = fitCss({ tight: ["#w"], static: [".g"], right: [{ sel: ".b", px: 56 }, { sel: ".c" }] });
+    expect(css).toContain(":is(#kong-root #w){padding-left:16px!important;padding-right:16px!important}");
+    expect(css).toContain(":is(#kong-root .g){position:static!important}");
+    expect(css).toContain(":is(#kong-root .b){left:auto!important;right:56px!important}");
+    expect(css).toContain(":is(#kong-root .c){left:auto!important;right:0px!important}");
+  });
+  it("디시 레시피: 글쓰기 화면은 왼쪽 메뉴·제목은 통합 화면, 글쓰기 칸은 디시 컴포넌트 그대로", async () => {
+    const fs = await import("node:fs");
+    const dc = JSON.parse(fs.readFileSync("../recipes/gall.dcinside.com.json", "utf8")) as Recipe;
+    const w = dc.pages.find((p) => p.id === "write") as Extract<Recipe["pages"][number], { type: "hub" }>;
+    expect(new RegExp(w.match).test("/mgallery/board/write/?id=x")).toBe(true);
+    expect(w.blocks).toMatchObject({ sel: ["#write_wrap"], keepStyle: true });
+    page("https://gall.dcinside.com/board/write/?id=programming", `<main id="container"><section><article id="write_wrap"><form><input id="subject"></form></article></section></main>`);
+    document.title = "프로그래밍 갤러리";
+    const l = locate(document, pickPage(dc, document).page!) as LocatedHub;
+    const root = buildHub(l, dc);
+    expect(root.querySelector(".k-title")?.textContent).toBe("프로그래밍 갤러리");
+    expect(root.querySelector(".k-main .k-hub-block.k-keep #write_wrap #subject")).not.toBeNull();
   });
 });

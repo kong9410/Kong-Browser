@@ -10,6 +10,7 @@ import * as bm from "./bookmarks.js";
 import { contextItems, type ContextAction } from "./context-menu.js";
 import { DOWNLOADS_MAX, isActive, overall, restoreDownloads, searchDownloads, statusText, uniqueName, type DownloadInfo } from "./downloads.js";
 import { IPC, type BrowserState, type InternalRequest, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
+import { isPopup, popupSize } from "./popup.js";
 import { parseSettings, type Settings } from "./settings.js";
 import * as store from "./store.js";
 import { SEARCH_URL, suggest, toUrl, type Suggestion } from "./suggest.js";
@@ -209,11 +210,26 @@ function createTab(w: Win, url: string, opts: { activate?: boolean; after?: Tab 
   w.tabs.splice(at, 0, tab);
 
   const wc = view.webContents;
-  // 새 창으로 열리는 링크(target=_blank, window.open)는 새 탭으로. Ctrl+클릭(background-tab)은 뒤에서 연다
-  wc.setWindowOpenHandler(({ url: target, disposition }) => {
+  // 새 창: 사이트가 크기를 정해 연 팝업(window.open(url, name, "width=…"))은 진짜 팝업 창으로(여는 창과 연결 유지,
+  // 디시 에디터의 이미지 업로드 창 등). 그 밖의 새 창 링크(target=_blank)는 새 탭으로, Ctrl+클릭(background-tab)은 뒤에서 연다
+  wc.setWindowOpenHandler(({ url: target, disposition, features }) => {
+    if (isPopup(disposition, features)) {
+      const size = popupSize(features);
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          ...(size && { width: size.width + 16, height: size.height + 40 }),
+          parent: tab.w.win,
+          autoHideMenuBar: true,
+          minimizable: false,
+          fullscreenable: false,
+        },
+      };
+    }
     createTab(tab.w, target, { activate: disposition !== "background-tab", after: tab });
     return { action: "deny" };
   });
+  wc.on("did-create-window", (child) => child.removeMenu());
   wc.on("did-start-navigation", (details) => {
     if (details.isMainFrame && !details.isSameDocument) update(tab, { verdict: null, failed: [] });
   });

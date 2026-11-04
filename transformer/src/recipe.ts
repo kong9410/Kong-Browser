@@ -21,11 +21,18 @@ export interface Field {
    * 예) 디시 댓글의 디시콘·텍스트콘 (색 배경 + 흰 글자라 색을 맞추면 글자가 안 보인다)
    */
   raw?: string[];
+  /** move 되는 노드 안에서 주 버튼으로 보일 것 (강조색). 예) 디시 댓글 쓰기 칸의 [등록] */
+  primary?: string[];
   /**
    * move 할 때 사이트 모양 그대로 (통합 화면의 글꼴·색 맞춤을 하지 않고, 사이트 CSS 가 맞도록 원래 조상 껍데기로 감쌈).
    * 예) 디시 홈의 실북갤·흥한갤, 실시간 베스트 (keep.ts)
    */
   keepStyle?: boolean;
+  /**
+   * move 할 때 원래 조상 껍데기(속성 포함)로 감싼다. 모양은 통합 화면대로 두고, 사이트 스크립트가 조상에서 값을 찾을 수 있게.
+   * 예) 디시 댓글 내용: 누르면 사이트가 조상 div.cmt_info 의 data-no 로 댓글을 찾아 답글 칸을 연다
+   */
+  context?: boolean;
 }
 
 export interface CommentSpec {
@@ -46,6 +53,11 @@ export interface CommentSpec {
   /** item 자신 또는 내부에서 매칭되면 대댓글 */
   replyMarker?: string;
   who?: Field;
+  /**
+   * move. 사이트의 글쓴이 표시를 그대로 (닉네임 옆 아이콘·IP 포함). 있으면 who 글자 대신 쓴다.
+   * 예) 디시 .gall_writer: 고닉·반고닉·매니저(주딱)·부매니저(파딱) 아이콘, 유동 IP, 댓글돌이
+   */
+  whoNode?: Field;
   when?: Field;
   /** move. item 기준 */
   content: Field;
@@ -53,6 +65,11 @@ export interface CommentSpec {
   actions?: Field;
   /** move. 댓글 페이지 넘김/더보기 (문서 기준) */
   more?: Field;
+  /**
+   * move. 댓글을 눌렀을 때 사이트가 원본 댓글 목록(숨겨진 쪽)에 끼워 넣는 답글 쓰기 칸 (문서 기준).
+   * 원본에서 바로 앞에 있는 댓글의 아래로 옮겨 보이고, 사이트가 닫으면(원래 자리를 지우면) 같이 사라진다
+   */
+  replyWrite?: Field;
 }
 
 export interface PostPage {
@@ -76,6 +93,10 @@ export interface PostPage {
   ad?: Field;
   /** move. 사이트의 원래 "목록" 버튼 (사이트의 기본 동작 그대로). 본문 아래, 댓글 위에 놓인다 */
   listLink?: Field;
+  /** move. 사이트의 "글쓰기" 버튼. 목록 버튼 옆에 (글쓰기가 없는 게시판이면 생략, 경고 없음) */
+  write?: Field;
+  /** move. 사이트의 댓글 쓰기 칸(입력·등록 버튼). 댓글 목록 아래에 (댓글을 못 쓰는 글이면 생략, 경고 없음) */
+  commentWrite?: Field;
   /** 검산용: 페이지에 표시된 일반 댓글 수 */
   commentCount?: Field;
   comments?: CommentSpec;
@@ -95,6 +116,14 @@ export interface FitSpec {
   row?: string[];
   /** 고정 폭과 float 를 풀어 남은 폭을 채운다 (row 안의 한 칸, 또는 옆의 float 요소 옆) */
   fill?: string[];
+  /** 고정 폭 대신 부모 폭에 맞춘다 (width 100%). 예) 디시 댓글 쓰기의 984px 글상자 */
+  full?: string[];
+  /** 좌우 안쪽 여백을 좁게 (16px). 사이트가 넓은 화면 기준으로 준 큰 여백. 예) 디시 글쓰기 칸 좌우 68px */
+  tight?: string[];
+  /** 위치 기준이 되지 않게 (position: static). right 와 함께: 더 바깥의 넓은 상자를 기준으로 */
+  static?: string[];
+  /** 고정 left 값(넓은 화면 기준) 대신 기준 상자의 오른쪽 끝에서 px 만큼 (left: auto, right: px). 예) 디시 에디터의 [HTML] 토글 */
+  right?: { sel: string; px?: number }[];
 }
 
 export interface RowSpec {
@@ -136,13 +165,15 @@ export interface BoardPage {
   pager?: Field;
   /** move. 게시판 안 검색 (목록 아래, 페이지 번호 다음에 놓인다) */
   search?: Field;
+  /** move. 사이트의 "글쓰기" 버튼. 게시판 제목 오른쪽에 (글쓰기가 없는 게시판이면 생략, 경고 없음) */
+  write?: Field;
   /** move. "더보기" 버튼 (누르면 사이트가 원본 목록에 행을 추가 → 감시해서 반영) */
   more?: Field;
   hide?: string[];
 }
 
 /**
- * 게시판에 들어가기 전의 사이트 첫 화면 (예: 루리웹 /ps, /nin). 뉴스·추천글 등 원본 내용은 숨기고,
+ * 게시판에 들어가기 전의 사이트 첫 화면 (또는 글쓰기 화면처럼 사이트 블록을 그대로 놓는 화면) (예: 루리웹 /ps, /nin). 뉴스·추천글 등 원본 내용은 숨기고,
  * 가운데 칸에는 제목과 광고만 남긴다. 메뉴·오른쪽 열은 다른 페이지와 같다.
  */
 export interface HubPage {
@@ -159,6 +190,8 @@ export interface HubPage {
   /** move. 가운데 칸에 남길 광고. 찾은 요소 전부를 문서 순서대로 옮긴다 */
   ads?: Field;
   hide?: string[];
+  /** 옮긴 사이트 블록 중 고정 폭이 칸보다 넓은 곳 (FitSpec). 예) 디시 글쓰기 화면의 1020px 글쓰기 칸 */
+  fit?: FitSpec;
 }
 
 export type Page = PostPage | BoardPage | HubPage;

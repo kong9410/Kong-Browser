@@ -86,7 +86,7 @@ export function run(recipe: Recipe): Status {
       if (post.page.comments?.lazy && post.comments.length === 0) lateView = view;
       observePost(post.page, view, () => lateCheck?.());
     } else if (located.page.type === "hub") {
-      mount(buildHub(located as LocatedHub, recipe), page.hide);
+      mount(buildHub(located as LocatedHub, recipe), page.hide, (located as LocatedHub).page.fit);
       revealCurrent();
       observeHub();
     } else {

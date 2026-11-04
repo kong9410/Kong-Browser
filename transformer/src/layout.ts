@@ -4,7 +4,7 @@
 import { findAll, hit } from "./locate.js";
 import type { Hit, LocatedBoard, LocatedComment, LocatedHub, LocatedPost, LocatedRow } from "./locate.js";
 import type { Field, FitSpec, Recipe } from "./recipe.js";
-import { placeKept } from "./keep.js";
+import { inContext, placeKept } from "./keep.js";
 import { buildShell, ROOT_ID } from "./nav.js";
 import { isVisited, markVisited } from "./visited.js";
 import css from "./style.css";
@@ -32,9 +32,22 @@ function moveInto(container: HTMLElement, el: Element | null | undefined, field?
   };
   mark(field?.exclude, "k-excluded");
   mark(field?.raw, "k-raw");
+  mark(field?.primary, "k-primary");
   if (field?.keepStyle) placeKept(container, el);
+  else if (field?.context) container.appendChild(inContext(el));
   else container.appendChild(el);
   return true;
+}
+
+/** 사이트 버튼 여러 개를 한 줄에 (예: [목록] [글쓰기]). 하나도 없으면 null. cls3 은 그 버튼에 붙일 표시 (강조 모양 등) */
+function buttonRow(cls: string, items: [Hit | null, Field | undefined, string?][]): HTMLElement | null {
+  const row = h("div", `${cls} k-move`);
+  for (const [hit_, field, mark] of items) {
+    if (!hit_?.el) continue;
+    if (mark) hit_.el.classList.add(mark);
+    moveInto(row, hit_.el, field);
+  }
+  return row.childElementCount ? row : null;
 }
 
 /** 옮겨 담을 상자: 사이트 모양 그대로면 k-keep, 아니면 통합 화면 모양으로 맞추는 k-move */
@@ -68,6 +81,8 @@ export interface PostView {
   commentTotal(): number;
   /** 사이트가 댓글 영역을 다시 그렸을 때 뼈대를 복구 */
   ensure(): void;
+  /** 사이트가 원본 쪽에 연 답글 쓰기 칸을 해당 댓글 아래로 옮기고, 사이트가 닫은 것은 지운다 */
+  syncReplyForms(): void;
 }
 
 export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
@@ -90,14 +105,14 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
   );
   root.appendChild(head);
 
-  for (const box of [
-    moveSlot("k-body", f.body, p.body),
-    moveSlot("k-actions", f.actions, p.actions),
-    moveSlot("k-ad", f.ad, p.ad),
-    // 사이트의 원래 [목록] 버튼: 본문 아래, 댓글 위 (사이트에 없으면 생략)
-    moveSlot("k-list", f.listLink, p.listLink),
-  ])
+  for (const box of [moveSlot("k-body", f.body, p.body), moveSlot("k-actions", f.actions, p.actions), moveSlot("k-ad", f.ad, p.ad)])
     if (box) root.appendChild(box);
+  // 사이트의 원래 [목록]·[글쓰기] 버튼: 본문 아래, 댓글 위 한 줄 (사이트에 없으면 생략)
+  const buttons = buttonRow("k-list", [
+    [f.listLink, p.listLink],
+    [f.write, p.write, "k-write"],
+  ]);
+  if (buttons) root.appendChild(buttons);
 
   // 베스트 댓글: 기능이 없는 사이트(bestItem 없음)거나 0개면 섹션 자체를 만들지 않음
   const bestSection = h("section", "k-best k-gen");
@@ -131,6 +146,8 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
 
   const moreBox = h("div", "k-more k-move");
   cmtSection.appendChild(moreBox);
+  // 댓글 쓰기 칸: 댓글 목록 바로 아래 (사이트의 입력칸·등록 버튼을 그대로 옮겨 사이트 동작대로)
+  const writeBox = moveSlot("k-cmt-write", f.commentWrite, p.commentWrite);
   /** 댓글 페이지 버튼: 사이트가 댓글 영역을 다시 그리면 새 버튼이 숨겨진 원본 쪽에 생기므로 그걸로 교체 */
   const syncMore = () => {
     if (!p.comments?.more) return;
@@ -145,12 +162,18 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
     adoptAnchor();
     const host = anchor ?? root;
     if (p.comments && cmtSection.parentElement !== host) (host === root ? place(cmtSection) : host.appendChild(cmtSection));
+    if (writeBox && writeBox.previousElementSibling !== cmtSection) {
+      if (cmtSection.parentElement) cmtSection.after(writeBox);
+      else place(writeBox);
+    }
     if (bestList.childElementCount && bestSection.parentElement !== host) host.insertBefore(bestSection, p.comments ? cmtSection : null);
   };
   ensureSections();
   syncMore();
 
   const sources = new Map<HTMLElement, Element>(); // 뼈대 댓글 → 원본 item
+  /** 옮긴 답글 쓰기 칸 → 원래 자리 표시 (사이트가 원래 자리를 지우면 = 칸을 닫으면 같이 지움) */
+  const replyForms = new Map<HTMLElement, Comment>();
 
   const view: PostView = {
     kind: "post",
@@ -160,7 +183,13 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
       if (!c.content) return;
       const box = h("div", `k-cmt${c.isReply ? " k-reply" : ""}`);
       const top = h("div", "k-cmt-head");
-      top.append(h("span", "k-who", c.who ?? "익명"), h("span", "k-when", c.when));
+      // 글쓴이: 사이트 표시 그대로(아이콘·IP)가 있으면 그것, 아니면 글자
+      let who: HTMLElement = h("span", "k-who", c.who ?? "익명");
+      if (c.whoNode) {
+        who = h("span", "k-who k-move");
+        moveInto(who, c.whoNode, p.comments?.whoNode);
+      }
+      top.append(who, h("span", "k-when", c.when));
       box.appendChild(top);
       const body = h("div", "k-cmt-body k-move");
       moveInto(body, c.content, p.comments?.content);
@@ -193,6 +222,34 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
     commentTotal: () => cmtList.childElementCount,
     setCount(n) {
       cmtTitle.textContent = `댓글 ${n}`;
+    },
+    syncReplyForms() {
+      const spec = p.comments?.replyWrite;
+      if (!spec) return;
+      for (const [box, mark] of replyForms)
+        if (!mark.isConnected) {
+          box.remove();
+          replyForms.delete(box);
+        }
+      for (const form of findAll(document, spec.sel).els) {
+        if (form.closest(`#${ROOT_ID}`)) continue; // 이미 옮긴 것
+        // 원본에서 바로 앞에 있는 댓글 = 이 칸이 답글을 다는 댓글 (그 스레드 끝)
+        let target: HTMLElement | null = null;
+        let targetItem: Element | null = null;
+        for (const [box, item] of sources)
+          if (item.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING && (!targetItem || targetItem.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+            target = box;
+            targetItem = item;
+          }
+        if (!target) continue;
+        const mark = document.createComment("kong-reply-write");
+        form.before(mark);
+        const box = slotBox("k-reply-write", spec);
+        moveInto(box, form, spec);
+        target.after(box);
+        replyForms.set(box, mark);
+        box.querySelector<HTMLElement>("textarea")?.focus();
+      }
     },
     ensure() {
       // 사이트가 댓글 영역을 다시 그린 경우(댓글 페이지 이동 등): 섹션 재부착, 새 원본 숨김, 새 페이지 버튼으로 교체
@@ -234,6 +291,12 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
 
   const head = h("header", "k-head");
   head.append(h("h1", "k-title", l.boardName?.value ?? "게시판"));
+  // 게시판 제목 오른쪽: 사이트의 [글쓰기] 버튼
+  const tools = buttonRow("k-head-tools", [[l.write, l.page.write, "k-write"]]);
+  if (tools) {
+    head.classList.add("k-head-row");
+    head.appendChild(tools);
+  }
   root.appendChild(head);
 
   const list = h("div", "k-rows");
@@ -331,11 +394,18 @@ export function fitCss(fit: FitSpec | undefined): string {
   let out = "";
   if (fit?.row?.length) {
     const rows = scope(fit.row);
-    out += `:is(${rows}){display:flex!important;align-items:flex-start;gap:8px}`;
+    // 칸이 모자라면 다음 줄로 (사이트가 나중에 끼워 넣는 것, 예: 디시 댓글 쓰기의 사람 확인 상자)
+    out += `:is(${rows}){display:flex!important;flex-wrap:wrap;align-items:flex-start;gap:8px}`;
     out += `:is(${rows})>*{float:none!important;flex:none}`;
   }
-  // fill 은 row 안에서는 남은 폭을 차지하는 칸, row 밖에서는 옆 float 옆에 나란히 서는 칸
-  if (fit?.fill?.length) out += `:is(${scope(fit.fill)}){float:none!important;width:auto!important;flex:1 1 auto!important;min-width:0;overflow:hidden}`;
+  // fill 은 row 안에서는 남은 폭을 차지하는 칸(기준 폭 0 이라 긴 글이어도 줄이 넘어가지 않음), row 밖에서는 옆 float 옆에 나란히 서는 칸.
+  // (overflow: hidden 대신 flow-root: 사이트가 나중에 끼워 넣는 층·상자가 잘리지 않게)
+  if (fit?.fill?.length) out += `:is(${scope(fit.fill)}){float:none!important;width:auto!important;flex:1 1 0!important;min-width:0;display:flow-root!important}`;
+  if (fit?.tight?.length) out += `:is(${scope(fit.tight)}){padding-left:16px!important;padding-right:16px!important}`;
+  if (fit?.static?.length) out += `:is(${scope(fit.static)}){position:static!important}`;
+  for (const r of fit?.right ?? []) out += `:is(${scope([r.sel])}){left:auto!important;right:${r.px ?? 0}px!important}`;
+  // full 은 폭만 (float 는 그대로 두어야 앞의 float 줄 아래로 내려간다: 디시 글쓰기의 제목칸)
+  if (fit?.full?.length) out += `:is(${scope(fit.full)}){width:100%!important;max-width:100%!important;box-sizing:border-box!important}`;
   return out;
 }
 

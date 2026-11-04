@@ -35,6 +35,7 @@ export function observePost(page: PostPage, view: PostView, onBatch?: () => void
     if (spec.bestItem)
       for (const item of fresh(findAll(document, spec.bestItem).els)) view.addComment(locateComment(item, spec), true);
     for (const item of fresh(findAll(document, spec.item).els)) view.addComment(locateComment(item, spec), false);
+    view.syncReplyForms();
     view.refreshCount();
     onBatch?.();
   });

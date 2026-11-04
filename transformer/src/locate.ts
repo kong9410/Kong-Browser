@@ -13,6 +13,8 @@ export interface Hit {
 export interface LocatedComment {
   item: Element;
   who: string | null;
+  /** 사이트의 글쓴이 표시 요소 (아이콘·IP 포함, 레시피 whoNode) */
+  whoNode: Element | null;
   when: string | null;
   content: Element | null;
   actions: Element | null;
@@ -21,7 +23,7 @@ export interface LocatedComment {
 
 export interface LocatedPost {
   page: PostPage;
-  fields: Record<"category" | "title" | "author" | "createdAt" | "views" | "likes" | "body" | "actions" | "ad" | "listLink" | "commentCount", Hit | null>;
+  fields: Record<"category" | "title" | "author" | "createdAt" | "views" | "likes" | "body" | "actions" | "ad" | "listLink" | "write" | "commentWrite" | "commentCount", Hit | null>;
   best: LocatedComment[];
   comments: LocatedComment[];
   more: Hit | null;
@@ -50,6 +52,7 @@ export interface LocatedBoard {
   pager: Hit | null;
   more: Hit | null;
   search: Hit | null;
+  write: Hit | null;
 }
 
 export interface LocatedHub {
@@ -134,6 +137,7 @@ export function locateComment(item: Element, spec: CommentSpec): LocatedComment 
   return {
     item,
     who: val(item, spec.who),
+    whoNode: hit(item, spec.whoNode)?.el ?? null,
     when: val(item, spec.when),
     content: hit(item, spec.content)?.el ?? null,
     actions: hit(item, spec.actions)?.el ?? null,
@@ -160,6 +164,8 @@ export function locatePost(doc: Document, page: PostPage): LocatedPost {
       actions: hit(doc, page.actions),
       ad: hit(doc, page.ad),
       listLink: hit(doc, page.listLink),
+      write: hit(doc, page.write),
+      commentWrite: hit(doc, page.commentWrite),
       commentCount: hit(doc, page.commentCount),
     },
     best: c?.bestItem ? locateComments(doc, c, c.bestItem) : [],
@@ -208,6 +214,7 @@ export function locateBoard(doc: Document, page: BoardPage): LocatedBoard {
     pager: hit(doc, page.pager),
     more: hit(doc, page.more),
     search: hit(doc, page.search),
+    write: hit(doc, page.write),
   };
 }
 
