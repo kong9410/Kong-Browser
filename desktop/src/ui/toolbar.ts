@@ -62,6 +62,13 @@ const zoomBtn = $<HTMLButtonElement>("zoom");
 
 let loading = false;
 let editing = false;
+/**
+ * 방금 이동을 시작한 주소 (Enter·자동완성): 페이지가 바뀌기 전까지 주소창에 이 값을 보인다
+ * (안 그러면 이동이 끝날 때까지 이전 페이지 주소가 잠깐 다시 보임)
+ */
+let pending: { text: string; from: string; sawLoading: boolean; at: number } | null = null;
+let currentUrl = "";
+const startPending = (text: string) => (pending = { text, from: currentUrl, sawLoading: false, at: Date.now() });
 let bookmarked = false;
 
 const rectOf = (el: Element): Rect => {
@@ -108,6 +115,7 @@ form.onsubmit = (e) => {
   closeSuggestions();
   if (chosen) ui.openUrl(chosen.url, "current");
   else ui.navigate(address.value);
+  startPending(chosen ? displayUrl(chosen.url) : address.value.trim());
   address.blur();
 };
 address.onfocus = () => {
@@ -146,6 +154,16 @@ address.onkeydown = (e) => {
     }
   }
 };
+// 자동완성 목록에서 마우스로 골라 이동: 주소창 입력을 끝내고 이동할 주소를 보인다 (커서는 페이지로)
+ui.onAddressDone((url) => {
+  clearTimeout(suggestTimer);
+  seq++;
+  suggestions = [];
+  editing = false;
+  startPending(displayUrl(url));
+  address.value = pending!.text;
+  address.blur();
+});
 ui.onFocusAddress((keep) => {
   if (keep && document.activeElement === address) return;
   address.focus();
@@ -175,12 +193,19 @@ ui.onState((s: BrowserState) => {
   if (now !== activeId) {
     activeId = now;
     editing = false;
+    pending = null;
+  }
+  currentUrl = s.url;
+  // 이동을 시작한 주소는 페이지가 바뀌거나(주소가 달라짐) 불러오기가 끝날 때까지 보인다
+  if (pending) {
+    if (s.loading) pending.sawLoading = true;
+    if (s.url !== pending.from || (pending.sawLoading && !s.loading) || Date.now() - pending.at > 15000) pending = null;
   }
   back.disabled = !s.canGoBack;
   forward.disabled = !s.canGoForward;
   loading = s.loading;
   reload.classList.toggle("loading", s.loading);
-  if (!editing) address.value = displayUrl(s.url);
+  if (!editing) address.value = pending ? pending.text : displayUrl(s.url);
 
   // 재배치 상태 표시
   if (s.original) setMode("원본", "original");

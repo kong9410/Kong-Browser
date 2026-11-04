@@ -1023,7 +1023,9 @@ function showSuggestions(w: Win, list: Suggestion[], at: Rect) {
   if (!list.length) return hideSuggestions(w);
   v.setBounds({ x: Math.round(at.x), y: Math.round(at.y + at.height + 4), width: Math.round(at.width), height: list.length * ROW_H + 12 });
   w.win.contentView.addChildView(v); // 이미 있으면 맨 위로
-  v.webContents.send(IPC.suggestList, list, 0);
+  // 목록 view 를 막 만들어 아직 불러오는 중이면 다 불러온 뒤에 보낸다 (안 그러면 처음 친 글자의 목록이 비어 보임)
+  if (v.webContents.isLoading()) v.webContents.once("did-finish-load", () => w.suggestions === list && v.webContents.send(IPC.suggestList, list, 0));
+  else v.webContents.send(IPC.suggestList, list, 0);
 }
 
 function hideSuggestions(w: Win) {
@@ -1477,8 +1479,12 @@ ipcMain.on(IPC.suggestChoose, (e, url: string) => {
   const w = winOf(e.sender) ?? winOfSuggest(e.sender);
   if (!w) return;
   hideSuggestions(w);
+  // 새 탭의 "주소창에 커서" 는 끝 (다른 곳으로 감)
+  if (w.active) w.active.focusAddress = false;
   current(w)?.loadURL(url);
   w.active?.view.webContents.focus();
+  // 툴바: 입력하던 글자 대신 이동할 주소를 보이고 주소창 입력을 끝낸다
+  w.win.webContents.send(IPC.addressDone, url);
 });
 
 // 앱 안쪽 페이지(시작 페이지, 방문 기록)만 쓸 수 있는 기록·북마크 API

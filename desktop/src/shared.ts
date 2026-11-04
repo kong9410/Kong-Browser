@@ -69,6 +69,8 @@ export const IPC = {
   /** main → 툴바 */
   state: "ui:state",
   focusAddress: "ui:focus-address",
+  /** main → 툴바: 자동완성 목록에서 골라 이동함 → 주소창 입력을 끝내고 그 주소를 보임 */
+  addressDone: "ui:address-done",
 } as const;
 
 export interface PageConfig {

@@ -39,6 +39,7 @@ const api = {
   ready: () => ipcRenderer.send(IPC.ready),
   onState: (fn: (s: BrowserState) => void) => ipcRenderer.on(IPC.state, (_e, s) => fn(s)),
   /** keep: 이미 주소창에 커서가 있으면 그대로 (입력 중인 글자를 선택하지 않음) */
+  onAddressDone: (fn: (url: string) => void) => ipcRenderer.on(IPC.addressDone, (_e, url: string) => fn(url)),
   onFocusAddress: (fn: (keep: boolean) => void) => ipcRenderer.on(IPC.focusAddress, (_e, keep) => fn(!!keep)),
 };
 
