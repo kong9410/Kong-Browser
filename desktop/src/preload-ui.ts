@@ -4,6 +4,8 @@ import { IPC, type BrowserState, type Rect } from "./shared";
 import type { Suggestion } from "./suggest";
 
 const api = {
+  /** 운영체제 (darwin = macOS: 창 버튼이 탭 줄 왼쪽) */
+  platform: process.platform,
   navigate: (text: string) => ipcRenderer.send(IPC.navigate, text),
   back: () => ipcRenderer.send(IPC.back),
   forward: () => ipcRenderer.send(IPC.forward),
@@ -14,6 +16,7 @@ const api = {
   closeTab: (id: number) => ipcRenderer.send(IPC.closeTab, id),
   selectTab: (id: number) => ipcRenderer.send(IPC.selectTab, id),
   moveTab: (id: number, to: number) => ipcRenderer.send(IPC.moveTab, id, to),
+  tabDragEnd: (id: number) => ipcRenderer.send(IPC.tabDragEnd, id),
   openUrl: (url: string, where: "current" | "tab" | "background") => ipcRenderer.send(IPC.openUrl, url, where),
   toggleBookmark: () => ipcRenderer.send(IPC.toggleBookmark),
   bookmarkMenu: (url: string) => ipcRenderer.send(IPC.bookmarkMenu, url),

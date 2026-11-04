@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 10,
+  "version": 12,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
@@ -125,7 +125,7 @@
       "comments": {
         "lazy": true,
         "item": [
-          ".comment_box li.ub-content:not(.dory)"
+          ".comment_box li.ub-content:not(.dory):not([id^=img_comment_li_])"
         ],
         "replyMarker": "[id^=reply_li_]",
         "who": {
@@ -154,6 +154,14 @@
             ".cmt_paging"
           ]
         }
+      },
+      "fit": {
+        "row": [
+          ".img_comment .addbox"
+        ],
+        "fill": [
+          ".img_comment .cmt_txtbox"
+        ]
       }
     },
     {

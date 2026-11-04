@@ -147,7 +147,7 @@ html.kong-on #kong-root .k-hidden {
 #kong-root .k-move a {
   color: var(--k-accent) !important;
 }
-#kong-root .k-move :is(img, video, iframe) {
+#kong-root .k-move :is(img, video, iframe):not(.k-raw *) {
   height: auto !important;
   border-radius: 10px;
 }
@@ -240,7 +240,7 @@ html.kong-on #kong-root .k-hidden {
   margin: 0 !important;
   padding: 0 !important;
 }
-#kong-root .k-cmt-body :is(img, video) {
+#kong-root .k-cmt-body :is(img, video):not(.k-raw *) {
   max-height: 240px !important;
   width: auto !important;
 }

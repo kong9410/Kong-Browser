@@ -81,6 +81,20 @@ export interface PostPage {
   comments?: CommentSpec;
   /** 재배치 후에도 나중에 body 에 붙는 요소 중 숨길 것 (떠다니는 배너 등) */
   hide?: string[];
+  /** 옮긴 내용 중 사이트의 고정 폭 배치가 통합 화면의 좁은 칸에 안 맞는 곳 (FitSpec) */
+  fit?: FitSpec;
+}
+
+/**
+ * 사이트가 고정 폭(px)으로 한 줄에 늘어놓은 것이 통합 화면 칸보다 넓어 줄이 넘어가는 곳을 칸에 맞춘다.
+ * 나중에 붙는 요소(펼칠 때 불러오는 디시 이미지 댓글 등)에도 적용되도록 CSS 규칙으로 건다.
+ * 예) 디시 이미지 댓글 한 줄(.addbox): 닉네임 152px + 글 550px + 날짜 → 날짜가 아래 줄로 떨어짐
+ */
+export interface FitSpec {
+  /** 자식들을 한 줄로 (각자 내용 크기, 남은 폭은 fill 이 차지). 자식의 float 는 푼다 */
+  row?: string[];
+  /** 고정 폭과 float 를 풀어 남은 폭을 채운다 (row 안의 한 칸, 또는 옆의 float 요소 옆) */
+  fill?: string[];
 }
 
 export interface RowSpec {

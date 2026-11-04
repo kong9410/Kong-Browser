@@ -81,7 +81,7 @@ export function run(recipe: Recipe): Status {
     if (located.page.type === "post") {
       const post = located as LocatedPost;
       const view = buildPost(post, recipe);
-      mount(view.root, page.hide);
+      mount(view.root, page.hide, post.page.fit);
       revealCurrent();
       if (post.page.comments?.lazy && post.comments.length === 0) lateView = view;
       observePost(post.page, view, () => lateCheck?.());

@@ -35,6 +35,8 @@ declare global {
 }
 
 const ui = window.kongUI;
+// 운영체제별 탭 줄 배치 (macOS 는 창 버튼이 왼쪽, Windows 는 오른쪽): toolbar.css
+document.documentElement.dataset.platform = ui.platform;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const back = $<HTMLButtonElement>("back");
 const forward = $<HTMLButtonElement>("forward");
@@ -156,6 +158,7 @@ let activeId = -1;
 
 ui.onState((s: BrowserState) => {
   renderTabs(s.tabs);
+  document.documentElement.classList.toggle("fullscreen", s.fullscreen);
   markDock(s.url);
   showDock(s.dockOpen);
   showDownloads(s.downloads);
@@ -215,6 +218,8 @@ function renderTabs(tabs: TabInfo[]) {
       el.ondragstart = (e) => {
         dragId = t.id;
         e.dataTransfer!.effectAllowed = "move";
+        // 다른 창의 탭 줄도 이 탭을 알아보도록 (창 사이 끌기)
+        e.dataTransfer!.setData(TAB_MIME, String(t.id));
         e.dataTransfer!.setData("text/plain", String(t.id));
         el.classList.add("dragging");
       };
@@ -222,6 +227,8 @@ function renderTabs(tabs: TabInfo[]) {
         dragId = null;
         el.classList.remove("dragging");
         clearDropMark();
+        // 탭 줄 밖에 놓았으면 main 이 새 창으로 떼어 낸다 (다른 창 탭 줄에 놓였으면 그쪽이 이미 옮김)
+        ui.tabDragEnd(t.id);
       };
 
       const icon = document.createElement("span");
@@ -255,7 +262,11 @@ function renderTabs(tabs: TabInfo[]) {
 
 // ---------- 탭 끌어서 순서 바꾸기 ----------
 
+/** 이 창에서 끌고 있는 탭 (다른 창에서 끌어 온 탭이면 null) */
 let dragId: number | null = null;
+const TAB_MIME = "application/x-kong-tab";
+/** 끌고 있는 것이 (어느 창이든) 우리 탭인지 */
+const isTabDrag = (e: DragEvent) => dragId !== null || !!e.dataTransfer?.types.includes(TAB_MIME);
 /** 마우스 x 위치로 놓을 자리(끌고 있는 탭을 뺀 순서에서의 위치)를 구한다 */
 function dropIndex(x: number): number {
   const others = Array.from(tabsBox.querySelectorAll<HTMLElement>(".tab")).filter((t) => Number(t.dataset.id) !== dragId);
@@ -268,7 +279,7 @@ function clearDropMark() {
   tabsBox.querySelectorAll(".drop-before, .drop-after").forEach((t) => t.classList.remove("drop-before", "drop-after"));
 }
 tabsBox.ondragover = (e) => {
-  if (dragId === null) return;
+  if (!isTabDrag(e)) return;
   e.preventDefault();
   e.dataTransfer!.dropEffect = "move";
   clearDropMark();
@@ -278,10 +289,15 @@ tabsBox.ondragover = (e) => {
   else others[others.length - 1]?.classList.add("drop-after");
 };
 tabsBox.ondrop = (e) => {
-  if (dragId === null) return;
+  if (!isTabDrag(e)) return;
   e.preventDefault();
-  ui.moveTab(dragId, dropIndex(e.clientX));
+  const id = dragId ?? Number(e.dataTransfer!.getData(TAB_MIME));
+  // 같은 창이면 순서 바꾸기, 다른 창의 탭이면 이 창의 이 자리로 옮김 (창 합치기)
+  if (id) ui.moveTab(id, dropIndex(e.clientX));
   clearDropMark();
+};
+tabsBox.ondragleave = (e) => {
+  if (!tabsBox.contains(e.relatedTarget as Node | null)) clearDropMark();
 };
 
 // ---------- 북마크 바 ----------

@@ -9,9 +9,9 @@
 |---|---|---|
 | 정체성 | 브라우저. 사이트는 그대로 접속하고, 미리 정해진 레시피대로 화면 배치만 바꿈 | 사용자 결정 |
 | 배포 범위 | 나 혼자 / 지인 | 사용자 결정 |
-| **우선 플랫폼** | **PC 웹 브라우저 먼저.** Android 는 PC 가 완성된 뒤로 보류 (2026-11-04) | 사용자 결정 |
+| **우선 플랫폼** | PC 웹 브라우저 먼저 (M3 완료, 0.0.0-beta). **2026-11-04 Android 모바일 브라우저 재개** (8절 설계) | 사용자 결정 |
 | PC 브라우저 껍데기 | **Electron 앱** (8-1절) | 사용자 결정 (추천안) |
-| Android 앱 | Kotlin 네이티브 (Jetpack Compose + 시스템 WebView). 보류 | 사용자 결정 (추천안) |
+| Android 앱 | Kotlin 네이티브 (Jetpack Compose + 시스템 WebView). 폰에서 일상적으로 쓰는 브라우저 (8절) | 사용자 결정 (추천안) |
 | iOS 앱 | 나중에 Swift 로 껍데기만 | 사용자 결정 (추천안) |
 | 백엔드 | Spring Boot + Kotlin | 사용자 결정 |
 | 재배치 엔진 | `transformer.js` (TypeScript) 하나를 모든 플랫폼이 공유 | 사용자 결정 (추천안) |
@@ -381,27 +381,120 @@ AI의 가장 큰 가치는 처음부터 학습하는 것보다 **수리**에 있
 | 4. 넓은 화면(2K)에서 본문을 넓게 | 본문 `clamp(760px, 52vw, 1320px)`, 왼쪽 `clamp(200px, 11vw, 280px)`, 오른쪽 `clamp(220px, 13vw, 340px)`. 창이 1150px 보다 좁으면 오른쪽 열은 본문 아래로 |
 | 5. 웨일 같은 오른쪽 dock + 국내 주요 커뮤니티 | 브라우저 기능(툴바 화면)으로 오른쪽에 52px 세로 막대, 15곳 (`dock.ts`). 클릭 = 지금 탭, Ctrl/가운데 클릭 = 뒤쪽 새 탭. 페이지 영역은 dock 폭만큼 줄임. 아이콘은 동그란 칸, 툴바 버튼·dock 맨 아래 버튼으로 숨기기/보이기 (settings.json `dockOpen` 에 기억) |
 
-## 8. Android 앱 (Kotlin) — 2026-11-04 시작 (8-6절)
+## 8. Android 모바일 브라우저 (Kotlin) — 설계 2026-11-04
 
-| 영역 | 선택 |
+> 8-6절의 첫 코드(`android/`, 빌드 전)를 출발점으로, **폰에서 평소 브라우저로 쓸 수 있는 앱**까지의 설계. PC 앱(8-1~8-9절)과 같은 엔진·레시피를 쓰고, 화면과 조작은 폰에 맞게 새로 만든다.
+
+### 8-A. 원칙
+
+| 항목 | 결정 | 이유 |
+|---|---|---|
+| 엔진·레시피 | PC 와 같은 `transformer.js` + `recipes/*.json` (빌드 때 assets 로 복사) | 레시피 한 벌 유지 |
+| 받는 페이지 | 레시피가 있는 **사이트 단위 도메인**은 PC UA 로 PC 페이지, 그 외는 기기 기본(모바일) | 8-6절 A 안. 폰 화면은 엔진의 760px 이하 배치가 담당 |
+| 브라우저 UI | Compose 네이티브 (PC 의 HTML 안쪽 페이지를 옮기지 않음) | 폰 조작감(시트·스와이프·뒤로 버튼)은 네이티브가 낫다 |
+| 사이트 메뉴 | 통합 화면 **안의** ☰ 서랍 (엔진). 앱 메뉴(⋮)에 넣지 않음 | 사용자 원칙: 사이트 UI 는 페이지 레이아웃 안에 |
+| 저장 | 이 기기에만. 형식은 PC 의 JSON 파일과 같은 모양 (`history.json`, `bookmarks.json`, `downloads.json`, `session.json`, `reports.jsonl`) | 나중에 PC↔폰 동기화나 서버 보고를 붙이기 쉽게 |
+| 최소 버전 | Android 8.0 (API 26), WebView 는 `DOCUMENT_START_SCRIPT` 지원 필요 (지원 안 하면 엔진 없이 원본) | fail-open |
+| 다크 모드 | 후순위. 앱도 밝은 모드 고정 | 0절 |
+
+### 8-B. 화면 구성 (추천안)
+
+```
+┌───────────────────────────────┐
+│ [🔒 bbs.ruliweb.com  ] [원본|통합] │ ← 주소창 줄. 아래로 스크롤하면 숨고, 위로 조금 올리면 다시 보임
+│ ▬▬▬▬▬▬ 진행 막대               │
+│ (고장 배너: 원래 화면으로 보여드려요) │
+├───────────────────────────────┤
+│                               │
+│   WebView (통합 화면 / 원본)     │   ↑↓ 맨 위/맨 아래 버튼 (필요할 때만, PC 와 같은 규칙)
+│                               │
+├───────────────────────────────┤
+│  ←    →    🏠    [3]    ⋮     │ ← 아래 바 (한 손 조작). 주소창 줄과 함께 숨김/표시
+└───────────────────────────────┘
+```
+
+- **주소창 위 + 버튼 아래** (삼성 인터넷 방식). 엄지로 뒤로·탭·메뉴를 누르기 쉽고, 주소는 위에서 읽기 쉽다
+- 주소창을 누르면 전체 화면 입력: 자동완성(방문 기록·북마크, PC `suggest.ts` 규칙을 Kotlin 으로) + 클립보드 주소 "붙여넣고 이동"
+- 원본|통합 토글은 레시피 사이트에서만, 앱 전체 설정 (PC 8-5절과 같음)
+- ⋮ 메뉴 (바텀 시트): 새 탭, 북마크 추가/북마크, 방문 기록, 다운로드, 페이지에서 찾기, 공유, PC/모바일 페이지 전환(레시피 없는 사이트만), 글자 크기, 설정
+- 🏠 시작 화면: 커뮤니티 15곳(지금 코드) + 북마크 + 최근 방문
+- [3] 탭 전환 화면: 2열 카드(제목·주소·축소 화면), 옆으로 밀어 닫기, + 새 탭. 아래 바에서 위로 밀면 바로 열림
+
+### 8-C. PC 기능 → 폰 대응
+
+| PC (8-1~8-9절) | Android | 단계 |
+|---|---|---|
+| 주소창·뒤로/앞으로·새로고침·원본 토글·판정 배너 | 위 화면 구성. 시스템 뒤로 = 페이지 뒤로 → 더 없으면 탭 닫기(그 탭을 연 탭으로) → 시작 화면 | A1~A2 |
+| 탭 (복원 포함) | 탭 전환 화면. 다시 실행하면 복원(`session.json`: 탭 주소·뒤로 기록). 새 창 링크(`window.open`, `target=_blank`) → 새 탭 | A2 |
+| 북마크 / 방문 기록 | Compose 화면. 기록은 날짜별·검색·삭제, 최근 5000 (읽은 글 표시도 이 기록) | A3 |
+| 다운로드 + 내역 | 시스템 `DownloadManager` (알림·다운로드 폴더, 쿠키·UA·Referer 를 같이 보냄 — 디시 이미지에 필요). 앱 안 내역 화면은 `downloads.json` + DownloadManager 상태 | A3 |
+| 오른쪽 클릭 메뉴 | **길게 누르기** 바텀 시트: 링크 = 새 탭/뒤쪽 탭·주소 복사·공유, 이미지 = 저장·공유·이미지 주소 복사·새 탭. 글 선택은 WebView 기본 | A3 |
+| 사이트의 선택·복사 막기 해제 | 같은 캡처 단계 스크립트를 시작 스크립트에 (레시피 사이트만). 길게 눌러 글 선택이 되도록 `selectstart`·`contextmenu` 도 | A3 |
+| 맨 위/맨 아래 버튼 | 앱 Compose 버튼 (WebView 스크롤 위치로 표시 결정). 페이지에 붙이지 않음 | A3 |
+| dock (커뮤니티 15곳) | 시작 화면 격자 | 있음 |
+| 고장 보고 저장 | `reports.jsonl` (PC `report.ts` 형식). M4 에서 서버 전송 | A4 |
+| — (폰 전용) | 파일 올리기(`onShowFileChooser`, 글쓰기 이미지 첨부), 전체 화면 동영상(`onShowCustomView`), 외부 앱 주소(`intent://`, `market://`, 카카오 등 → 해당 앱, 없으면 대체 주소), 공유받은 주소 열기, 기본 브라우저로 지정 가능, 페이지에서 찾기(`findAllAsync`), 글자 크기(`textZoom`), 로그인 유지(`CookieManager.flush` 를 백그라운드로 갈 때) | A2~A4 |
+| 레시피 서버 동기화 | M4 이후: WorkManager 주기 확인 + 앱 시작 시, last-known-good | A5 |
+
+**나중으로:** 당겨서 새로고침(통합 화면의 서랍·가로 스크롤과 충돌 위험), 시크릿 탭, 광고 차단, PC↔폰 북마크 동기화, 다크 모드.
+
+### 8-D. 앱 구조
+
+```
+android/app/src/main/kotlin/com/kong/browser/
+  MainActivity.kt          인텐트(링크·공유) 받기, setContent
+  engine/   Engine.kt      assets 의 엔진·레시피, 시작 스크립트 만들기
+            Injector.kt    WebView 마다 시작 스크립트 등록·교체, 메시지 리스너
+  browser/  Tab.kt         WebView 하나 + 상태(PageState) + Client/ChromeClient
+            Tabs.kt        탭 목록, 현재 탭, 열기/닫기/복원, 살아 있는 WebView 수 제한
+            Downloads.kt   DownloadManager 연동
+            LongPress.kt   HitTestResult → 메뉴 항목 고르기 (순수 함수 + 시트)
+  data/     Settings.kt    SharedPreferences (원본 토글, 메뉴 펼침, 글자 크기 …)
+            History.kt, Bookmarks.kt, Session.kt, Reports.kt   JSON 파일 (PC 와 같은 모양)
+  ui/       BrowserScreen.kt (주소창 줄·아래 바·배너·↑↓), AddressInput.kt (자동완성),
+            TabSwitcher.kt, StartScreen.kt, HistoryScreen.kt, BookmarksScreen.kt,
+            DownloadsScreen.kt, SettingsScreen.kt, Theme.kt
+  util/     Urls.kt (있음), Suggest.kt (PC suggest.ts 규칙)
+```
+
+- 화면 상태는 `ViewModel` 하나(`BrowserModel`)가 `Tabs` 와 데이터 저장소를 들고, Compose 는 상태만 그린다
+- 순수 로직(Urls, Suggest, LongPress 항목 고르기, History 정리·검색, Session 직렬화, 뒤로 버튼 규칙)은 Android 없는 JVM 단위 테스트
+
+### 8-E. 엔진 주입과 브리지 (지금 코드에서 바꿀 점)
+
+지금 코드는 `addJavascriptInterface("KongBridge")` 로 설정을 동기로 받는다. 이 방식은 **WebView 의 모든 페이지와 iframe(광고 포함)에 `KongBridge` 가 노출**된다. 폰에는 PC 의 격리된 world 가 없으므로 경계를 좁힌다.
+
+| 항목 | 변경 |
 |---|---|
-| UI | Jetpack Compose (주소창, 툴바, 배너, 설정). WebView 는 `AndroidView` 로 감쌈 |
-| WebView | 시스템 `android.webkit.WebView` + `androidx.webkit` |
-| 스크립트 주입 | `WebViewCompat.addDocumentStartJavaScript` 로 가림 스크립트 주입 (레시피가 있는 host 에만). DOM 준비 후 `evaluateJavascript("kong.run(recipe)")` |
-| JS ↔ 앱 | `@JavascriptInterface` 를 단 `KongBridge` (판정 결과, 보고) |
-| 레시피 캐시 | 앱 내부 저장소 JSON + last-known-good |
-| 동기화 | WorkManager (6시간 주기) + 즉시 확인 |
-| 네트워크/직렬화 | OkHttp + kotlinx.serialization |
-| 최소 버전 | Android 8.0 (API 26) |
+| 브리지 | `WebViewCompat.addWebMessageListener("kongBridge", 레시피 호스트 origin 만)` 로 교체. 다른 사이트·광고 iframe 에서는 보이지 않음. 앱으로 오는 것: 판정(`status`), 메뉴 접힘(`nav`) |
+| 바뀌지 않는 설정 | 레시피·원본 토글·메뉴 펼침은 **시작 스크립트 안에 넣어서** 등록 (`kong.boot(레시피, {off, navOpen})`). 토글을 바꾸거나 레시피가 갱신되면 `ScriptHandler.remove()` 후 다시 등록 → 다음 로드부터 반영 |
+| 방문 기록 (읽은 글) | 페이지마다 달라서 비동기로: 엔진이 `kongBridge.postMessage({type:"visited?"})` → 앱이 이 호스트 기록을 답장 → 엔진 `setVisited` 후 목록 다시 칠함. 엔진에 "나중에 받은 방문 기록 반영" 공개 함수 추가 (`kong.visited(list)`) |
+| 지원 안 하는 WebView | `DOCUMENT_START_SCRIPT` 나 `WEB_MESSAGE_LISTENER` 가 없으면 엔진을 넣지 않음 = 원본 (fail-open). 설정 화면에 "WebView 업데이트 필요" 표시 |
+| 메인 프레임만 | 시작 코드의 `window.top !== window` 검사 유지 |
 
-```
-app/src/main/kotlin/…/
-  browser/   BrowserScreen, BrowserViewModel, KongWebView(주입, 브리지)
-  recipe/    RecipeStore, RecipeMatcher, RecipeSync
-  report/    Reporter (중복 억제 포함)
-  settings/  SettingsScreen (서버 주소, 토큰, 테마, 글자 크기, 레시피 목록·버전)
-  assets/    transformer.js (transformer/ 빌드 결과 복사)
-```
+### 8-F. 탭과 메모리
+
+- WebView 는 무겁다(PC 페이지라 더). **살아 있는 WebView 는 최근 탭 3개까지**, 나머지는 `saveState(Bundle)` 로 뒤로 기록만 남기고 파괴 → 다시 고르면 복원 후 새로 불러옴
+- 축소 화면은 탭 전환 화면을 열 때 지금 탭만 캡처해 메모리에 (작은 크기)
+- 앱이 백그라운드로 가면 `session.json` 저장, 쿠키 flush. `onTrimMemory` 에서 현재 탭 외 WebView 해제
+
+### 8-G. 배포
+
+- `.github/workflows/release.yml` 에 Android 작업 추가: `./gradlew assembleRelease` → APK 를 같은 릴리스에 첨부 (지인은 APK 직접 설치)
+- **서명 키:** 지금은 디버그 키라 PC·CI 마다 키가 달라 **업데이트 설치가 안 된다.** 릴리스용 키스토어를 한 번 만들고(저장소 밖 보관) GitHub Secrets 에 넣어 CI 에서 서명
+- 버전: PC 앱과 같은 태그(`v*`)에서 `versionName`, `versionCode` 는 태그에서 계산
+
+### 8-H. 단계
+
+| 단계 | 내용 | 완료 기준 |
+|---|---|---|
+| **A1 빌드·실행** | 지금 코드(8-6절) 빌드, 에뮬레이터·실제 폰에서 루리웹·디시 통합 화면. 엔진 폰 배치(760px 이하) 다듬기 | 폰에서 목록 → 글 → 댓글 → 뒤로가 통합 화면으로 동작 |
+| **A2 브라우저 기본** | 구조 정리(8-D), 화면 구성(8-B), 앞으로, 탭·탭 전환·복원, 새 창 → 새 탭, 주소창 자동완성, 외부 앱 주소, 파일 올리기, 전체 화면 동영상, 브리지 교체(8-E) | 탭 여러 개로 평소처럼 돌아다니고 다시 실행해도 그대로 |
+| **A3 기록·다운로드·메뉴** | 방문 기록·북마크 화면, 다운로드, 길게 누르기 메뉴, 공유, 찾기, 맨 위/아래, 선택 막기 해제 | PC 8-1~8-8절 기능을 폰에서 같은 일로 할 수 있음 |
+| **A4 마무리·배포** | 고장 보고 저장, 설정(글자 크기, 기본 브라우저 안내, 레시피 버전), 앱 아이콘, 릴리스 APK 워크플로·서명 | 릴리스 태그 → APK, 지인 폰에 설치·업데이트 |
+| A5 동기화 | M4 서버 이후 레시피 동기화 | 레시피 publish → 폰 재시작 없이 반영 |
+
+테스트는 12-1절 그대로: 구현할 때 JVM 단위 테스트, 실기기·에뮬레이터 확인은 단계가 끝날 때.
 
 ## 9. 서버 (Spring Boot 3 + Kotlin)
 
@@ -437,7 +530,7 @@ kong-browser/
   recipes/       레시피 원본 (git 으로 이력 관리 → publish 로 서버 배포)
   docs/
   server/        Spring Boot (Kotlin)   ← M4
-  android/       Android 앱 (Kotlin)     ← 보류
+  android/       Android 앱 (Kotlin)     ← 8절 A1~A5
 ```
 
 0단계 프로토타입(추출해서 다시 그리는 v1 방식, 루트의 `src/`)은 git 초기 커밋 전에 삭제했습니다 (2026-11-04).
@@ -456,7 +549,7 @@ kong-browser/
 | **M2 디시 + 변경 대응** ✅ | 디시 **PC** 레시피, `check`·`snapshot`·`canary`, 실패 보고 형식 | 두 사이트가 같은 모양. 스냅샷 각 10개 이상 통과. 고장 레시피 → 원본 표시 |
 | **M3 PC 브라우저 (Electron)** ✅ | 주소창, 뒤로/앞으로, 원본 보기, 판정 배너, preload 엔진 주입, 내장 레시피, Windows 설치 파일 (8-1절) | PC 에서 루리웹을 평소처럼 돌아다니면 통일 화면 |
 | **M4 서버** | Recipes/Reports API, 동기화, broken 즉시 확인, last-known-good, 알림, `publish`·`rollback` | 레시피를 고쳐 publish 하면 브라우저 재시작 없이 반영 |
-| **M5 확장** | Android(보류분), AI(학습/수리), iOS, 다크모드, 로그인 상태 동작 확인 (주소창 자동완성·북마크 폴더는 2026-11-04 완료) | — |
+| **M5 확장** | Android(8-H절 A1~A5, 2026-11-04 재개), AI(학습/수리), iOS, 다크모드, 로그인 상태 동작 확인 (주소창 자동완성·북마크 폴더는 2026-11-04 완료) | — |
 
 **M1 결과 (2026-11-04)**
 - 루리웹 **PC**: 목록 2개 게시판(+2페이지), 글 9개 전부 ok. 재배치 1~28ms
@@ -549,6 +642,7 @@ kong-browser/
   - 아직 없음: 탭, 북마크, 방문 기록 화면, 고장 보고 저장, 맨 위/아래 버튼
 - 빌드 환경: Android Studio (SDK) 설치 후 `android/` 를 열어 빌드. 실행은 에뮬레이터와 실제 폰(USB 디버깅) 둘 다
 - 2026-11-04: 사용자 결정으로 **Android 다시 보류** (데스크톱 먼저). 위의 코드(android/)와 엔진의 폰 배치는 그대로 두고, SDK 설치 뒤 빌드·실행 확인부터 이어서 한다
+- 2026-11-04 (나중): **Android 재개.** 모바일 브라우저 전체 설계는 8절 (8-A~8-H)
 
 ### 8-7. 사이트 로고, 게시판 검색, 다운로드 표시 (2026-11-04, 사용자 요청)
 - 사이트 로고: 레시피 `logo`(사이트 맨 위 로고 링크). 엔진이 링크 주소와 로고 그림(링크 안 `<img>`, 없으면 CSS 배경 그림)을 읽어 통합 화면 **맨 위 줄**(세 열 전체 폭, 본문 머리 위)에 로고 링크로 그린다 (누르면 사이트 홈. 처음엔 본문 머리에 뒀다가 사용자 요청으로 옮김). 못 찾으면 이름 글자. 루리웹 `#header .logo > a` (레시피 7), 디시 `h1.dclogo a.logo_img` (배경 SVG, 레시피 9)
@@ -571,5 +665,16 @@ kong-browser/
   - 엔진: 첫 화면(hub)에 `top`(가운데 칸 맨 위), `blocks`(가운데 칸 사이트 내용, 문서 순서) 추가. `title` 이 없으면 제목 줄 없음
   - 엔진: `Field.keepStyle` = **사이트 모양 그대로 옮기기**. 사이트 CSS 가 조상 클래스에 기대므로 원래 조상(태그·id·class)을 본뜬 껍데기(`.k-ctx`, `display: contents`)로 감싸 선택자만 맞게 하고, 통합 화면의 글꼴·색 맞춤(.k-move)을 하지 않음(`.k-keep`). 사이트 본문 글꼴을 이어받고, 옮긴 블록 자신의 위치 지정(absolute 등)은 풀어 상자 안에 놓음. 오른쪽 열에 이런 블록이 있으면 열을 넓힘(실북갤 250px)
   - 화살표 페이지 넘김은 사이트 스크립트가 엔진보다 먼저 버튼에 붙인 동작이라 옮긴 뒤에도 동작 (실베 1/10 → 2/10, 개념글 1/6 → 2/6 확인)
-- **디시 이미지 댓글**: 디시콘(이미지·영상)과 텍스트콘(색 배경 + 흰 글자)이 통합 화면의 색 맞춤(글자색 상속 + 배경 투명) 때문에 흰 바탕에 흰 글자가 되어 안 보였음. `Field.raw` = 옮긴 내용 중 사이트 모양 그대로 둘 부분(`.k-raw`, 글꼴·색·크기 맞춤과 댓글 상자 크기 풀기에서 제외). 디시 댓글 내용 `raw: [".comment_dccon"]` (레시피 10). 이미지 댓글은 내용 크기만큼(inline-block)
+- **디시 이미지 댓글**: 디시콘(이미지·영상)과 텍스트콘(색 배경 + 흰 글자)이 통합 화면의 색 맞춤(글자색 상속 + 배경 투명) 때문에 흰 바탕에 흰 글자가 되어 안 보였음. `Field.raw` = 옮긴 내용 중 사이트 모양 그대로 둘 부분(`.k-raw`, 글꼴·색·크기 맞춤과 댓글 상자 크기 풀기에서 제외). 디시 댓글 내용 `raw: [".comment_dccon"]` (레시피 10). 이미지 댓글은 내용 크기만큼(inline-block). 이미지 크기도 사이트 CSS 그대로(통합 화면의 `height: auto`·`max-height` 를 raw 안에는 적용 안 함): 그렇지 않으면 100px 칸 안의 디시콘이 원래 크기(200px)로 커져 아래 댓글을 가림
 - **루리웹 홈** (`bbs.ruliweb.com/`, `www.ruliweb.com/`): 왼쪽 = 상단 메뉴, 가운데 = 가운데 칸 광고(맨 위 배너 `.cfa`, `ad_main_top_08/13/09/14/10`). 오른쪽 날개·바닥 광고 제외. 로고를 누르면 가는 www 호스트는 새 레시피 파일 (bbs 레시피 10)
+
+### 8-10. 창 여러 개: 탭 끌어서 떼기·합치기 (2026-11-04, 사용자 요청)
+- main 을 창 여러 개 구조로: 창마다 탭 목록·툴바 화면·자동완성 목록, 탭(WebContentsView)은 창 사이를 옮겨 다님. 다운로드·북마크·설정은 앱 전체에서 하나 (바뀌면 모든 창 툴바를 새로)
+- 탭을 끌어 **탭 줄 밖**(창 밖, 페이지 위)에 놓으면 그 자리에 **새 창**으로 떼어 냄. 탭이 하나뿐인 창은 떼는 대신 창을 그 자리로 옮김
+- 탭을 **다른 창의 탭 줄**에 놓으면 그 창의 그 자리로 옮김 (HTML 끌어 놓기가 창 사이에도 전달됨, 형식 `application/x-kong-tab`). 탭 줄 빈 곳은 창 끌기 영역이라 놓기가 전달되지 않으므로, 끈 쪽 창이 끌기를 마칠 때 마우스가 다른 창 탭 줄 위면 그 창 맨 끝으로 합침. 탭이 다 빠진 창은 닫힘 = **창 합치기**
+- 판단은 순수 함수 `windows.ts` (`dragOutcome`, `windowAt`): 놓기 알림이 늦게 올 수 있어 끌기가 끝나고 0.12초 뒤 판단
+- 세션: 창마다 탭·보던 탭·위치를 저장해 다시 실행하면 모두 복원 (`{windows: [...]}`, 예전 `{tabs, active}` 도 읽음). 창 하나만 닫으면 그 창은 세션에서 빠지고, 앱을 끄면(마지막 창) 모두 남음
+- Ctrl+N: 새 창
+- 디시 "이미지 댓글"(본문 이미지마다 달리는 댓글, `li#img_comment_li_…`, 늦게 불러옴)이 일반 댓글 선택자(`.comment_box li.ub-content`)에 함께 걸려 글이 댓글 목록으로 옮겨지고, 본문 이미지 아래에는 닉네임·시각만 남던 문제: 댓글 항목에서 제외해 본문의 그 이미지 아래에 글과 함께 그대로 둔다 (디시 레시피 11)
+- 디시 이미지 댓글을 펼쳤을 때 날짜가 아래 줄로 떨어지던 문제: 한 줄이 닉네임 152px + 글 550px + 오른쪽 날짜(float)로 고정 폭이라 통합 화면의 좁은 본문 칸을 넘음. 레시피에 `fit` 추가(선언형, 사이트 CSS 를 엔진에 넣지 않음): `row` = 자식들을 한 줄로(flex, 각자 내용 크기), `fill` = 고정 폭·float 를 풀어 남은 폭을 채움. 펼칠 때 불러오는 요소에도 적용되도록 통합 화면 안으로 한정한 CSS 규칙으로 건다. 디시 `fit: { row: [".img_comment .addbox"], fill: [".img_comment .cmt_txtbox"] }` (레시피 12. 날짜 `.fr` 도 `.addbox` 안에 있어 한 줄은 `.addbox`)
+- macOS 창 버튼(신호등): 탭 줄이 Windows 창 버튼 자리(오른쪽)만 비워서 Mac 에서는 왼쪽 신호등과 첫 탭이 겹쳤음. 툴바 화면에 운영체제(`data-platform`)를 알려 macOS 면 탭 줄 왼쪽 84px 를 비우고 오른쪽은 비우지 않음. 신호등은 40px 탭 줄 가운데 높이(`trafficLightPosition: {x: 14, y: 13}`). 전체 화면에서는 신호등이 숨으므로 비우지 않음 (`BrowserState.fullscreen`)

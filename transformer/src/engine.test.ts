@@ -1,7 +1,7 @@
 // 엔진 단위 테스트: 작은 HTML 조각 + 가짜 DOM 으로 탐지·판정·메뉴 읽기를 검사한다
 import { beforeEach, describe, expect, it } from "vitest";
 import { judge } from "./judge.js";
-import { buildBoard, buildHub, buildPost, mount } from "./layout.js";
+import { buildBoard, buildHub, buildPost, fitCss, mount } from "./layout.js";
 import { readLogo, siteMark } from "./logo.js";
 import { setNavOptions } from "./nav.js";
 import { observeHub } from "./observe.js";
@@ -383,5 +383,42 @@ describe("첫 화면: 사이트가 늦게 채우는 메뉴", () => {
     document.querySelector(".vst_listbox")!.innerHTML = `<li><a href="https://gall.dcinside.com/board/lists?id=a">갤A</a></li>`;
     await new Promise((res) => setTimeout(res, 300));
     expect([...root.querySelectorAll(".k-nav a")].map((a) => a.textContent)).toContain("갤A");
+  });
+});
+
+describe("디시 레시피: 이미지 댓글", () => {
+  it("본문 이미지에 달린 댓글(img_comment_li_)은 댓글 목록으로 옮기지 않고 본문의 이미지 아래에 글과 함께 둔다", async () => {
+    const fs = await import("node:fs");
+    // vitest 는 transformer/ 에서 실행된다
+    const dc = JSON.parse(fs.readFileSync("../recipes/gall.dcinside.com.json", "utf8")) as Recipe;
+    page(
+      "https://gall.dcinside.com/board/view/?id=dcbest&no=1",
+      `<div class="gallview_head"><span class="title_subject">제목</span></div>
+       <div class="writing_view_box"><div class="write_div"><img src="a.jpg">
+         <div class="comment_box"><ul><li id="img_comment_li_9" class="ub-content"><div class="clear cmt_txtbox"><p class="usertxt">이미지에 단 댓글</p></div></li></ul></div>
+       </div></div>
+       <div class="comment_box"><ul><li id="comment_li_1" class="ub-content"><div class="clear cmt_txtbox"><p class="usertxt">일반 댓글</p></div></li></ul></div>`,
+    );
+    const l = locate(document, pickPage(dc, document).page!) as LocatedPost;
+    expect(l.comments.map((c) => c.content?.textContent?.trim())).toEqual(["일반 댓글"]);
+    const root = buildPost(l, dc).root;
+    expect(root.querySelector(".k-body #img_comment_li_9 .usertxt")?.textContent).toBe("이미지에 단 댓글");
+  });
+});
+
+describe("fit: 사이트의 고정 폭 한 줄을 칸에 맞춤", () => {
+  it("row·fill 을 통합 화면 안으로 한정한 CSS 규칙으로 (나중에 펼쳐지는 댓글에도 적용)", () => {
+    const css = fitCss({ row: [".img_comment .addbox"], fill: [".img_comment .cmt_txtbox"] });
+    expect(css).toContain(":is(#kong-root .img_comment .addbox){display:flex!important");
+    expect(css).toContain(":is(#kong-root .img_comment .addbox)>*{float:none!important;flex:none}");
+    expect(css).toContain(":is(#kong-root .img_comment .cmt_txtbox){float:none!important;width:auto!important;flex:1 1 auto!important");
+    expect(fitCss(undefined)).toBe("");
+  });
+  it("디시 레시피: 이미지 댓글 한 줄(닉네임 + 글 + 날짜)", async () => {
+    const fs = await import("node:fs");
+    const dc = JSON.parse(fs.readFileSync("../recipes/gall.dcinside.com.json", "utf8")) as Recipe;
+    const post = dc.pages.find((p) => p.type === "post") as Extract<Recipe["pages"][number], { type: "post" }>;
+    // 한 줄은 .addbox: 닉네임(.cmt_nickbox)·글(.cmt_txtbox)·날짜(.fr) 가 모두 그 안에 있다
+    expect(post.fit).toEqual({ row: [".img_comment .addbox"], fill: [".img_comment .cmt_txtbox"] });
   });
 });

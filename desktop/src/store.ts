@@ -5,6 +5,7 @@ import path from "node:path";
 import { app } from "electron";
 import * as bm from "./bookmarks.js";
 import type { BookmarkData, HistoryEntry } from "./shared.js";
+import { parseSession, type Session } from "./windows.js";
 
 const file = (name: string) => path.join(app.getPath("userData"), name);
 
@@ -32,11 +33,8 @@ export function flush() {
 
 // ---------- 탭 세션 (다시 실행하면 복원) ----------
 
-export interface Session {
-  tabs: string[];
-  active: number;
-}
-export const loadSession = (): Session => readJson<Session>("session.json", { tabs: [], active: 0 });
+/** 창마다 탭들 (예전 형식 {tabs, active} 도 읽음, windows.ts) */
+export const loadSession = (): Session => parseSession(readJson<unknown>("session.json", null));
 export const saveSession = (s: Session) => writeLater("session.json", s);
 
 // ---------- 북마크 (폴더 포함, 조작 로직은 bookmarks.ts) ----------

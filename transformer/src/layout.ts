@@ -3,7 +3,7 @@
 // 설계: docs/DESIGN.md 4절
 import { findAll, hit } from "./locate.js";
 import type { Hit, LocatedBoard, LocatedComment, LocatedHub, LocatedPost, LocatedRow } from "./locate.js";
-import type { Field, Recipe } from "./recipe.js";
+import type { Field, FitSpec, Recipe } from "./recipe.js";
 import { placeKept } from "./keep.js";
 import { buildShell, ROOT_ID } from "./nav.js";
 import { isVisited, markVisited } from "./visited.js";
@@ -325,11 +325,25 @@ function fitViewport() {
   meta.content = content;
 }
 
-export function mount(root: HTMLElement, hide: string[] = []) {
+/** 레시피 fit 을 CSS 규칙으로 (통합 화면 안에서만, 나중에 붙는 요소에도) */
+export function fitCss(fit: FitSpec | undefined): string {
+  const scope = (sels: string[]) => sels.map((s) => `#${ROOT_ID} ${s}`).join(",");
+  let out = "";
+  if (fit?.row?.length) {
+    const rows = scope(fit.row);
+    out += `:is(${rows}){display:flex!important;align-items:flex-start;gap:8px}`;
+    out += `:is(${rows})>*{float:none!important;flex:none}`;
+  }
+  // fill 은 row 안에서는 남은 폭을 차지하는 칸, row 밖에서는 옆 float 옆에 나란히 서는 칸
+  if (fit?.fill?.length) out += `:is(${scope(fit.fill)}){float:none!important;width:auto!important;flex:1 1 auto!important;min-width:0;overflow:hidden}`;
+  return out;
+}
+
+export function mount(root: HTMLElement, hide: string[] = [], fit?: FitSpec) {
   const style = h("style");
   style.id = "kong-style";
-  // hide 목록은 나중에 붙는 떠다니는 배너 등에도 적용되도록 CSS 규칙으로 건다
-  style.textContent = css + hide.map((s) => `${s}{display:none!important}`).join("");
+  // hide·fit 은 나중에 붙는 요소(떠다니는 배너, 펼칠 때 불러오는 댓글 등)에도 적용되도록 CSS 규칙으로 건다
+  style.textContent = css + hide.map((s) => `${s}{display:none!important}`).join("") + fitCss(fit);
   (document.head ?? document.documentElement).appendChild(style);
   document.documentElement.classList.add("kong-on");
   fitViewport();

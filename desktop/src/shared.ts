@@ -18,6 +18,8 @@ export const IPC = {
   closeTab: "ui:close-tab",
   selectTab: "ui:select-tab",
   moveTab: "ui:move-tab",
+  /** 탭 끌기가 끝남 (탭 줄 밖에 놓았으면 새 창으로 떼어 냄) */
+  tabDragEnd: "ui:tab-drag-end",
   /** 주소 열기: 지금 탭 / 새 탭 / 뒤쪽 새 탭 (북마크 바 등) */
   openUrl: "ui:open-url",
   toggleBookmark: "ui:toggle-bookmark",
@@ -152,6 +154,8 @@ export interface BrowserState extends TabState {
   bookmarkBar: boolean;
   /** 오른쪽 dock 표시 (기본 표시) */
   dockOpen: boolean;
+  /** 전체 화면 (macOS 는 창 버튼이 숨어서 탭 줄 왼쪽을 비우지 않음) */
+  fullscreen: boolean;
   /** 툴바 다운로드 버튼: 진행 중인 다운로드 수와 전체 진행률(0~1, 크기를 모르면 null). 다운로드가 한 번도 없으면 null */
   downloads: { count: number; active: number; ratio: number | null } | null;
 }

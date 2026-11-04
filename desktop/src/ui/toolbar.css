@@ -175,6 +175,15 @@ svg {
   background: var(--tabstrip);
   -webkit-app-region: drag;
 }
+/* macOS: 창 버튼(신호등)이 탭 줄 왼쪽에 있으므로 그 자리를 비우고, 오른쪽(Windows 창 버튼 자리)은 비우지 않는다.
+   전체 화면에서는 창 버튼이 숨으므로 왼쪽도 비우지 않는다 */
+html[data-platform="darwin"] .tabstrip {
+  padding-left: 84px;
+  padding-right: 8px;
+}
+html[data-platform="darwin"].fullscreen .tabstrip {
+  padding-left: 8px;
+}
 .tabstrip :is(.tab, button) {
   -webkit-app-region: no-drag;
 }
