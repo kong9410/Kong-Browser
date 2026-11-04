@@ -419,8 +419,15 @@ export function mount(root: HTMLElement, hide: string[] = [], fit?: FitSpec) {
   fitViewport();
 
   // 지금 있는 원본 화면만 숨긴다. 이후 사이트가 body 에 붙이는 팝업(이미지 뷰어, 알림 등)은 그대로 보이게
-  for (const child of Array.from(document.body.children)) child.classList.add("k-hidden");
+  // (k-orig 는 body 바로 아래에 있을 때만 숨긴다: 사이트가 나중에 그 요소를 다른 곳으로 옮겨 보여 주면 보이게.
+  //  예) 디시 디시콘 층 #div_con 은 처음엔 body 바로 아래, 누르면 에디터 도구줄로 옮겨져 열린다)
+  for (const child of Array.from(document.body.children)) child.classList.add("k-orig");
   document.body.appendChild(root);
+  // 사이트가 숨겨 둔 원본 요소를 body 밖으로 옮기면 표시를 뗀다 (나중에 다시 body 에 붙여 보여 줘도 숨지 않게:
+  // 디시는 디시콘 층을 body 로 돌려놨다가 다시 꺼내 쓴다). 숨기는 대상은 재배치 때의 원본 화면뿐
+  new MutationObserver((records) => {
+    for (const r of records) for (const n of Array.from(r.removedNodes)) if (n instanceof Element && n.parentElement !== document.body) n.classList.remove("k-orig");
+  }).observe(document.body, { childList: true });
 }
 
 export function isDone(item: Element) {

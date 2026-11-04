@@ -508,7 +508,7 @@ describe("대댓글: 댓글을 누르면 사이트가 여는 답글 쓰기 칸",
     const t = view.root.querySelector(".k-cmt-body .t")!;
     expect(t.closest(".info")?.getAttribute("data-no")).toBe("1");
     // 원본을 숨기는 엔진 표시는 껍데기에 옮기지 않는다
-    expect(view.root.querySelector(".k-cmt-body .k-hidden")).toBeNull();
+    expect(view.root.querySelector(".k-cmt-body .k-orig")).toBeNull();
   });
 
   it("원본 쪽에 생긴 답글 칸을 바로 앞 댓글 아래로 옮기고, 사이트가 원래 자리를 지우면 같이 사라진다", () => {
@@ -564,5 +564,27 @@ describe("fit: 넓은 화면 기준 배치를 칸에 맞춤 (디시 글쓰기 �
     const root = buildHub(l, dc);
     expect(root.querySelector(".k-title")?.textContent).toBe("프로그래밍 갤러리");
     expect(root.querySelector(".k-main .k-hub-block.k-keep #write_wrap #subject")).not.toBeNull();
+  });
+});
+
+describe("원본 숨기기", () => {
+  it("재배치 때 body 바로 아래에 있던 것만 숨기고, 사이트가 나중에 다른 곳으로 옮기면 보인다 (디시 디시콘 층)", async () => {
+    page("https://example.test/ps", `<div class="hub"><div class="toolbar"></div></div><div id="div_con" style="display:none">디시콘</div>`);
+    document.title = "PS5 | 테스트";
+    const root = buildHub(locate(document, pickPage(recipe, document).page!) as LocatedHub, recipe);
+    mount(root);
+    const layer = document.getElementById("div_con")!;
+    const hiddenRule = "html.kong-on body > .k-orig";
+    expect(layer.matches(hiddenRule)).toBe(true);
+    // 사이트가 층을 도구줄로 옮겨 연다
+    document.querySelector(".toolbar")!.appendChild(layer);
+    expect(layer.matches(hiddenRule)).toBe(false);
+    // 사이트가 다시 body 로 돌려놔도 숨지 않는다 (표시를 뗐으므로)
+    await new Promise((r) => setTimeout(r, 0));
+    document.body.appendChild(layer);
+    expect(layer.matches(hiddenRule)).toBe(false);
+    // 숨기는 규칙이 바로 이것 (style.css)
+    const fs = await import("node:fs");
+    expect(fs.readFileSync("src/style.css", "utf8")).toContain("html.kong-on body > .k-orig,");
   });
 });

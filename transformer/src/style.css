@@ -39,7 +39,7 @@ html.kong-on body {
     background: #111113 !important;
   }
 }
-html.kong-on body > .k-hidden,
+html.kong-on body > .k-orig,
 html.kong-on #kong-root .k-hidden {
   display: none !important;
 }
