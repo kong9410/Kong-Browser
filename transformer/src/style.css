@@ -156,6 +156,9 @@ html.kong-on #kong-root .k-hidden {
   aspect-ratio: 16 / 9;
   height: auto !important;
 }
+#kong-root .k-info {
+  margin: 4px 0 14px;
+}
 #kong-root .k-body {
   padding: 4px 0 20px;
   overflow: hidden;
@@ -473,6 +476,19 @@ html.kong-on #kong-root .k-hidden {
 #kong-root > .k-top > .k-account {
   flex: none;
   max-width: 70%;
+}
+/* 계정 영역을 통합 화면 모양으로 옮긴 경우(keepStyle 아님): 목록이면 한 줄로 (예: 뮬 로그인 · 마이뮬) */
+#kong-root > .k-top > .k-account:not(.k-keep) :is(ul, ol) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#kong-root > .k-top > .k-account:not(.k-keep) li {
+  cursor: pointer;
+  font-size: 13px;
 }
 #kong-root > :is(.k-nav, .k-nav-open) {
   grid-area: nav;

@@ -682,3 +682,67 @@ describe("대댓글 깊이 (댓글의 댓글의 댓글…)", () => {
     expect(commentDepth(el(`<li style="margin-left:4%"></li>`), { ...fm, depth: { attr: "style", pattern: "(" } }, true)).toBe(1);
   });
 });
+
+describe("뮬: 브라우저에서 그리는 사이트·사이트 팝업·여러 칸·판매 정보 블록", () => {
+  const post = () => JSON.parse(JSON.stringify(recipe)) as Recipe;
+
+  it("waitFor: probe 가 나중에 생기면 기다렸다 판정 (Vue 가 목록을 그리는 사이트), 없으면 바로 판정", async () => {
+    const { runWhenDrawn } = await import("./index.js");
+    const rows = Array.from({ length: 12 }, (_, i) => `<tr class="row"><td><a href="/board/1/read/${i + 1}">글 ${i + 1}</a></td></tr>`).join("");
+    const once = (r: Recipe) => new Promise<{ failed: string[]; ms: number }>((res) => runWhenDrawn(r, (s) => res({ failed: s.failed, ms: s.ms })));
+    // 기다리지 않으면: probe 없음
+    page("https://example.test/board/1", `<div id="app"></div>`);
+    expect((await once(post())).failed).toContain("probe");
+    // waitFor: 0.25초 뒤 목록이 그려지면 그걸로 판정 (probe 실패가 아님)
+    page("https://example.test/board/1", `<div id="app"></div>`);
+    setTimeout(() => (document.querySelector("#app")!.innerHTML = `<table class="list">${rows}</table>`), 250);
+    const s = await once({ ...post(), waitFor: 1500 });
+    expect(s.failed).not.toContain("probe");
+  });
+
+  it("overlays: 원본 화면 안에 미리 있던 사이트 팝업은 숨기지 않고 body 바로 아래로", () => {
+    page("https://example.test/", `<div class="wrapper"><div id="modal"><div id="modal-login">로그인 창</div></div><div id="main">본문</div></div><div class="pswp"></div>`);
+    mount(document.createElement("div"), [], undefined, ["#modal", ".pswp"]);
+    const modal = document.querySelector("#modal")!;
+    expect(modal.parentElement).toBe(document.body);
+    expect(modal.classList.contains("k-orig")).toBe(false);
+    expect(document.querySelector(".pswp")!.classList.contains("k-orig")).toBe(false);
+    expect(document.querySelector(".wrapper")!.classList.contains("k-orig")).toBe(true);
+  });
+
+  it("extras: 제목 아래 한 줄에 값이 있는 칸만 · 로 (가격 · 지역)", () => {
+    page(
+      "https://example.test/board/1",
+      `<table class="list">
+        <tr class="row"><td><a href="/board/1/read/1">페달</a></td><td class="price">11만원</td><td class="region">서울</td></tr>
+        <tr class="row"><td><a href="/board/1/read/2">기타</a></td><td class="price">50만원</td><td class="region"></td></tr>
+      </table>`,
+    );
+    const r = post();
+    for (const p of r.pages) if (p.type === "board") p.rows.extras = [{ sel: [".price"] }, { sel: [".region"] }];
+    const l = locate(document, pickPage(r, document).page!) as LocatedBoard;
+    expect(l.rows.map((x) => x.extra)).toEqual(["11만원 · 서울", "50만원"]);
+  });
+
+  it("info: 제목 줄과 본문 사이 블록 (장터 판매 정보 표)", () => {
+    page("https://example.test/board/1/read/10", `<div class="view"><h1 class="subject">페달</h1><div class="spec">판매가격 11만원</div><div class="content">본문</div></div>`);
+    const r = post();
+    const p = r.pages.find((x) => x.id === "post") as Extract<Recipe["pages"][number], { type: "post" }>;
+    p.info = { sel: [".spec"] };
+    const root = buildPost(locate(document, pickPage(r, document).page!) as LocatedPost, r).root;
+    const order = [...root.querySelectorAll(".k-head, .k-info, .k-body")].map((e) => e.className.split(" ")[0]);
+    expect(order).toEqual(["k-head", "k-info", "k-body"]);
+    expect(root.querySelector(".k-info")?.textContent).toBe("판매가격 11만원");
+  });
+
+  it("depth.base: 보통 댓글이 이미 들여써진 사이트 (뮬 20px 기준, 20px 마다 한 단계)", () => {
+    const spec = { item: ["div"], content: { sel: [".c"] }, replyMarker: ".reply", depth: { attr: "style", pattern: "padding-left:\\s*([0-9]+)px", step: 20, base: 20 } };
+    const at = (html: string) => {
+      document.body.innerHTML = html;
+      return document.body.firstElementChild!;
+    };
+    expect(commentDepth(at(`<div style="padding-left: 20px;"></div>`), spec, false)).toBe(0);
+    expect(commentDepth(at(`<div class="reply" style="padding-left: 40px;"></div>`), spec, true)).toBe(1);
+    expect(commentDepth(at(`<div class="reply" style="padding-left: 60px;"></div>`), spec, true)).toBe(2);
+  });
+});

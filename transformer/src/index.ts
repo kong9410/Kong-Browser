@@ -81,17 +81,17 @@ export function run(recipe: Recipe): Status {
     if (located.page.type === "post") {
       const post = located as LocatedPost;
       const view = buildPost(post, recipe);
-      mount(view.root, page.hide, post.page.fit);
+      mount(view.root, page.hide, post.page.fit, recipe.overlays);
       revealCurrent();
       if (post.page.comments?.lazy && post.comments.length === 0) lateView = view;
       observePost(post.page, view, () => lateCheck?.());
     } else if (located.page.type === "hub") {
-      mount(buildHub(located as LocatedHub, recipe), page.hide, (located as LocatedHub).page.fit);
+      mount(buildHub(located as LocatedHub, recipe), page.hide, (located as LocatedHub).page.fit, recipe.overlays);
       revealCurrent();
       observeHub();
     } else {
       const view = buildBoard(located as LocatedBoard, recipe);
-      mount(view.root, page.hide);
+      mount(view.root, page.hide, undefined, recipe.overlays);
       revealCurrent();
       observeBoard(located.page, view);
     }
@@ -120,6 +120,24 @@ export function run(recipe: Recipe): Status {
     };
   }
   return st;
+}
+
+/** 최대 기다림: 원본을 가려 두는 안전장치(hide.ts, 2.5초)보다 짧게 */
+export const WAIT_MAX = 2400;
+
+/**
+ * 브라우저에서 그리는 사이트(레시피 waitFor): 주소는 맞는데 probe 가 아직 없으면 잠깐씩 다시 보고, 생기면(또는 시간이 다 되면) 재배치.
+ * waitFor 가 없으면 바로 run
+ */
+export function runWhenDrawn(recipe: Recipe, onDone?: (s: Status) => void) {
+  const limit = Math.min(Math.max(recipe.waitFor ?? 0, 0), WAIT_MAX);
+  const t0 = performance.now();
+  const tick = () => {
+    const { page, candidates } = pickPage(recipe, document);
+    if (page || !candidates.length || performance.now() - t0 >= limit) return onDone ? onDone(run(recipe)) : void run(recipe);
+    setTimeout(tick, 100);
+  };
+  tick();
 }
 
 /** document-start 에서 호출. 맞는 레시피가 있으면 즉시 가리고, DOM 이 준비되면 재배치 */
@@ -169,7 +187,7 @@ export function boot(recipes: Recipe | Recipe[], opts: BootOptions = {}) {
   // 사이트는 보통 DOM 준비 직후(jQuery ready 등)에 "셀렉터로" 버튼 이벤트를 붙인다.
   // 그보다 먼저 요소를 옮기면 사이트의 셀렉터가 못 찾아 이벤트가 안 붙으므로, 사이트 초기화가 끝난 뒤 실행한다.
   // (jQuery 3 의 ready 콜백은 DOMContentLoaded 뒤 setTimeout 으로 실행되므로, 매크로태스크 두 번을 양보한다)
-  const later = () => setTimeout(() => setTimeout(() => run(recipe), 0), 0);
+  const later = () => setTimeout(() => setTimeout(() => runWhenDrawn(recipe), 0), 0);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", later, { once: true });
   else later();
 }

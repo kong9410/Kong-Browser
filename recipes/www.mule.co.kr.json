@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 2,
+  "host": "www.mule.co.kr",
+  "version": 1,
+  "minEngine": 1,
+  "siteName": "뮬",
+  "account": {
+    "sel": [
+      "#header .header-icon"
+    ],
+    "exclude": [
+      ".l-darkmode",
+      ".alarm",
+      "img",
+      "br",
+      ".pushcount"
+    ]
+  },
+  "waitFor": 2000,
+  "overlays": [
+    "#modal",
+    ".pswp",
+    "#side"
+  ],
+  "menu": [
+    {
+      "label": "뮬 메뉴",
+      "groups": [
+        "#header .header-bottom"
+      ],
+      "links": [
+        "ul a[href]"
+      ],
+      "current": "prefix",
+      "style": "chips"
+    }
+  ],
+  "pages": [
+    {
+      "id": "post",
+      "type": "post",
+      "match": "[?&]idx=[0-9]+",
+      "probe": [
+        "#board .body-wrapper-board > h2",
+        "#bbsContent"
+      ],
+      "title": {
+        "sel": [
+          "#board .body-wrapper-board > h2"
+        ],
+        "required": true
+      },
+      "author": {
+        "sel": [
+          "#board .body-wrapper-board .info-box li a"
+        ]
+      },
+      "createdAt": {
+        "sel": [
+          "#board .body-wrapper-board .info-box li small"
+        ],
+        "text": "^\\d{4}-\\d{2}-\\d{2}"
+      },
+      "info": {
+        "sel": [
+          "#board .body-wrapper-board > .category-box"
+        ],
+        "keepStyle": true
+      },
+      "body": {
+        "sel": [
+          "#bbsContent"
+        ],
+        "required": true
+      },
+      "comments": {
+        "anchor": "#comment-top",
+        "lazy": true,
+        "item": [
+          "#comment-top .comment-item:not(.premium-bg)"
+        ],
+        "bestItem": [
+          "#comment-top .comment-item.premium-bg"
+        ],
+        "replyMarker": ".reply",
+        "depth": {
+          "attr": "style",
+          "pattern": "padding-left:\\s*([0-9]+)px",
+          "step": 20,
+          "base": 20
+        },
+        "who": {
+          "sel": [
+            ".namecard"
+          ]
+        },
+        "whoNode": {
+          "sel": [
+            ".namecard"
+          ]
+        },
+        "when": {
+          "sel": [
+            ".regdt"
+          ]
+        },
+        "content": {
+          "sel": [
+            ".comment-message",
+            ".message"
+          ],
+          "required": true
+        },
+        "actions": {
+          "sel": [
+            ".comment-content-box > .button-box:last-of-type"
+          ]
+        }
+      },
+      "commentWrite": {
+        "sel": [
+          "#board .write-group"
+        ],
+        "keepStyle": true
+      }
+    },
+    {
+      "id": "list",
+      "type": "board",
+      "match": "^/(bbs|best)/",
+      "probe": [
+        ".board-list-wrapper table td.title a"
+      ],
+      "boardName": {
+        "sel": [
+          "head > title"
+        ],
+        "pattern": "^(.+?)\\s*\\|"
+      },
+      "rows": {
+        "scope": [
+          ".board-list-wrapper table"
+        ],
+        "item": [
+          "tbody tr"
+        ],
+        "notice": ".notice",
+        "category": {
+          "sel": [
+            "td.category"
+          ]
+        },
+        "title": {
+          "sel": [
+            "td.title > a"
+          ],
+          "exclude": [
+            ".mobile",
+            ".pc",
+            ".badge-icon",
+            "span.color-red"
+          ]
+        },
+        "link": {
+          "sel": [
+            "td.title > a"
+          ]
+        },
+        "author": {
+          "sel": [
+            "td.writer"
+          ]
+        },
+        "createdAt": {
+          "sel": [
+            "td.regdt"
+          ]
+        },
+        "views": {
+          "sel": [
+            "td.view"
+          ]
+        },
+        "likes": {
+          "sel": [
+            "td.good"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            "td.title .pc",
+            "td.title > a > span.color-red"
+          ],
+          "pattern": "([0-9]+)"
+        },
+        "image": "td.option img[src$=\"p.png\"]",
+        "video": ".badge-youtube",
+        "thumbnail": {
+          "sel": [
+            "td.option img.preview-img"
+          ],
+          "attr": "data-src"
+        },
+        "extras": [
+          {
+            "sel": [
+              "td.price"
+            ]
+          },
+          {
+            "sel": [
+              "td.region"
+            ]
+          }
+        ],
+        "visitPattern": "[?&]idx=([0-9]+)"
+      },
+      "pager": {
+        "sel": [
+          "#board .paging-box"
+        ]
+      },
+      "search": {
+        "sel": [
+          "#board .search-wrapper"
+        ],
+        "keepStyle": true
+      },
+      "write": {
+        "sel": [
+          "#board #bt-write"
+        ]
+      }
+    }
+  ]
+}

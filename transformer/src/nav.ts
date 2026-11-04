@@ -155,6 +155,13 @@ export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "bo
   const account = hit(document, recipe.account)?.el;
   if (account) {
     const box = el("div", "k-account " + (recipe.account?.keepStyle ? "k-keep" : "k-move"));
+    // 계정 영역에서 뺄 것 (레시피 exclude: 예) 뮬의 다크모드·알림 아이콘)
+    for (const sel of recipe.account?.exclude ?? [])
+      try {
+        account.querySelectorAll(sel).forEach((e) => e.classList.add("k-excluded"));
+      } catch {
+        /* 잘못된 셀렉터 무시 */
+      }
     if (recipe.account?.keepStyle) placeKept(box, account);
     else box.appendChild(account);
     top.appendChild(box);

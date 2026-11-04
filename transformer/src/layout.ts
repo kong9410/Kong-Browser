@@ -105,6 +105,9 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
   );
   root.appendChild(head);
 
+  // 제목 줄과 본문 사이 블록 (뮬 장터 글의 판매 정보 표 등)
+  const info = moveSlot("k-info", f.info, p.info);
+  if (info) root.appendChild(info);
   for (const box of [moveSlot("k-body", f.body, p.body), moveSlot("k-actions", f.actions, p.actions), moveSlot("k-ad", f.ad, p.ad)])
     if (box) root.appendChild(box);
   // 사이트의 원래 [목록]·[글쓰기] 버튼: 본문 아래, 댓글 위 한 줄 (사이트에 없으면 생략)
@@ -443,7 +446,7 @@ export function fitCss(fit: FitSpec | undefined): string {
   return out;
 }
 
-export function mount(root: HTMLElement, hide: string[] = [], fit?: FitSpec) {
+export function mount(root: HTMLElement, hide: string[] = [], fit?: FitSpec, overlays: string[] = []) {
   const style = h("style");
   style.id = "kong-style";
   // hide·fit 은 나중에 붙는 요소(떠다니는 배너, 펼칠 때 불러오는 댓글 등)에도 적용되도록 CSS 규칙으로 건다
@@ -457,6 +460,13 @@ export function mount(root: HTMLElement, hide: string[] = [], fit?: FitSpec) {
   //  예) 디시 디시콘 층 #div_con 은 처음엔 body 바로 아래, 누르면 에디터 도구줄로 옮겨져 열린다)
   for (const child of Array.from(document.body.children)) child.classList.add("k-orig");
   document.body.appendChild(root);
+  // 사이트 팝업(레시피 overlays)은 숨기지 않고 body 바로 아래로 (원본 화면 안에 미리 들어 있던 로그인 창·사진 확대 등)
+  for (const sel of overlays)
+    for (const el of findAll(document, [sel]).els) {
+      if (root.contains(el)) continue;
+      el.classList.remove("k-orig");
+      if (el.parentElement !== document.body) document.body.appendChild(el);
+    }
   // 사이트가 숨겨 둔 원본 요소를 body 밖으로 옮기면 표시를 뗀다 (나중에 다시 body 에 붙여 보여 줘도 숨지 않게:
   // 디시는 디시콘 층을 body 로 돌려놨다가 다시 꺼내 쓴다). 숨기는 대상은 재배치 때의 원본 화면뿐
   new MutationObserver((records) => {

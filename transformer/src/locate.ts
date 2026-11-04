@@ -32,8 +32,9 @@ export function commentDepth(item: Element, spec: CommentSpec, isReply: boolean)
   if (d) {
     try {
       const m = new RegExp(d.pattern).exec(item.getAttribute(d.attr) ?? "");
-      const n = m ? Number(m[1]) : NaN;
+      const n = m ? Number(m[1]) - (d.base ?? 0) : NaN;
       if (Number.isFinite(n) && n > 0) return Math.min(MAX_DEPTH, Math.max(1, Math.round(n / (d.step || 1))));
+      if (Number.isFinite(n) && !isReply) return 0;
     } catch {
       /* 잘못된 정규식이면 아래로 */
     }
@@ -43,7 +44,7 @@ export function commentDepth(item: Element, spec: CommentSpec, isReply: boolean)
 
 export interface LocatedPost {
   page: PostPage;
-  fields: Record<"category" | "title" | "author" | "createdAt" | "views" | "likes" | "body" | "actions" | "ad" | "listLink" | "write" | "commentWrite" | "commentCount", Hit | null>;
+  fields: Record<"category" | "title" | "author" | "createdAt" | "views" | "likes" | "body" | "info" | "actions" | "ad" | "listLink" | "write" | "commentWrite" | "commentCount", Hit | null>;
   best: LocatedComment[];
   comments: LocatedComment[];
   more: Hit | null;
@@ -188,6 +189,7 @@ export function locatePost(doc: Document, page: PostPage): LocatedPost {
       views: hit(doc, page.views),
       likes: hit(doc, page.likes),
       body: hit(doc, page.body),
+      info: hit(doc, page.info),
       actions: hit(doc, page.actions),
       ad: hit(doc, page.ad),
       listLink: hit(doc, page.listLink),
@@ -228,7 +230,7 @@ export function locateRows(scope: Element, spec: RowSpec): LocatedRow[] {
     notice: marked(item, spec.notice),
     image: marked(item, spec.image),
     video: marked(item, spec.video),
-    extra: val(item, spec.extra),
+    extra: [val(item, spec.extra), ...(spec.extras ?? []).map((f) => val(item, f))].filter(Boolean).join(" · ") || null,
     thumbnail: (() => {
       if (!spec.thumbnail) return null;
       const h = hit(item, { attr: "src", ...spec.thumbnail });

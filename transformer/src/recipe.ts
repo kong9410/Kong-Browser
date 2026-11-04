@@ -55,9 +55,10 @@ export interface CommentSpec {
   /**
    * 대댓글 깊이 (댓글의 댓글의 댓글…). item 의 attr 값에서 pattern 첫 캡처 숫자를 step 으로 나눈 값이 깊이.
    * 예) 에펨코리아 style="margin-left:4%" → { attr: "style", pattern: "margin-left:\s*([0-9.]+)%", step: 2 } → 2단계.
+   * base: 보통 댓글의 값 (예: 뮬은 보통 댓글이 이미 padding-left 20px → base 20, step 20 이면 40px 이 1단계).
    * 없으면 replyMarker 에 맞는 댓글은 1단계
    */
-  depth?: { attr: string; pattern: string; step?: number };
+  depth?: { attr: string; pattern: string; step?: number; base?: number };
   who?: Field;
   /**
    * move. 사이트의 글쓴이 표시를 그대로 (닉네임 옆 아이콘·IP 포함). 있으면 who 글자 대신 쓴다.
@@ -93,6 +94,8 @@ export interface PostPage {
   likes?: Field;
   /** move */
   body: Field;
+  /** move. 제목 줄과 본문 사이 블록 (keepStyle 이면 사이트 모양 그대로). 예) 뮬 장터 글의 판매 정보 표(카테고리·가격·지역…) */
+  info?: Field;
   /** move. 글 추천 버튼 등 */
   actions?: Field;
   /** move. 남겨둘 광고 영역 */
@@ -155,6 +158,8 @@ export interface RowSpec {
   thumbnail?: Field;
   /** 제목 아래에 한 줄로 더 보일 글자. 예) 에펨코리아 핫딜의 "쇼핑몰: 네이버 / 가격: 21,320원 / 배송: 무료" */
   extra?: Field;
+  /** extra 뒤에 " · " 로 이어 붙일 칸들 (값이 있는 것만). 예) 뮬 장터의 가격 · 지역 */
+  extras?: Field[];
   /** 읽은 글 표시용: 글을 가리키는 쿼리 이름 (예: 디시 ["id", "no"]). 없으면 주소 경로만으로 같은 글인지 본다 */
   visitParams?: string[];
   /**
@@ -269,6 +274,16 @@ export interface Recipe {
   account?: Field;
   menu?: MenuSpec[];
   side?: SideBlock[];
+  /**
+   * 화면을 브라우저에서 그리는 사이트(Vue 등): 엔진이 돌 때 probe 가 아직 없으면 이 시간(ms)까지 기다렸다 다시 본다 (최대 2400).
+   * 예) 뮬 — 서버는 틀과 데이터만 보내고 app.view.board() 가 목록을 그린다
+   */
+  waitFor?: number;
+  /**
+   * 사이트 팝업(로그인 창·사진 확대 등) 요소. 재배치할 때 원본 화면과 함께 숨기지 않고 body 바로 아래로 옮겨 그대로 보이게.
+   * 예) 뮬 #modal(로그인·신고 창), .pswp(사진 확대) — 원본 화면 안에 미리 들어 있어 같이 숨던 것
+   */
+  overlays?: string[];
   pages: Page[];
 }
 
