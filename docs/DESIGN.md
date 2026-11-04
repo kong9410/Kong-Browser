@@ -812,3 +812,70 @@ PC 사이트 www.fmkorea.com (XE/Rhymix, 스킨 sketchbook5_elkha) 를 디시·�
   - 저장한 글(로그아웃)에 사이트가 하듯 답글 칸을 넣어 확인: 그 댓글 바로 아래에 보이고 입력칸에 커서. 실제 로그인 상태의 입력칸 켜짐·답글 등록은 앱에서 확인 필요
   - (이어서, 사용자 보고 "여전히 로딩중...") anchor 를 넓힌 것만으로는 안 됐음. 로그인 저장본의 댓글 쓰기 칸을 로그아웃 저장본에 끼워 사이트 스크립트에 기록을 넣어 확인한 진짜 원인: 엔진은 뼈대(root)를 다 만든 뒤 문서에 붙이는데, 만드는 중에 댓글 섹션을 한 번 더 자리 잡을 때 root 안의 anchor 가 isConnected=false 라 "떨어져 나갔다" 고 보고 다시 찾다 못 찾아(이제 문서에 없음) 댓글 섹션·쓰기 칸을 anchor 밖(가운데 칸)에 놓았다. 사이트의 에디터 준비(비동기)가 그 사이에 돌아 게시판 영역 안에서 입력칸을 못 찾음(TypeError). 나중 감시에서 제자리로 돌아가 겉보기엔 맞아 보였음 → root 안에 있는 anchor 는 그대로 쓰게 고침(layout.ts adoptAnchor). 덧붙여 anchor 밖 keepStyle 껍데기가 anchor 쪽 id 를 본뜨지 않게(사이트가 id 로 껍데기를 잡지 않게) 뗌
   - 다시 확인: 엔진이 있어도 입력칸이 켜짐(disabled 해제, "로딩중..." 지워짐, 폭 98%), 오류 없음
+
+### 8-13. 뮬(mule.co.kr) 지원 설계 (2026-11-04, 사용자 요청 "mule.co.kr 분석 설계해", 브랜치 feature/mule)
+
+악기 중고장터 + 뮤지션 커뮤니티. Cloudflare 앞단이라 curl 로는 "Just a moment..." 403 — 앱(진짜 브라우저)에서는 자동으로 통과되는 것을 내장 브라우저로 확인했고, 구조는 내장 브라우저에서 화면에 그려진 DOM 을 읽어 분석함. 사람 확인(Turnstile) 이 뜨면 사용자가 직접 — 그동안 probe 가 없으니 원본 그대로(fail-open).
+
+**가장 큰 특징: 게시판이 Vue 로 그려진다.** 서버 HTML 에는 Vue 템플릿(`@click`, `<!---->`)과 데이터(`jsondata`)만 있고 `app.view.board(jsondata)` 가 브라우저에서 목록·글·댓글을 그린다(원본 HTML 에 글 링크가 0개). 그래서
+- 엔진은 Vue 가 다 그린 뒤에 돌아야 한다: probe 를 "그려진 행" 으로 잡고, 엔진 실행 시점(jQuery ready 뒤 매크로태스크 두 번)에 아직 없으면 잠깐 기다렸다 다시 보는 레시피 옵션 `waitFor`(엔진 추가) — 없으면 원본 그대로
+- 옮긴 요소는 Vue 가 요소 참조로 계속 고치므로(버튼 이벤트도 요소에 직접) 대체로 동작하지만, Vue 가 새로 그리는 것(답글 칸, 새 댓글)은 원래(숨겨진) 자리에 생긴다 → 댓글은 anchor(댓글 영역 통째 옮김) + observe 로 받는다
+- 쪽 넘김은 `?page=2` 로 페이지를 새로 연다(같은 문서 안에서 다시 그리지 않음 — 확인함)
+
+**화면 고르기** (주소 `/bbs/{묶음}/{게시판}`, 글은 같은 주소 + `?idx=번호`, 명예의전당 `/best/weekly` 만 서버가 그림)
+
+| 순서 | id | match | probe | 화면 |
+| --- | --- | --- | --- | --- |
+| 1 | post | `[?&]idx=[0-9]+` | `#board .body-wrapper-board > h2`, `#bbsContent` | 글 + 댓글 |
+| 2 | list | `^/(bbs\|best)/` | `#board .board-list-wrapper table td.title a` | 모든 게시판 목록 (장터·삽니다·거래후기·사용기·합주실·구인구직·레슨·클럽·업체·학원·공연·강좌·투기·포인트몰·뉴스·뮬人·명예의전당) |
+| 3 | market-home | `^/bbs/market/?$` | `.gallery-list-wrapper a.gallery-item` | 장터 첫 화면(프리미엄 사진 모음) — hub, 사진 모음을 keepStyle 로 |
+| 4 | home | `^/?$` | `#section-main` | 홈 — hub, 신상품 사진·사용기·최신글 블록(keepStyle), 오른쪽 광고 열은 버림 |
+
+**목록 (모든 게시판 같은 표, 칸만 다름)**
+- 행 `#board .board-list-wrapper table tbody tr`(광고 행 `tr.board-ad-box` 는 링크가 없어 저절로 빠짐), 공지 `tr.notice`, 장터 프리미엄 `tr.premium`
+- 제목·링크 `td.title > a` — 링크 안에 모바일용 글자(`div.mobile`: 가격 | 분류 | 지역, 글쓴이 | 날짜 | 조회)와 댓글 수(`span.pc`)가 같이 들어 있어 exclude `.mobile, .pc, .badge-icon` 으로 제목만
+- 댓글 수 `td.title .pc` (pattern 숫자), 글쓴이 `td.writer`, 날짜 `td.regdt`, 조회 `td.view`, 추천 `td.good`(명예의전당), 말머리 `td.category`(뮬人) 또는 `td.no`(명예의전당 "정보")
+- 장터 칸: 가격 `td.price`, 지역 `td.region` → 행 스펙 `extra` (제목 아래 한 줄, "11만원 · 무관"). 칸이 두 개라 엔진 extra 를 여러 필드를 " · " 로 잇게 넓힌다 (`extras: Field[]`, 엔진 추가)
+- 썸네일 `td.option img.preview-img` attr `data-src`(마우스를 올릴 때만 보이는 미리보기 사진) — 장터 목록이 사진 목록이 된다. 동영상 표시 `.badge-youtube`, 사진 표시 `td.option img[src$="p.png"]`
+- 읽은 글: 같은 글이 목록마다 다른 경로로 링크됨(`/bbs/community/mulein?idx=` · `/bbs/comm/mulein?idx=`) → `visitPattern: "[?&]idx=([0-9]+)"`
+- 쪽 넘김 `#board .paging-box`, 검색 `#board .search-wrapper`(표 모양 검색, keepStyle), 글쓰기 `#board #bt-write`(Vue 버튼)
+- 게시판 위 탭(`#board .browse-wrapper .header-top ul a`: 예) 장터의 "뮬 악기장터 / 삽니다 / 거래후기") → 왼쪽 메뉴 두 번째 묶음 "이 게시판"
+
+**글 화면**
+- 제목 `#board .body-wrapper-board > h2`(필수), 정보 줄 `ul.info-box li small`(번호 · 댓글 · 조회 · 날짜 · 글쓴이 · IP — 순서로 읽음: 글쓴이 `li a`, 날짜 pattern `\d{4}-\d{2}-\d{2} \d{2}:\d{2}`)
+- 장터 글의 판매 정보 표 `.category-box`(카테고리 · 판매가격 · 단기차액거래 · 직거래가능지역 · 전화번호 · 테스트장소) — 거래에 꼭 필요한 정보라 본문 위에 사이트 모양 그대로(keepStyle). 지금 PostPage 에 "머리 아래 블록" 자리가 없어 `info` 필드(제목 줄과 본문 사이, 엔진 추가)
+- 본문 `#bbsContent`(필수). 장터 대표 사진 `ul.share-box li.main-pic` 도 본문 앞에
+- 사진 확대 보기는 PhotoSwipe(`.pswp`, body 바로 아래) — 아래 "사이트 팝업" 참고
+- 버튼 줄 `.flex-box .right-box .bt`(수정·삭제 등), 광고 `.board-view-banner`·`.market-btn-wrapper`(프리미엄 홍보) 는 버림
+
+**댓글** (`#comment-top.comment-wrapper` — Vue)
+- 행 `.comment-item:not(.premium-bg)`, 고정 공지 `.comment-item.premium-bg` 는 베스트 댓글 자리 대신 맨 위 한 줄(bestItem 으로)
+- 대댓글 `.reply`, 깊이는 style `padding-left: 20px / 40px / 60px` → 에펨코리아의 depth 규칙을 쓰되 보통 댓글이 이미 20px 이라 기준값이 필요 → `depth.base`(엔진 추가): (값 − 20) ÷ 20
+- 글쓴이 `.namecard`(닉네임 · 아이디 · Lv) 를 whoNode 로, 시각 `.regdt`, 내용 `.comment-message`(필수), 동작 `.button-box .left-box`(답글달기 · 신고) + `.choice`(추천)
+- 답글달기는 Vue 가 그 댓글 안에 입력칸을 그린다 → anchor `#comment-top` + replyWrite(입력칸 이름은 로그인 상태로 확인 필요)
+- 댓글 쓰기 `.write-group`(textarea `#board-write-input` + 버튼, 로그아웃이면 버튼이 "로그인") + 제목 `#comment-write`
+
+**공통**
+- 로고 `#header .header-center-logo a`, 계정 `#header .header-icon`(다크모드 · 로그인 · 마이뮬 · 알림 아이콘) keepStyle
+- 왼쪽 메뉴: 위 메뉴 `#header .header-bottom ul a` 16개(악기장터 · 사용기 · 뮬人/게시판 · 합주실 … · 명예의전당, chips) + 게시판 탭
+- 오른쪽 칸: 사이트 오른쪽 열은 광고뿐(`.section-right`) — 비움
+
+**사이트 팝업 (엔진 추가 필요)**: 뮬은 로그인 창(`#modal-login`)·신고·닉네임 등 Vue/부트스트랩 모달을 `.html-body-wrapper > #modal` 안에 미리 두고, 사진 확대(`.pswp`)도 처음부터 body 에 있다. 엔진은 재배치할 때 body 의 기존 자식을 모두 숨기므로(k-orig) 이것들이 열려도 안 보인다(로그인 버튼을 눌러도 아무 일이 없는 것처럼). → 레시피 `overlays: ["#modal", ".pswp", "#side"]`(알림 패널) — 이 요소들을 body 바로 아래로 옮기고 숨기지 않는다. 부트스트랩이 나중에 body 에 붙이는 `.modal-backdrop` 은 지금도 안 숨긴다
+
+**엔진에 더할 것 (요약)**
+1. `waitFor`: probe 가 아직 없으면 잠깐(예: 3초까지) 기다렸다 판정 — Vue 등 브라우저에서 그리는 사이트
+2. `overlays`: 사이트 팝업 요소를 숨기지 않고 body 아래로
+3. 행 `extras: Field[]`: 제목 아래 한 줄에 여러 칸(가격 · 지역)
+4. 글 `info`: 제목 줄과 본문 사이 블록(장터 판매 정보 표)
+5. 댓글 `depth.base`: 깊이 계산의 기준값
+- 이미 있는 것: 썸네일(attr), visitPattern, keepStyle, anchor, replyWrite, extra
+
+**단계**
+- 1단계: 엔진 1~5, 목록(장터 사진 목록 · 가격/지역 · 댓글 수 · 읽은 글) · 글(판매 정보 표 · 본문 · 사진) · 댓글(대댓글 깊이 · 추천/신고/답글 버튼) · 메뉴 · 로그인 아이콘·로그인 창
+- 2단계: 홈·장터 첫 화면 hub, 댓글 쓰기·답글(로그인 상태 확인), 글쓰기 화면(Vue 에디터 keepStyle), 검색 표 모양 정리
+
+**위험·확인할 것**
+- Cloudflare: 처음 들어갈 때·오래 쉬었다 들어갈 때 확인 화면이 뜰 수 있음(앱에서는 대부분 자동 통과). 확인용 저장본은 curl 로 못 받으므로 내장 브라우저/앱에서 그려진 DOM 을 저장해 쓴다
+- Vue 가 나중에 다시 그리면(댓글 새로고침 등) 옮긴 요소와 새 요소가 갈릴 수 있음 → observe 로 따라감, 행·댓글은 data-kong-done 으로 중복 막음
+- 장터 글의 전화번호는 로그인 뒤 보이는 개인정보 — 사이트 표 그대로 옮길 뿐 엔진이 읽거나 저장하지 않음
+- 다크모드 아이콘은 사이트 테마를 바꾸므로 통합 화면과 색이 엇갈릴 수 있음 → 1단계에서는 계정 칸에서 다크모드 아이콘만 exclude
