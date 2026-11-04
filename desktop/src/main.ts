@@ -7,18 +7,20 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, scre
 import { dedupeKey, DEDUPE_MS, shouldReport, toReport } from "../../transformer/src/report";
 import type { Status } from "../../transformer/src/recipe";
 import * as bm from "./bookmarks.js";
+import { cookiesSince, cookieUrl, originsSince, parseCookieTimes, pruneTimes, trackCookie, type CookieTimes } from "./clear-data.js";
 import { contextItems, type ContextAction } from "./context-menu.js";
 import { errorPageUrl, failedUrlOf, showsErrorPage } from "./error-page.js";
 import { isFresh } from "./leave-dialog.js";
 import { DOWNLOADS_MAX, isActive, overall, restoreDownloads, searchDownloads, statusText, uniqueName, type DownloadInfo } from "./downloads.js";
-import { IPC, type BrowserState, type InternalRequest, type OverlayIn, type OverlayOut, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
-import { decide, isAllowed, parsePermissions, remember, siteName, type PermissionStore } from "./permissions.js";
+import { IPC, type BrowserState, type InternalRequest, type SettingsView, type OverlayIn, type OverlayOut, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
+import { decide, isAllowed, parsePermissions, permissionLabel, remember, siteName, type PermissionStore } from "./permissions.js";
 import { isPopup, popupSize } from "./popup.js";
 import { clampPosition, pushClosed, tabMenuItems, type ClosedTab, type TabMenuAction } from "./tabs.js";
-import { isDefaultZoom, parseZoom, setSiteZoom, stepZoom, type ZoomStore } from "./zoom.js";
-import { parseSettings, type Settings } from "./settings.js";
+import { isDefaultZoom, parseZoom, setSiteZoom, stepZoom, zoomPercent, type ZoomStore } from "./zoom.js";
+import { isSettingKey, parseSettings, validSetting, type Settings } from "./settings.js";
+import { SEARCH_ENGINES, searchUrl } from "./search-engines.js";
 import * as store from "./store.js";
-import { SEARCH_URL, suggest, toUrl, type Suggestion } from "./suggest.js";
+import { suggest, toUrl, type Suggestion } from "./suggest.js";
 import { dragOutcome, windowAt, type Bounds, type WindowSession } from "./windows.js";
 
 // 테스트에서 매번 깨끗한 사용자 데이터로 시작할 수 있게 (탭 복원·북마크·기록이 이전 실행에 영향받지 않도록)
@@ -32,6 +34,7 @@ const BOOKMARKS_URL = fileUrl("ui", "bookmarks.html");
 const DOWNLOADS_URL = fileUrl("ui", "downloads.html");
 const ERROR_URL = fileUrl("ui", "error.html");
 const CLEAR_URL = fileUrl("ui", "clear.html");
+const SETTINGS_URL = fileUrl("ui", "settings.html");
 /** 앱 안쪽 페이지(시작 페이지, 방문 기록, 북마크 관리)의 주소 앞부분: 이 페이지들만 기록·북마크 API 를 쓸 수 있다 */
 const INTERNAL_PREFIX = decodeURIComponent(fileUrl("ui") + "/").toLowerCase();
 const isInternal = (url: string) => decodeURIComponent(url).toLowerCase().startsWith(INTERNAL_PREFIX);
@@ -663,7 +666,7 @@ function printPage(wc: WebContents) {
 /** 다른 이름으로 저장 (Ctrl+S): 웹페이지 전체(.html + 폴더) 또는 단일 파일(.mhtml). 다운로드 내역에도 남긴다 */
 async function savePageAs(w: Win, tab: Tab) {
   const wc = tab.view.webContents;
-  const dir = app.getPath("downloads");
+  const dir = downloadDir();
   const name = uniqueName(`${(tab.state.title || hostOf(tab.state.url) || "page").slice(0, 100)}.html`, (n) => fs.existsSync(path.join(dir, n)));
   const r = await dialog.showSaveDialog(w.win, {
     title: "다른 이름으로 저장",
@@ -701,7 +704,27 @@ async function savePageAs(w: Win, tab: Tab) {
 }
 
 /** 인터넷 사용 기록 삭제 (삭제 페이지에서) */
+/** 쿠키가 처음 생긴 시각 기록 (Electron 은 쿠키를 기간으로 지울 수 없어서 직접 기록) */
+let cookieTimes: CookieTimes = {};
+
+async function trackCookieTimes() {
+  const ses = electronSession.defaultSession;
+  cookieTimes = parseCookieTimes(store.loadCookieTimes());
+  ses.cookies.on("changed", (_e, cookie, cause, removed) => {
+    if (trackCookie(cookieTimes, cookie, cause, removed, Date.now())) store.saveCookieTimes(cookieTimes);
+  });
+  // 이제는 없는 쿠키의 기록은 정리
+  cookieTimes = pruneTimes(cookieTimes, await ses.cookies.get({}));
+  store.saveCookieTimes(cookieTimes);
+}
+
+/**
+ * 인터넷 사용 기록 삭제 (삭제 페이지에서). since = 0 이면 전체 기간.
+ * 기간이 있으면 쿠키는 그 뒤에 생긴 것만, 캐시·사이트 저장 데이터는 그 기간에 방문한 사이트 것만 (clear-data.ts)
+ */
 async function clearData(since: number, what: import("./shared.js").ClearWhat) {
+  // 방문 기록을 지우기 전에 그 기간에 방문한 사이트를 알아 둔다
+  const visited = since > 0 ? originsSince(store.historyEntries(), since) : [];
   if (what.history) {
     if (since > 0) store.clearHistorySince(since);
     else store.clearHistory();
@@ -711,8 +734,22 @@ async function clearData(since: number, what: import("./shared.js").ClearWhat) {
     saveDownloads();
   }
   const ses = electronSession.defaultSession;
-  if (what.cookies) await ses.clearStorageData();
-  if (what.cache) await ses.clearCache();
+  if (what.cookies) {
+    if (since > 0) {
+      const all = await ses.cookies.get({});
+      await Promise.all(cookiesSince(all, cookieTimes, since).map((c) => ses.cookies.remove(cookieUrl(c), c.name).catch(() => {})));
+      if (visited.length)
+        await ses.clearData({ dataTypes: ["localStorage", "indexedDB", "serviceWorkers", "fileSystems", "webSQL", "backgroundFetch"], origins: visited });
+    } else {
+      await ses.clearStorageData();
+      cookieTimes = {};
+      store.saveCookieTimes(cookieTimes);
+    }
+  }
+  if (what.cache) {
+    if (since === 0) await ses.clearCache();
+    else if (visited.length) await ses.clearData({ dataTypes: ["cache"], origins: visited });
+  }
   if (what.siteSettings) {
     permissions = {};
     store.savePermissions(permissions);
@@ -875,6 +912,58 @@ function openInternal(w: Win | null, page: string) {
 const openBookmarks = (w = focusedWin()) => openInternal(w, BOOKMARKS_URL);
 const openDownloads = (w = focusedWin()) => openInternal(w, DOWNLOADS_URL);
 const openClearData = (w = focusedWin()) => openInternal(w, CLEAR_URL);
+const openSettings = (w = focusedWin()) => openInternal(w, SETTINGS_URL);
+
+/** 설정 페이지에 보낼 것 */
+function settingsView(): SettingsView {
+  const perms = permissionStore();
+  return {
+    settings: loadSettings(),
+    defaultDownloadDir: app.getPath("downloads"),
+    downloadDir: downloadDir(),
+    engines: Object.entries(SEARCH_ENGINES).map(([id, e]) => ({ id, name: e.name })),
+    permissions: Object.keys(perms)
+      .sort()
+      .map((origin) => ({
+        origin,
+        site: siteName(origin),
+        items: Object.entries(perms[origin]).map(([key, value]) => ({ key, label: permissionLabel(key), value })),
+      })),
+    zooms: Object.entries(zoomStore())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([host, f]) => ({ host, percent: zoomPercent(f) })),
+    version: app.getVersion(),
+    dataDir: app.getPath("userData"),
+  };
+}
+
+/** 설정 하나 바꾸기 (설정 페이지에서). 바뀐 값이 화면·동작에 바로 반영되게 */
+function setSetting(key: string, value: unknown): SettingsView {
+  if (!isSettingKey(key) || !validSetting(key, value)) return settingsView();
+  if (key === "original") setOriginal(value as boolean, focusedWin());
+  else {
+    saveSettings({ ...loadSettings(), [key]: value });
+    pushAll();
+  }
+  return settingsView();
+}
+
+/** 다운로드 폴더 고르기 (폴더 선택 창) */
+async function chooseDownloadDir(sender: WebContents): Promise<SettingsView> {
+  const owner = BrowserWindow.fromWebContents(sender) ?? tabOf(sender)?.w.win ?? focusedWin()?.win;
+  const opts: Electron.OpenDialogOptions = { title: "다운로드 폴더 선택", defaultPath: downloadDir(), properties: ["openDirectory", "createDirectory"] };
+  const r = owner ? await dialog.showOpenDialog(owner, opts) : await dialog.showOpenDialog(opts);
+  if (!r.canceled && r.filePaths[0]) saveSettings({ ...loadSettings(), downloadDir: r.filePaths[0] });
+  return settingsView();
+}
+
+/** 다운로드 저장 위치: 설정에서 고른 폴더(없어졌으면 운영체제의 다운로드 폴더) */
+function downloadDir(): string {
+  const d = loadSettings().downloadDir;
+  return d && fs.existsSync(d) ? d : app.getPath("downloads");
+}
+/** 주소창 입력 → 주소 (주소가 아니면 설정의 검색 엔진으로 검색) */
+const inputUrl = (text: string) => toUrl(text, loadSettings().searchEngine);
 
 // ---------- 주소창 자동완성 목록 (페이지 위에 겹쳐 뜨는 작은 창) ----------
 // 페이지(WebContentsView)는 툴바 화면보다 위에 그려지므로, 목록은 별도의 view 로 페이지 위에 띄운다.
@@ -943,10 +1032,10 @@ function showContextMenu(w: Win, tab: Tab | null, p: Electron.ContextMenuParams)
     // 클립보드의 주소(또는 검색어)로 바로 이동
     pasteAndGo: () => {
       const text = clipboard.readText().trim();
-      if (text) current(w)?.loadURL(toUrl(text));
+      if (text) current(w)?.loadURL(inputUrl(text));
     },
     selectAll: () => wc.selectAll(),
-    search: () => createTab(w, SEARCH_URL + encodeURIComponent(p.selectionText.trim()), { after: tab ?? active }),
+    search: () => createTab(w, searchUrl(loadSettings().searchEngine, p.selectionText.trim()), { after: tab ?? active }),
     back: () => nav.goBack(),
     forward: () => nav.goForward(),
     reload: () => reloadPage(wc),
@@ -954,7 +1043,13 @@ function showContextMenu(w: Win, tab: Tab | null, p: Electron.ContextMenuParams)
     print: () => printPage(wc),
     inspect: () => wc.inspectElement(p.x, p.y),
   };
-  const items = contextItems({ ...p, canGoBack: nav.canGoBack(), canGoForward: nav.canGoForward(), toolbar: !tab });
+  const items = contextItems({
+    ...p,
+    canGoBack: nav.canGoBack(),
+    canGoForward: nav.canGoForward(),
+    toolbar: !tab,
+    searchName: SEARCH_ENGINES[loadSettings().searchEngine].name,
+  });
   if (!items.length) return;
   Menu.buildFromTemplate(
     items.map((i): Electron.MenuItemConstructorOptions =>
@@ -1100,7 +1195,7 @@ function start() {
   const argUrl = process.argv.find((a) => /^https?:\/\//.test(a));
   const session = store.loadSession();
   if (argUrl) createWindow({ urls: [argUrl] });
-  else if (session.windows.length) for (const s of session.windows) createWindow({ urls: s.tabs, active: s.active, bounds: s.bounds, pinned: s.pinned });
+  else if (session.windows.length && loadSettings().startup === "restore") for (const s of session.windows) createWindow({ urls: s.tabs, active: s.active, bounds: s.bounds, pinned: s.pinned });
   else createWindow({ urls: [START_URL] });
   wins[0]?.win.focus();
 
@@ -1179,7 +1274,7 @@ const onUI = <A extends unknown[]>(channel: string, fn: (w: Win, ...args: A) => 
     if (w) fn(w, ...(args as A));
   });
 onUI(IPC.ready, (w) => pushUI(w));
-onUI(IPC.navigate, (w, text: string) => current(w)?.loadURL(toUrl(text)));
+onUI(IPC.navigate, (w, text: string) => current(w)?.loadURL(inputUrl(text)));
 onUI(IPC.back, (w) => current(w)?.navigationHistory.goBack());
 onUI(IPC.forward, (w) => current(w)?.navigationHistory.goForward());
 onUI(IPC.reload, (w) => {
@@ -1187,15 +1282,15 @@ onUI(IPC.reload, (w) => {
   if (wc) reloadPage(wc);
 });
 onUI(IPC.stop, (w) => current(w)?.stop());
-onUI(IPC.toggleOriginal, (w) => {
-  if (!w.active) return;
-  // 원본 ↔ 통합: 앱 전체 토글. 지금 탭은 바로 새로고침하고, 다른 탭은 열 때 맞춘다 (syncOriginal)
-  const s = loadSettings();
-  saveSettings({ ...s, original: !s.original });
-  for (const t of allTabs()) t.state.original = !s.original;
-  syncOriginal(w.active);
+/** 원본 ↔ 통합: 앱 전체 토글. 지금 탭은 바로 새로고침하고, 다른 탭은 열 때 맞춘다 (syncOriginal) */
+function setOriginal(on: boolean, w: Win | null) {
+  saveSettings({ ...loadSettings(), original: on });
+  for (const t of allTabs()) t.state.original = on;
+  if (w?.active) syncOriginal(w.active);
   pushAll();
-});
+}
+onUI(IPC.toggleOriginal, (w) => w.active && setOriginal(!loadSettings().original, w));
+onUI(IPC.openSettings, (w) => openSettings(w));
 onUI(IPC.newTab, (w) => openBlankTab(w));
 onUI(IPC.closeTab, (_w, id: number) => {
   const tab = findTab(id);
@@ -1331,10 +1426,14 @@ ipcMain.handle(IPC.suggest, (e, text: string, at: Rect) => {
   const w = winOf(e.sender);
   if (!w) return [];
   const d = store.bookmarkData();
-  const list = suggest(text, {
-    bookmarks: d.bookmarks.map((b) => ({ url: b.url, title: b.title, folder: bm.folderName(d, b.folder) ?? null })),
-    history: store.historyEntries(),
-  });
+  const list = suggest(
+    text,
+    {
+      bookmarks: d.bookmarks.map((b) => ({ url: b.url, title: b.title, folder: bm.folderName(d, b.folder) ?? null })),
+      history: store.historyEntries(),
+    },
+    { engine: loadSettings().searchEngine },
+  );
   showSuggestions(w, list, at);
   return list;
 });
@@ -1381,9 +1480,30 @@ ipcMain.handle(IPC.internal, (e, req: InternalRequest) => {
     case "clearDownloads":
       return clearDownloads();
     case "openDownloadsFolder":
-      return void shell.openPath(app.getPath("downloads"));
+      return void shell.openPath(downloadDir());
     case "clearData":
       return clearData(Math.max(0, Number(req.since) || 0), req.what);
+    case "settings":
+      return settingsView();
+    case "setSetting":
+      return setSetting(req.key, req.value);
+    case "chooseDownloadDir":
+      return chooseDownloadDir(e.sender);
+    case "setPermission":
+      permissions = { ...permissionStore() };
+      if (req.value === null) {
+        const site = { ...permissions[req.origin] };
+        delete site[req.key];
+        if (Object.keys(site).length) permissions[req.origin] = site;
+        else delete permissions[req.origin];
+      } else if (req.value === "allow" || req.value === "block") permissions = remember(permissions, req.origin, [req.key], req.value);
+      store.savePermissions(permissions);
+      return settingsView();
+    case "resetZoom":
+      zooms = setSiteZoom(zoomStore(), req.host, 1);
+      store.saveZoom(zooms);
+      for (const t of allTabs()) if (hostOf(t.state.url) === req.host && !t.view.webContents.isDestroyed()) setZoom(t, 1);
+      return settingsView();
   }
 });
 
@@ -1457,7 +1577,7 @@ function trackDownloads() {
   downloads = restoreDownloads(store.loadDownloads());
   downloadSeq = downloads.reduce((m, d) => Math.max(m, d.id), 0) + 1;
   electronSession.defaultSession.on("will-download", (_e, item) => {
-    const dir = app.getPath("downloads");
+    const dir = downloadDir();
     // 아직 받는 중인 같은 이름 파일도 피한다 (디스크에는 다 받은 뒤에 생김)
     const taken = (n: string) => fs.existsSync(path.join(dir, n)) || downloads.some((d) => isActive(d) && d.name === n);
     const name = uniqueName(item.getFilename(), taken);
@@ -1471,20 +1591,33 @@ function trackDownloads() {
       state: "progressing",
       startedAt: Date.now(),
     };
-    item.setSavePath(d.path);
+    // 설정 "받기 전에 저장 위치 묻기": 저장 창을 띄우고(Electron 이 띄움), 고른 위치는 진행 중에 알게 된다
+    if (loadSettings().askDownload) item.setSaveDialogOptions({ title: "다른 이름으로 저장", defaultPath: d.path });
+    else item.setSavePath(d.path);
     downloads.unshift(d);
     downloadItems.set(d.id, item);
     saveDownloads();
+    const syncPath = () => {
+      const p = item.getSavePath();
+      if (p && p !== d.path) {
+        d.path = p;
+        d.name = path.basename(p);
+      }
+    };
     item.on("updated", (_ev, st) => {
+      syncPath();
       d.received = item.getReceivedBytes();
       d.total = item.getTotalBytes();
       d.state = st === "interrupted" ? "interrupted" : item.isPaused() ? "paused" : "progressing";
       pushDownloadsSoon();
     });
     item.once("done", (_ev, st) => {
+      syncPath();
       d.received = item.getReceivedBytes();
       d.state = st;
       downloadItems.delete(d.id);
+      // 저장 창에서 취소했으면 내역에 남기지 않는다
+      if (st === "cancelled" && !item.getSavePath()) downloads = downloads.filter((x) => x !== d);
       saveDownloads();
       pushAll();
     });
@@ -1515,7 +1648,7 @@ onUI(IPC.downloadsMenu, (w, at: Rect) => {
   items.push(
     { type: "separator" },
     { label: "다운로드 내역 전체 보기", accelerator: "CmdOrCtrl+J", click: () => openDownloads(w) },
-    { label: "다운로드 폴더 열기", click: () => shell.openPath(app.getPath("downloads")) },
+    { label: "다운로드 폴더 열기", click: () => shell.openPath(downloadDir()) },
     { label: "목록 지우기", enabled: downloads.some((d) => !isActive(d)), click: clearDownloads },
   );
   Menu.buildFromTemplate(items).popup({ window: w.win, x: Math.round(at.x), y: Math.round(at.y + at.height) });
@@ -1523,6 +1656,7 @@ onUI(IPC.downloadsMenu, (w, at: Rect) => {
 
 app.whenReady().then(() => {
   installPermissions();
+  void trackCookieTimes();
   trackDownloads();
   start();
 });

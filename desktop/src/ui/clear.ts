@@ -13,7 +13,19 @@ const sync = () => {
   done.hidden = true;
 };
 for (const k of keys) $<HTMLInputElement>(k).onchange = sync;
-$<HTMLSelectElement>("since").onchange = sync;
+/** 기간에 따라 쿠키·캐시가 무엇을 지우는지 안내 */
+function notes() {
+  const all = $<HTMLSelectElement>("since").value === "0";
+  $("cookies-note").textContent = all
+    ? "대부분의 사이트에서 로그아웃돼요."
+    : "이 기간에 새로 생긴 쿠키와, 이 기간에 방문한 사이트의 저장 데이터를 지워요. 그 사이트에서 로그아웃될 수 있어요.";
+  $("cache-note").textContent = all ? "사이트가 다음에 조금 느리게 열릴 수 있어요." : "이 기간에 방문한 사이트의 캐시를 지워요.";
+}
+$<HTMLSelectElement>("since").onchange = () => {
+  notes();
+  sync();
+};
+notes();
 
 go.onclick = async () => {
   const range = Number($<HTMLSelectElement>("since").value);

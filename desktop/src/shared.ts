@@ -44,6 +44,8 @@ export const IPC = {
   /** main → 자동완성 목록 창: 그릴 후보와 선택 위치 */
   suggestList: "suggest:list",
   openHistory: "ui:open-history",
+  /** 툴바의 설정 버튼 */
+  openSettings: "ui:open-settings",
   /** 오른쪽 dock 보이기/숨기기 */
   toggleDock: "ui:toggle-dock",
   /** 앱 안쪽 페이지(시작 페이지, 방문 기록) → main: 기록·북마크 조회/삭제 (invoke) */
@@ -123,7 +125,29 @@ export type InternalRequest =
   | { op: "downloadAction"; id: number; action: DownloadAction }
   | { op: "clearDownloads" }
   | { op: "openDownloadsFolder" }
-  | { op: "clearData"; since: number; what: ClearWhat };
+  | { op: "clearData"; since: number; what: ClearWhat }
+  | { op: "settings" }
+  | { op: "setSetting"; key: string; value: unknown }
+  | { op: "chooseDownloadDir" }
+  | { op: "setPermission"; origin: string; key: string; value: "allow" | "block" | null }
+  | { op: "resetZoom"; host: string };
+
+/** 설정 페이지가 그릴 것 */
+export interface SettingsView {
+  settings: import("./settings").Settings;
+  /** 운영체제의 다운로드 폴더 (설정에서 고른 폴더가 없을 때) */
+  defaultDownloadDir: string;
+  /** 지금 쓰는 다운로드 폴더 */
+  downloadDir: string;
+  engines: { id: string; name: string }[];
+  /** 사이트별 권한: origin → [권한 키, 이름, 허용/차단] */
+  permissions: { origin: string; site: string; items: { key: string; label: string; value: "allow" | "block" }[] }[];
+  /** 사이트별 확대/축소 */
+  zooms: { host: string; percent: string }[];
+  version: string;
+  /** 쿠키 시각 기록 등 앱 데이터 폴더 */
+  dataDir: string;
+}
 
 /** 인터넷 사용 기록 삭제에서 고른 것 */
 export interface ClearWhat {

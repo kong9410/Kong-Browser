@@ -1,6 +1,6 @@
 // 앱 안쪽 페이지(시작 페이지, 방문 기록) 공용: preload-page 가 이 페이지에만 노출하는 API
 import type { DownloadInfo } from "../downloads";
-import type { BookmarkData, ClearWhat, DownloadAction, HistoryEntry, InternalRequest } from "../shared";
+import type { BookmarkData, ClearWhat, DownloadAction, SettingsView, HistoryEntry, InternalRequest } from "../shared";
 
 declare global {
   interface Window {
@@ -26,6 +26,11 @@ export const internal = {
   clearDownloads: () => call<void>({ op: "clearDownloads" }),
   openDownloadsFolder: () => call<void>({ op: "openDownloadsFolder" }),
   clearData: (since: number, what: ClearWhat) => call<void>({ op: "clearData", since, what }),
+  settings: () => call<SettingsView>({ op: "settings" }),
+  setSetting: (key: string, value: unknown) => call<SettingsView>({ op: "setSetting", key, value }),
+  chooseDownloadDir: () => call<SettingsView>({ op: "chooseDownloadDir" }),
+  setPermission: (origin: string, key: string, value: "allow" | "block" | null) => call<SettingsView>({ op: "setPermission", origin, key, value }),
+  resetZoom: (host: string) => call<SettingsView>({ op: "resetZoom", host }),
 };
 
 export const hostOf = (url: string) => {

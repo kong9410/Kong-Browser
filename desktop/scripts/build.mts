@@ -36,7 +36,7 @@ await Promise.all([
     }),
   ),
   // 툴바와 앱 안쪽 페이지(시작 페이지, 방문 기록)의 스크립트
-  ...["toolbar", "start", "history", "bookmarks", "downloads", "suggest-list", "find", "prompt", "error", "clear"].map((name) =>
+  ...["toolbar", "start", "history", "bookmarks", "downloads", "suggest-list", "find", "prompt", "error", "clear", "settings"].map((name) =>
     esbuild.build({
       ...common,
       entryPoints: [path.join(SRC, "ui", `${name}.ts`)],
@@ -48,7 +48,7 @@ await Promise.all([
   ),
 ]);
 
-for (const f of ["index.html", "toolbar.css", "start.html", "history.html", "bookmarks.html", "downloads.html", "suggest.html", "pages.css", "overlay.css", "find.html", "prompt.html", "error.html", "clear.html"]) fs.copyFileSync(path.join(SRC, "ui", f), path.join(DIST, "ui", f));
+for (const f of ["index.html", "toolbar.css", "start.html", "history.html", "bookmarks.html", "downloads.html", "suggest.html", "pages.css", "overlay.css", "find.html", "prompt.html", "error.html", "clear.html", "settings.html"]) fs.copyFileSync(path.join(SRC, "ui", f), path.join(DIST, "ui", f));
 
 fs.mkdirSync(path.join(DIST, "recipes"), { recursive: true });
 const recipes = fs.readdirSync(RECIPES).filter((f) => f.endsWith(".json"));

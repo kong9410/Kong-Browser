@@ -11,6 +11,8 @@ export interface ContextInfo {
   editFlags: { canCut: boolean; canCopy: boolean; canPaste: boolean; canSelectAll: boolean };
   canGoBack: boolean;
   canGoForward: boolean;
+  /** 선택한 글 검색에 쓰는 검색 엔진 이름 (설정, 기본 Google) */
+  searchName?: string;
   /** 툴바(주소창)에서 연 메뉴: 입력칸 항목 + "붙여넣고 이동"만 */
   toolbar?: boolean;
 }
@@ -81,7 +83,7 @@ export function contextItems(p: ContextInfo): ContextItem[] {
   else if (p.selectionText.trim())
     groups.push([
       { id: "copy", label: "복사" },
-      { id: "search", label: `Google 에서 "${shortText(p.selectionText)}" 검색` },
+      { id: "search", label: `${p.searchName ?? "Google"} 에서 "${shortText(p.selectionText)}" 검색` },
     ]);
   // 링크·이미지·글 위가 아니면 페이지 메뉴
   if (!groups.length)

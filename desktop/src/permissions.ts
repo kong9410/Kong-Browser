@@ -23,6 +23,9 @@ const ASK_LABEL: Record<string, string> = {
   "idle-detection": "사용 중인지 감지",
 };
 
+/** 권한 키의 이름 (설정 페이지) */
+export const permissionLabel = (key: string) => ASK_LABEL[key] ?? key;
+
 /** 요청 하나를 권한 키들로 (카메라+마이크를 함께 요청하면 둘 다) */
 export function permissionKeys(permission: string, mediaTypes?: readonly string[]): string[] {
   if (permission !== "media") return [permission];

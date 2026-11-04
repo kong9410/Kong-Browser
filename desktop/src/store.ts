@@ -109,6 +109,9 @@ export function clearHistorySince(since: number) {
 
 export const loadPermissions = (): unknown => readJson<unknown>("permissions.json", {});
 export const savePermissions = (p: unknown) => writeLater("permissions.json", p);
+/** 쿠키가 처음 생긴 시각 (기간을 정해 쿠키를 지울 때) */
+export const loadCookieTimes = (): unknown => readJson<unknown>("cookie-times.json", {});
+export const saveCookieTimes = (t: unknown) => writeLater("cookie-times.json", t);
 export const loadZoom = (): unknown => readJson<unknown>("zoom.json", {});
 export const saveZoom = (z: unknown) => writeLater("zoom.json", z);
 

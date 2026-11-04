@@ -1,6 +1,6 @@
 // 주소창 자동완성: 입력한 글자로 북마크와 방문 기록에서 후보를 고르고 순위를 매긴다 (Electron 없는 순수 함수)
 
-export const SEARCH_URL = "https://www.google.com/search?q=";
+import { SEARCH_ENGINES, searchUrl, type SearchEngineId } from "./search-engines";
 
 /** 주소처럼 보이는지: 스킴이 있거나, 공백 없이 점이 들어간 이름, 또는 localhost */
 export function looksLikeUrl(text: string): boolean {
@@ -8,12 +8,12 @@ export function looksLikeUrl(text: string): boolean {
   return /^[a-z][a-z0-9+.-]*:\/\//i.test(t) || /^[^\s]+\.[^\s]{2,}(\/.*)?$/.test(t) || /^localhost(:\d+)?(\/.*)?$/.test(t);
 }
 
-/** 주소창 입력 → URL. 주소처럼 보이지 않으면 검색 */
-export function toUrl(text: string): string {
+/** 주소창 입력 → URL. 주소처럼 보이지 않으면 검색 (설정의 검색 엔진) */
+export function toUrl(text: string, engine: SearchEngineId = "google"): string {
   const t = text.trim();
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) return t;
   if (looksLikeUrl(t)) return `https://${t}`;
-  return SEARCH_URL + encodeURIComponent(t);
+  return searchUrl(engine, t);
 }
 
 /** 비교용 주소: 스킴, www., 끝의 / 를 뗀다 (https://www.a.com/ → a.com) */
@@ -47,7 +47,7 @@ const DAY = 24 * 60 * 60 * 1000;
  *   제목이 입력으로 시작 +10, 방문 횟수 ×3 (최대 30), 최근 방문일수록 최대 +20
  * - 같은 주소는 하나로 (북마크면 북마크로)
  */
-export function suggest(text: string, src: SuggestSource, opts: { limit?: number; now?: number } = {}): Suggestion[] {
+export function suggest(text: string, src: SuggestSource, opts: { limit?: number; now?: number; engine?: SearchEngineId } = {}): Suggestion[] {
   const input = text.trim();
   if (!input) return [];
   const limit = opts.limit ?? 6;
@@ -55,9 +55,10 @@ export function suggest(text: string, src: SuggestSource, opts: { limit?: number
   const q = input.toLowerCase();
   const words = q.split(/\s+/);
 
+  const engine = opts.engine ?? "google";
   const typed: Suggestion = looksLikeUrl(input)
-    ? { kind: "go", title: input, url: toUrl(input) }
-    : { kind: "search", title: `${input} - Google 검색`, url: toUrl(input) };
+    ? { kind: "go", title: input, url: toUrl(input, engine) }
+    : { kind: "search", title: `${input} - ${SEARCH_ENGINES[engine].name} 검색`, url: toUrl(input, engine) };
 
   // 주소마다 하나로 모은다
   interface Cand {

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>설정</title>
+    <link rel="stylesheet" href="pages.css" />
+    <style>
+      .layout {
+        display: flex;
+        gap: 40px;
+        width: min(980px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 40px 0 80px;
+      }
+      nav {
+        flex: none;
+        width: 180px;
+        position: sticky;
+        top: 40px;
+        align-self: flex-start;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding-top: 52px;
+      }
+      nav a {
+        padding: 7px 12px;
+        border-radius: 999px;
+        color: #4b5563;
+        font-size: 14px;
+      }
+      nav a:hover {
+        background: #f3f4f6;
+      }
+      nav a.on {
+        background: #eef2ff;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      @media (max-width: 860px) {
+        nav {
+          display: none;
+        }
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+      }
+      section {
+        scroll-margin-top: 24px;
+      }
+      section h2 {
+        margin: 34px 0 10px;
+        color: var(--fg);
+        font-size: 16px;
+      }
+      .card {
+        overflow: visible;
+      }
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 16px;
+        border-top: 1px solid var(--line);
+        min-height: 56px;
+      }
+      .item:first-child {
+        border-top: 0;
+      }
+      .item .text {
+        flex: 1;
+        min-width: 0;
+      }
+      .item .label {
+        display: block;
+        font-size: 14.5px;
+      }
+      .item .desc {
+        display: block;
+        color: var(--muted);
+        font-size: 12.5px;
+        margin-top: 1px;
+        word-break: break-all;
+      }
+      a.item:hover {
+        background: #fafafb;
+      }
+      .chev {
+        color: var(--muted);
+        font-size: 18px;
+      }
+      /* 켜기/끄기 스위치 */
+      .switch {
+        position: relative;
+        flex: none;
+        width: 40px;
+        height: 22px;
+      }
+      .switch input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        margin: 0;
+        cursor: pointer;
+      }
+      .switch span {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: #d1d5db;
+        transition: background 0.15s;
+        pointer-events: none;
+      }
+      .switch span::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        transition: transform 0.15s;
+      }
+      .switch input:checked + span {
+        background: var(--accent);
+      }
+      .switch input:checked + span::after {
+        transform: translateX(18px);
+      }
+      .switch input:focus-visible + span {
+        outline: 2px solid #a5b4fc;
+        outline-offset: 2px;
+      }
+      .radio {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+      }
+      .radio input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: var(--accent);
+      }
+      select {
+        flex: none;
+        padding: 7px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        font: inherit;
+        font-size: 14px;
+      }
+      .sub {
+        padding: 6px 16px 12px;
+        border-top: 1px solid var(--line);
+      }
+      .sub h3 {
+        margin: 10px 0 6px;
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .site {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-top: 1px solid #f1f1f4;
+      }
+      .site:first-of-type {
+        border-top: 0;
+      }
+      .site .name {
+        flex: 1;
+        min-width: 0;
+        font-size: 14px;
+        word-break: break-all;
+        padding-top: 4px;
+      }
+      .perms {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-end;
+      }
+      .perm {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+      }
+      .perm select {
+        padding: 4px 8px;
+        font-size: 13px;
+      }
+      .empty {
+        padding: 8px 0 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .version {
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <nav id="nav">
+        <a href="#startup">시작할 때</a>
+        <a href="#look">모양</a>
+        <a href="#search">검색</a>
+        <a href="#downloads">다운로드</a>
+        <a href="#privacy">개인 정보</a>
+        <a href="#about">정보</a>
+      </nav>
+      <div class="content">
+        <h1>설정</h1>
+
+        <section id="startup">
+          <h2>시작할 때</h2>
+          <div class="card">
+            <label class="item radio"><input type="radio" name="startup" value="restore" /><span class="label">지난번 창과 탭 다시 열기</span></label>
+            <label class="item radio"><input type="radio" name="startup" value="home" /><span class="label">시작 페이지 열기</span></label>
+          </div>
+        </section>
+
+        <section id="look">
+          <h2>모양</h2>
+          <div class="card">
+            <label class="item">
+              <span class="text"><span class="label">커뮤니티 사이트를 통합 화면으로 보기</span><span class="desc">끄면 원래 사이트 화면으로 봐요. 툴바의 원본 | 통합 버튼과 같아요.</span></span>
+              <span class="switch"><input type="checkbox" id="unified" /><span></span></span>
+            </label>
+            <label class="item">
+              <span class="text"><span class="label">북마크 바 보기</span><span class="desc">Ctrl+Shift+B</span></span>
+              <span class="switch"><input type="checkbox" data-key="bookmarkBar" /><span></span></span>
+            </label>
+            <label class="item">
+              <span class="text"><span class="label">오른쪽 커뮤니티 dock 보기</span></span>
+              <span class="switch"><input type="checkbox" data-key="dockOpen" /><span></span></span>
+            </label>
+          </div>
+        </section>
+
+        <section id="search">
+          <h2>검색</h2>
+          <div class="card">
+            <div class="item">
+              <span class="text"><span class="label">주소창 검색 엔진</span><span class="desc">주소창에 주소가 아닌 말을 넣거나, 글을 선택해 오른쪽 클릭으로 검색할 때</span></span>
+              <select id="engine" aria-label="주소창 검색 엔진"></select>
+            </div>
+          </div>
+        </section>
+
+        <section id="downloads">
+          <h2>다운로드</h2>
+          <div class="card">
+            <div class="item">
+              <span class="text"><span class="label">저장 위치</span><span id="dl-dir" class="desc"></span></span>
+              <button id="dl-default" class="plain small" type="button" hidden>기본 폴더로</button>
+              <button id="dl-change" class="plain" type="button">변경</button>
+            </div>
+            <label class="item">
+              <span class="text"><span class="label">받기 전에 저장 위치 묻기</span><span class="desc">끄면 묻지 않고 저장 위치에 바로 받아요.</span></span>
+              <span class="switch"><input type="checkbox" data-key="askDownload" /><span></span></span>
+            </label>
+          </div>
+        </section>
+
+        <section id="privacy">
+          <h2>개인 정보</h2>
+          <div class="card">
+            <a class="item" href="clear.html">
+              <span class="text"><span class="label">인터넷 사용 기록 삭제</span><span class="desc">방문 기록, 쿠키, 캐시 등 (Ctrl+Shift+Delete)</span></span>
+              <span class="chev">›</span>
+            </a>
+            <div class="sub">
+              <h3>사이트 권한</h3>
+              <div id="perms"></div>
+            </div>
+            <div class="sub">
+              <h3>사이트별 확대/축소</h3>
+              <div id="zooms"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="about">
+          <h2>정보</h2>
+          <div class="card">
+            <div class="item">
+              <span class="text"><span class="label">Kong Browser</span><span id="version" class="desc"></span></span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <script src="settings.js"></script>
+  </body>
+</html>
