@@ -974,3 +974,61 @@ PC 사이트 www.fmkorea.com (XE/Rhymix, 스킨 sketchbook5_elkha) 를 디시·�
 - 디시(v22): 글 아래 목록은 행 class 가 깨져 있고(`ub-content >`, 지금 글 `crt>`) data-type 이 없어 행 `tr.ub-content`(설문·광고 행 제외) · 공지 `.icon_notice` · 사진/동영상 아이콘으로 판정, 쪽 넘김·검색은 `#bottom_listwrap` 안
 - 에펨코리아(v6): 목록 화면(list) 그대로
 - 실제 사이트로 확인: 루리웹 30행·디시 50행·에펨코리아 20행, 지금 글 강조, 쪽 넘김(디시·루리웹은 검색도) 함께
+
+### 8-16. 웃긴대학(humoruniv.com) 지원 설계 (2026-11-05, 사용자 요청 "웃긴대학 분석하고 설계해", 브랜치 feature/humoruniv)
+
+오래된 표(table) 배치의 유머 커뮤니티. 주소는 `web.humoruniv.com`(PC, `humoruniv.com` 은 이리로), 문자 집합 EUC-KR(엔진은 DOM 글자를 읽으므로 상관없음). 서버가 다 그린 HTML 이라 기다릴 것 없음(waitFor 불필요), Cloudflare 없음. 실제 화면(Playwright, 2026-11-05)으로 분석함.
+
+**뼈대** `#wrap_center > #wrap_center_body`: 머리 `#wrap_head`(로고 `.humor_logo a` · 위 메뉴 패션/얼굴 인식/웹소설/아이템몰 · 전체 검색 form) → `#wrap_mdd` = 왼쪽 메뉴 `#wrap_gnb`(120px) + 본문 `#wrap_cnts`(901px, 안에 오른쪽 160px 칸)
+
+**화면 고르기** (모든 게시판이 `/board/humor/list.html?table=이름`, 글은 `read.html?table=이름&number=번호`)
+
+| 순서 | id | match | probe | 화면 |
+| --- | --- | --- | --- | --- |
+| 1 | post | `/board/humor/read\.html` | `#ai_cm_title`, `#wrap_body` | 글 + 댓글 |
+| 2 | list | `/board/humor/list\.html` | `#cnts_list_new tr[id^=li_chk_]` | 게시판 목록 (사진 게시판·글 게시판, 오늘/주간/월간/연간 베스트 · 추천수 많은 글도 같은 주소에 `st=`) |
+| 3 | home | `^/(main\.html)?(\?.*)?$` | `#wrap_body_index` | 첫 화면 hub (2단계) |
+
+**목록** — 행 구조는 모든 게시판 같고 표만 둘
+- 사진 게시판(웃긴자료 pds · 만화 등): `#cnts_list_new table#post_list`, 글 게시판(왁자지껄 free 등): `#cnts_list_new table.bg_list` → scope 두 개, 행 `tr[id^=li_chk_]`(사이에 빈 `tr` 이 끼어 있음 — id 로 거름)
+- 제목 `td.li_sbj span[id^=title_chk_]`, 링크 `td.li_sbj a.li`, 댓글 수 `.list_comment_num`("[9]", pattern 숫자), 글쓴이 `.hu_nick_txt`, 날짜 `td.li_date`(`.w_date` + `.w_time`), 조회 `td.li_und`(첫째), 추천 `td.li_und .o`, 썸네일 `td.li_num img.thumb`(src, 80×60) — 글 게시판은 `td.li_num` 이 번호
+- 읽은 글: `visitParams: ["table", "number"]` (목록 링크는 `read.html?table=pds&number=…`, 베스트에서 온 링크는 `&st=day&page=0&from=best` 가 더 붙음)
+- 공지: 행이 아니라 표 위 `#wrap_ctgr .noti_div dl dd a`(4줄) → 목록 머리 아래 작은 공지 줄로(keepStyle 아님, 링크 목록) 또는 오른쪽 칸 — 1단계는 오른쪽 칸 "공지" 링크 블록
+- 쪽 넘김 `#cnts_list_new > .paging`, 검색 `#wrap_li_sch #sch form`, 글쓰기 `#write_btn a`(그림 버튼 → 글자 "글쓰기")
+- 게시판 이름 `head > title`("웃긴자료"), 게시판 탭 `#ctgr_new .slc_c a`(오늘의 베스트 · 주간 · 월간 · 연간 · 추천수 많은 글 · 명예의 전당) → 왼쪽 메뉴 둘째 묶음 "이 게시판"(chips)
+- 버림: 네이버 파워링크 광고 `#naver_adpost_wrap`, 오른쪽 사진 칸 `#wrap_right_list_new`(다른 게시판 그림 모음 iframe 160×1200)
+- 확인 필요: 웃긴제목(funtitle)은 사진 격자 게시판이라 행이 다름 → 1단계는 probe 가 없어 원본 그대로(fail-open), 2단계에서 따로
+
+**글 화면**
+- 제목 `#ai_cm_title`(필수), 글쓴이 `td.info .hu_nick_txt`(첫째), 정보 줄 `#content_info`(번호 · 추천 · 반대 · 답글 · 조회 · 작성시간 · 이동시간 — 작성시간 pattern `\d{4}-\d{2}-\d{2} \d{2}:\d{2}`, 조회 pattern `조회\s*([0-9,]+)`, 추천 `#ok_div`)
+- 본문 `#wrap_copy #wrap_body`(필수 — `wrap_copy` 는 사이트가 만든 태그 이름). 첨부 그림은 `.simple_attach_img_div img`(본문 안이라 같이 옮겨짐)
+- 추천/반대 큰 버튼 `#wrap_up_down`(로그인 없이 추천 가능, 스크립트 링크) → actions keepStyle
+- 버튼 `dl#btn_set`(이전 · 다음 · 목록 그림 버튼), 목록 `#btm_btnset dd.btn a:has(img[src*=btn_list])`
+- 첨부파일 다운로드 `#list_download` → 본문 아래 그대로(keepStyle) 또는 버림 — 1단계 버림(다운로드 전용 링크)
+- 버림: 파워링크 `#naver_adpost_wrap`(글 위·아래 두 곳), 단축 URL · 스크랩 칸
+- 글 아래 목록: 웃대 글 화면에는 원래 목록이 없다(다른 세 사이트와 다름) → `list` 없음. 원하면 2단계에서 엔진이 목록 주소를 불러와 그리는 방식(새 기능) 검토
+
+**댓글** (웃대는 댓글을 "답글"이라 부름)
+- 영역 `#wrap_cmt_new #cmt_wrap_box.cmt_area`(베스트 영역도 id 가 같은 `#cmt_wrap_box.comm_best_area` — id 가 둘이라 class 까지 적어야 함)
+- 행 `#wrap_cmt_new .cmt_area tr[id^=comment_span_]`(이 글 38개), 베스트 `#cmt_best_comm_table tr:has(.hu_nick_txt)`(3개, "답글 베스트1")
+- 대댓글: 한 단계뿐. 그 줄 첫 칸에 `img[src*=blt_cmt_re]` + 줄 바탕 `#f5f5f5` → replyMarker `:has(> td img[src*='blt_cmt_re'])`
+- 글쓴이 `.hu_nick_txt`, whoNode 둘째 칸(아이콘 + 닉네임), 시각 `.list_date`, 내용 `#list_best_box_text .comment_more`(길면 사이트가 접어 두고 "…전체보기" 버튼 — 통합 화면은 펼친 채로, 버튼은 exclude), 추천 수 `.list_ok`, 동작 `td.m_cmt_menu`(추천 · 반대 · 신고 · 답글, 모두 `javascript:` 링크라 위임 없음 → anchor 불필요)
+- 답글 칸: 댓글마다 숨은 칸 `table[id^=top_re_comm_]`(display:none) 이 이미 문서에 있고 [답글] 이 `comment_2d_write(번호)` 로 보이게 함 → replyWrite `table[id^=top_re_comm_]` (지금 엔진이 앞 댓글 아래로 옮김, 숨김 상태도 그대로 따라감)
+- 댓글 쓰기 `#wrap_cmt_new .cmt_area > form`(`#cmt_wrap_write`, 로그아웃이면 "로그인을 하셔야 작성이 가능합니다" + 로그인 그림 버튼)
+
+**공통**
+- 로고 `.humor_logo a`(그림), 계정 `#wrap_gnb #wrap_login`(로그인 · 회원가입 · 환경설정, 통합 모양 한 줄)
+- 왼쪽 메뉴: `#wrap_gnb .wrap_gnb dl` 9묶음(웃대 스페셜 · 유머/웹툰 · 창작/예술/친목 · 인공 지능 · 테마 게시판 …, 링크 57개) — 제목 `dt`, 링크 `dd a`, 지금 위치 `sameBoard: "[?&]table=([^&]+)"`(board). 대기 자료처럼 `dd.sub` 는 하위 칸(들여쓰기)
+- 오른쪽 칸: 게시판 위 베스트 `#bbs_best dl`(웃긴자료 오늘의 베스트 · 주간 베스트, 5개씩) → 링크 블록(제목 `dt a`, 링크 `dd .subj a`)
+- 검색: 머리 전체 검색은 버리고 게시판 검색만
+
+**엔진에 더할 것**: 없음(이미 있는 것으로 됨 — scope 여러 개, visitParams, replyMarker, replyWrite, keepStyle, 링크 블록). 확인할 것: replyWrite 가 처음부터 숨어 있는 칸 38개를 모두 옮기는지(지금은 찾은 칸을 다 옮김 → 숨은 채로 옮겨져 보이지 않다가 [답글] 누르면 그 자리에 보임, 문제 없을 것)
+
+**단계**
+- 1단계: 목록(사진·글 게시판, 베스트 탭) · 글 · 댓글(베스트 · 대댓글 · 추천/반대 · 답글 칸 · 쓰기 칸) · 왼쪽 메뉴 · 오른쪽 베스트 · 로그인 줄
+- 2단계: 첫 화면 hub(`#wrap_body_index` 의 베스트 · 웃대툰 · 카테고리 블록 keepStyle), 웃긴제목 같은 사진 격자 게시판, 글쓰기 화면, (원하면) 글 아래 목록
+
+**위험·확인할 것**
+- 옛 HTML 이라 사이트 CSS 가 표 폭(870px 등)을 고정한 곳이 많음 → keepStyle 블록은 fit 으로 칸에 맞춤
+- 닉네임을 누르면 뜨는 쪽지/글보기 층(`pong2(…)`, 닉네임 옆 `div#pon…` absolute)이 옮긴 곳에서 제자리에 뜨는지
+- 로그인 상태(답글 쓰기 · 추천 결과)는 사용자 확인 필요
