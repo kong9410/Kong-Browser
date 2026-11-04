@@ -96,6 +96,11 @@ export function clearHistory() {
   history = [];
   writeLater("history.json", history);
 }
+/** 이 시각 이후 방문만 지운다 (인터넷 사용 기록 삭제의 기간) */
+export function clearHistorySince(since: number) {
+  history = allHistory().filter((e) => e.at < since);
+  writeLater("history.json", history);
+}
 
 // ---------- 다운로드 내역 ----------
 // 목록 자체는 main.ts 가 들고 있고(진행 중 상태 포함), 여기서는 읽기·저장만

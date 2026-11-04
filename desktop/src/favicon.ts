@@ -11,6 +11,7 @@ export function iconFor(url: string, favicon: string | null | undefined): IconCh
     if (/\/history\.html$/i.test(url)) return { builtin: "history" };
     if (/\/bookmarks\.html$/i.test(url)) return { builtin: "bookmarks" };
     if (/\/downloads\.html$/i.test(url)) return { builtin: "downloads" };
+    if (/\/clear\.html$/i.test(url)) return { builtin: "history" };
     return { builtin: "page" };
   }
   if (favicon) return { src: favicon, fallback: "page" };

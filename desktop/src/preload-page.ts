@@ -4,11 +4,12 @@ import { contextBridge, ipcRenderer } from "electron";
 import { boot } from "../../transformer/src/index";
 import type { Recipe } from "../../transformer/src/recipe";
 import { askLeave, installLeaveGuard } from "./leave-dialog";
+import { showLinkStatus } from "./link-status";
 import { allowCopy, installScrollButtons } from "./page-tools";
 import { IPC, type InternalRequest, type PageConfig } from "./shared";
 
 // 앱 안쪽 페이지(시작 페이지, 방문 기록, 북마크 관리)에만: 방문 기록·북마크 조회/편집 (main 도 보낸 쪽 주소를 다시 확인한다)
-if (location.protocol === "file:" && /\/ui\/(start|history|bookmarks|downloads)\.html$/i.test(location.pathname)) {
+if (location.protocol === "file:" && /\/ui\/(start|history|bookmarks|downloads|clear)\.html$/i.test(location.pathname)) {
   contextBridge.exposeInMainWorld("kongInternal", {
     call: (req: InternalRequest) => ipcRenderer.invoke(IPC.internal, req),
   });
@@ -36,5 +37,7 @@ if (window.top === window) {
     addEventListener("mouseup", (e) => {
       if (e.button === 3 || e.button === 4) ipcRenderer.send(IPC.pageHistory, e.button === 3 ? "back" : "forward");
     });
+  // 링크에 마우스를 올리면 왼쪽 아래에 주소 (Chrome 의 상태 표시줄)
+  ipcRenderer.on(IPC.linkStatus, (_e, url: string) => showLinkStatus(url));
   ipcRenderer.on(IPC.leaveAsk, () => askLeave(() => ipcRenderer.invoke(IPC.leaveGo)));
 }

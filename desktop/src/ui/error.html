@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>페이지를 열 수 없음</title>
+    <link rel="stylesheet" href="pages.css" />
+    <style>
+      main.error {
+        width: min(560px, calc(100% - 40px));
+        padding-top: 14vh;
+      }
+      .badge {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f3f4f6;
+        color: #6b7280;
+        margin-bottom: 22px;
+      }
+      .badge.cert {
+        background: #fef2f2;
+        color: #d92d20;
+      }
+      .badge svg {
+        width: 28px;
+        height: 28px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      h1 {
+        font-size: 24px;
+        letter-spacing: -0.3px;
+      }
+      #detail {
+        margin: 10px 0 0;
+        color: #4b5563;
+      }
+      #url {
+        margin: 14px 0 0;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: #f6f6f8;
+        color: var(--muted);
+        font-size: 13px;
+        word-break: break-all;
+      }
+      #code {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .actions {
+        margin-top: 26px;
+        display: flex;
+        gap: 8px;
+      }
+      .primary {
+        padding: 9px 20px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 600;
+      }
+      .primary:hover {
+        background: #4338ca;
+      }
+      .actions .plain {
+        padding: 9px 18px;
+        border-radius: 10px;
+        font-size: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="error">
+      <div id="badge" class="badge"></div>
+      <h1 id="title">페이지를 열 수 없어요</h1>
+      <p id="detail"></p>
+      <p id="url"></p>
+      <div class="actions">
+        <button id="retry" class="primary" type="button">다시 시도</button>
+        <button id="back" class="plain" type="button" hidden>뒤로</button>
+      </div>
+      <div id="code"></div>
+    </main>
+    <script src="error.js"></script>
+  </body>
+</html>

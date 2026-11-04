@@ -31,6 +31,8 @@ export type ContextAction =
   | "back"
   | "forward"
   | "reload"
+  | "savePage"
+  | "print"
   | "inspect";
 
 export type ContextItem = { id: ContextAction; label: string; enabled?: boolean } | { separator: true };
@@ -88,6 +90,11 @@ export function contextItems(p: ContextInfo): ContextItem[] {
       { id: "forward", label: "앞으로", enabled: p.canGoForward },
       { id: "reload", label: "새로고침" },
       { id: "selectAll", label: "모두 선택" },
+    ]);
+  if (groups.length === 1 && groups[0][0] && "id" in groups[0][0] && groups[0][0].id === "back")
+    groups.push([
+      { id: "savePage", label: "다른 이름으로 저장… (Ctrl+S)" },
+      { id: "print", label: "인쇄… (Ctrl+P)" },
     ]);
   groups.push([{ id: "inspect", label: "검사 (F12)" }]);
   return groups.flatMap((g, i) => (i ? [SEP, ...g] : g));

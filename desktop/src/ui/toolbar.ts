@@ -4,6 +4,7 @@ import type { Bookmark, BookmarkData, BrowserState, Rect, TabInfo } from "../sha
 import { DOCK_SITES, dockSiteOf, faviconOf, openTarget } from "../dock";
 import { iconFor, type BuiltinIcon, type IconChoice } from "../favicon";
 import type { Suggestion } from "../suggest";
+import { failedUrlOf } from "../error-page";
 
 /** 앱이 가진 아이콘: 사이트 아이콘이 없거나 못 불러올 때, 그리고 앱 안쪽 페이지 */
 const BUILTIN: Record<BuiltinIcon, string> = {
@@ -149,7 +150,8 @@ ui.onFocusAddress(() => {
 });
 
 /** 시작 페이지(file://)는 주소창에 표시하지 않는다 */
-const displayUrl = (url: string) => (url.startsWith("file:") ? "" : url);
+/** 오류 화면이면 원래 열려던 주소를 보인다 */
+const displayUrl = (url: string) => failedUrlOf(url) ?? (url.startsWith("file:") ? "" : url);
 
 function setMode(text: string, cls: string) {
   mode.hidden = !text;

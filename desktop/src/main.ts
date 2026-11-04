@@ -3,11 +3,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeTheme, screen, session as electronSession, shell, WebContentsView, type DownloadItem, type Input, type WebContents } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, screen, session as electronSession, shell, WebContentsView, type DownloadItem, type Input, type WebContents } from "electron";
 import { dedupeKey, DEDUPE_MS, shouldReport, toReport } from "../../transformer/src/report";
 import type { Status } from "../../transformer/src/recipe";
 import * as bm from "./bookmarks.js";
 import { contextItems, type ContextAction } from "./context-menu.js";
+import { errorPageUrl, failedUrlOf, showsErrorPage } from "./error-page.js";
 import { isFresh } from "./leave-dialog.js";
 import { DOWNLOADS_MAX, isActive, overall, restoreDownloads, searchDownloads, statusText, uniqueName, type DownloadInfo } from "./downloads.js";
 import { IPC, type BrowserState, type InternalRequest, type OverlayIn, type OverlayOut, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
@@ -29,6 +30,8 @@ const START_URL = fileUrl("ui", "start.html");
 const HISTORY_URL = fileUrl("ui", "history.html");
 const BOOKMARKS_URL = fileUrl("ui", "bookmarks.html");
 const DOWNLOADS_URL = fileUrl("ui", "downloads.html");
+const ERROR_URL = fileUrl("ui", "error.html");
+const CLEAR_URL = fileUrl("ui", "clear.html");
 /** 앱 안쪽 페이지(시작 페이지, 방문 기록, 북마크 관리)의 주소 앞부분: 이 페이지들만 기록·북마크 API 를 쓸 수 있다 */
 const INTERNAL_PREFIX = decodeURIComponent(fileUrl("ui") + "/").toLowerCase();
 const isInternal = (url: string) => decodeURIComponent(url).toLowerCase().startsWith(INTERNAL_PREFIX);
@@ -521,6 +524,14 @@ function createTab(
     dropAsks(tab);
     tab.state.url = u;
     applySiteZoom(tab);
+    // 오류 화면을 띄웠으면 바로 앞의 실패한 기록은 지운다 (뒤로 가기가 다시 실패로 가지 않게)
+    const failed = pendingErrorEntry.get(wc);
+    if (failed && failedUrlOf(u)) {
+      pendingErrorEntry.delete(wc);
+      const nav = wc.navigationHistory;
+      const prev = nav.getActiveIndex() - 1;
+      if (prev >= 0 && nav.getEntryAtIndex(prev)?.url === failed) nav.removeEntryAtIndex(prev);
+    }
     update(tab, { url: u });
   });
   // 찾기 결과 (몇 번째 / 모두 몇 개)
@@ -550,6 +561,21 @@ function createTab(
   });
   // 소리 나는 탭 표시
   wc.on("audio-state-changed", () => pushUI(tab.w));
+  // 링크에 마우스를 올리면 왼쪽 아래에 주소 (페이지 preload 가 그린다)
+  wc.on("update-target-url", (_e, target) => wc.send(IPC.linkStatus, target));
+  // 페이지를 열지 못함 (주소 없음·인터넷 끊김·인증서 오류 등): Electron 은 빈 화면이므로 오류 화면을 띄운다
+  wc.on("did-fail-load", (_e, code, _desc, failed, isMainFrame) => {
+    if (!isMainFrame || !showsErrorPage(code) || !/^https?:/i.test(failed)) return;
+    pendingErrorEntry.set(wc, failed);
+    wc.loadURL(errorPageUrl(ERROR_URL, failed, code));
+  });
+  // 페이지가 멈춤·메모리 부족 등으로 꺼짐
+  wc.on("render-process-gone", (_e, d) => {
+    if (d.reason === "clean-exit" || wc.isDestroyed()) return;
+    const u = failedUrlOf(tab.state.url) ?? tab.state.url;
+    if (/^https?:/i.test(u)) wc.loadURL(errorPageUrl(ERROR_URL, u, 0, "crash"));
+    else wc.reload();
+  });
   wc.on("did-navigate-in-page", (_e, u, isMainFrame) => isMainFrame && update(tab, { url: u }));
   wc.on("page-title-updated", (_e, title) => {
     if (/^https?:/.test(tab.state.url)) store.setVisitTitle(tab.state.url, title);
@@ -617,6 +643,88 @@ function trackIntents(tab: Tab) {
   };
   for (const name of ["loadURL", "reload"]) wrap(wc, name);
   for (const name of ["goBack", "goForward", "goToIndex", "goToOffset"]) wrap(wc.navigationHistory, name);
+}
+
+/** 오류 화면을 띄우는 중인 탭: 실패한 주소 (오류 화면이 뜨면 그 앞의 실패 기록을 지운다) */
+const pendingErrorEntry = new WeakMap<WebContents, string>();
+
+/** 새로고침: 오류 화면이면 원래 열려던 주소를 다시 (오류 화면 기록은 그 주소로 바뀜) */
+function reloadPage(wc: WebContents) {
+  const failed = failedUrlOf(wc.getURL());
+  if (failed) void wc.executeJavaScript(`location.replace(${JSON.stringify(failed)})`).catch(() => wc.loadURL(failed));
+  else wc.reload();
+}
+
+/** 인쇄 (Ctrl+P): 운영체제 인쇄 창 */
+function printPage(wc: WebContents) {
+  wc.print({}, () => {});
+}
+
+/** 다른 이름으로 저장 (Ctrl+S): 웹페이지 전체(.html + 폴더) 또는 단일 파일(.mhtml). 다운로드 내역에도 남긴다 */
+async function savePageAs(w: Win, tab: Tab) {
+  const wc = tab.view.webContents;
+  const dir = app.getPath("downloads");
+  const name = uniqueName(`${(tab.state.title || hostOf(tab.state.url) || "page").slice(0, 100)}.html`, (n) => fs.existsSync(path.join(dir, n)));
+  const r = await dialog.showSaveDialog(w.win, {
+    title: "다른 이름으로 저장",
+    defaultPath: path.join(dir, name),
+    filters: [
+      { name: "웹페이지, 전체", extensions: ["html", "htm"] },
+      { name: "웹페이지, 단일 파일", extensions: ["mhtml"] },
+    ],
+  });
+  if (r.canceled || !r.filePath || wc.isDestroyed()) return;
+  const file = r.filePath;
+  try {
+    await wc.savePage(file, /\.mhtml?$/i.test(file) ? "MHTML" : "HTMLComplete");
+  } catch {
+    return void dialog.showMessageBox(w.win, {
+      type: "error",
+      title: "저장하지 못했어요",
+      message: "페이지를 저장하지 못했어요.",
+      detail: file,
+    });
+  }
+  const size = fs.existsSync(file) ? fs.statSync(file).size : 0;
+  downloads.unshift({
+    id: downloadSeq++,
+    name: path.basename(file),
+    path: file,
+    url: tab.state.url,
+    received: size,
+    total: size,
+    state: "completed",
+    startedAt: Date.now(),
+  });
+  saveDownloads();
+  pushAll();
+}
+
+/** 인터넷 사용 기록 삭제 (삭제 페이지에서) */
+async function clearData(since: number, what: import("./shared.js").ClearWhat) {
+  if (what.history) {
+    if (since > 0) store.clearHistorySince(since);
+    else store.clearHistory();
+  }
+  if (what.downloads) {
+    downloads = downloads.filter((d) => isActive(d) || d.startedAt < since);
+    saveDownloads();
+  }
+  const ses = electronSession.defaultSession;
+  if (what.cookies) await ses.clearStorageData();
+  if (what.cache) await ses.clearCache();
+  if (what.siteSettings) {
+    permissions = {};
+    store.savePermissions(permissions);
+    zooms = {};
+    store.saveZoom(zooms);
+    for (const t of allTabs())
+      if (!t.view.webContents.isDestroyed()) {
+        t.view.webContents.setZoomFactor(1);
+        t.state.zoom = 1;
+      }
+  }
+  pushAll();
 }
 
 /** 나가기 확인을 기다리는 페이지: 나가기를 고르면 다시 할 이동 (모르면 null — 페이지가 방금 누른 링크로 간다) */
@@ -766,6 +874,7 @@ function openInternal(w: Win | null, page: string) {
 }
 const openBookmarks = (w = focusedWin()) => openInternal(w, BOOKMARKS_URL);
 const openDownloads = (w = focusedWin()) => openInternal(w, DOWNLOADS_URL);
+const openClearData = (w = focusedWin()) => openInternal(w, CLEAR_URL);
 
 // ---------- 주소창 자동완성 목록 (페이지 위에 겹쳐 뜨는 작은 창) ----------
 // 페이지(WebContentsView)는 툴바 화면보다 위에 그려지므로, 목록은 별도의 view 로 페이지 위에 띄운다.
@@ -840,7 +949,9 @@ function showContextMenu(w: Win, tab: Tab | null, p: Electron.ContextMenuParams)
     search: () => createTab(w, SEARCH_URL + encodeURIComponent(p.selectionText.trim()), { after: tab ?? active }),
     back: () => nav.goBack(),
     forward: () => nav.goForward(),
-    reload: () => wc.reload(),
+    reload: () => reloadPage(wc),
+    savePage: () => tab && void savePageAs(w, tab),
+    print: () => printPage(wc),
     inspect: () => wc.inspectElement(p.x, p.y),
   };
   const items = contextItems({ ...p, canGoBack: nav.canGoBack(), canGoForward: nav.canGoForward(), toolbar: !tab });
@@ -861,6 +972,8 @@ function handleShortcut(w: Win, input: Input): boolean {
   const wc = active.view.webContents;
   const nav = wc.navigationHistory;
   const step = (d: number) => activate(tabs[(tabs.indexOf(active!) + d + tabs.length) % tabs.length]);
+  // Esc: 불러오는 중이면 멈춘다 (키는 페이지에도 그대로 전달)
+  if (input.key === "Escape" && !w.findOpen && !w.immersive && active.state.loading) wc.stop();
   if (input.key === "F11") toggleF11(w);
   else if (w.immersive) return false; // 전체 화면 동영상·F11 중에는 다른 단축키를 페이지에 그대로
   else if ((ctrl && key === "l") || input.key === "F6") win.webContents.send(IPC.focusAddress);
@@ -870,6 +983,9 @@ function handleShortcut(w: Win, input: Input): boolean {
   else if (ctrl && (key === "-" || input.code === "NumpadSubtract")) setZoom(active, stepZoom(wc.getZoomFactor(), -1));
   else if (ctrl && (key === "0" || input.code === "Numpad0")) setZoom(active, 1);
   else if (ctrl && input.shift && key === "t") reopenClosed(w);
+  else if (ctrl && input.shift && (input.key === "Delete" || input.key === "Backspace")) openClearData(w);
+  else if (ctrl && key === "p") printPage(wc);
+  else if (ctrl && key === "s") void savePageAs(w, active);
   else if (ctrl && input.shift && key === "b") toggleSetting("bookmarkBar");
   else if (ctrl && key === "d") toggleBookmark(w);
   else if (ctrl && key === "h") openHistory(w);
@@ -887,7 +1003,7 @@ function handleShortcut(w: Win, input: Input): boolean {
     if (target) activate(target);
   } else if (input.alt && input.key === "ArrowLeft") nav.canGoBack() && nav.goBack();
   else if (input.alt && input.key === "ArrowRight") nav.canGoForward() && nav.goForward();
-  else if (input.key === "F5" || (ctrl && key === "r")) wc.reload();
+  else if (input.key === "F5" || (ctrl && key === "r")) reloadPage(wc);
   else if (input.key === "F12") wc.toggleDevTools();
   else return false;
   return true;
@@ -1066,7 +1182,10 @@ onUI(IPC.ready, (w) => pushUI(w));
 onUI(IPC.navigate, (w, text: string) => current(w)?.loadURL(toUrl(text)));
 onUI(IPC.back, (w) => current(w)?.navigationHistory.goBack());
 onUI(IPC.forward, (w) => current(w)?.navigationHistory.goForward());
-onUI(IPC.reload, (w) => current(w)?.reload());
+onUI(IPC.reload, (w) => {
+  const wc = current(w);
+  if (wc) reloadPage(wc);
+});
 onUI(IPC.stop, (w) => current(w)?.stop());
 onUI(IPC.toggleOriginal, (w) => {
   if (!w.active) return;
@@ -1114,7 +1233,7 @@ onUI(IPC.tabMenu, (w, id: number) => {
       w.win.webContents.focus();
       w.win.webContents.send(IPC.focusAddress);
     },
-    reload: () => wc.reload(),
+    reload: () => reloadPage(wc),
     duplicate: () => createTab(w, tab.state.url, { after: tab, pinned: tab.pinned, restore: { entries: wc.navigationHistory.getAllEntries(), index: wc.navigationHistory.getActiveIndex() } }),
     pin: () => togglePin(tab),
     mute: () => toggleMute(tab),
@@ -1263,6 +1382,8 @@ ipcMain.handle(IPC.internal, (e, req: InternalRequest) => {
       return clearDownloads();
     case "openDownloadsFolder":
       return void shell.openPath(app.getPath("downloads"));
+    case "clearData":
+      return clearData(Math.max(0, Number(req.since) || 0), req.what);
   }
 });
 

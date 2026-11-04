@@ -59,6 +59,8 @@ export const IPC = {
   zoomReset: "ui:zoom-reset",
   /** 페이지 preload → main: 마우스 옆 버튼 뒤로/앞으로 (Windows 는 app-command 로 받음) */
   pageHistory: "kong:page-history",
+  /** main → 페이지 preload: 링크에 마우스를 올렸을 때 왼쪽 아래에 보일 주소 ("" 이면 숨김) */
+  linkStatus: "kong:link-status",
   /** main ↔ 페이지 위에 겹쳐 뜨는 작은 창(찾기 막대·권한 묻기) */
   overlayIn: "overlay:in",
   overlayOut: "overlay:out",
@@ -120,7 +122,19 @@ export type InternalRequest =
   | { op: "downloads"; query?: string }
   | { op: "downloadAction"; id: number; action: DownloadAction }
   | { op: "clearDownloads" }
-  | { op: "openDownloadsFolder" };
+  | { op: "openDownloadsFolder" }
+  | { op: "clearData"; since: number; what: ClearWhat };
+
+/** 인터넷 사용 기록 삭제에서 고른 것 */
+export interface ClearWhat {
+  history: boolean;
+  downloads: boolean;
+  /** 쿠키·사이트 저장 데이터 (로그아웃됨) */
+  cookies: boolean;
+  cache: boolean;
+  /** 사이트별 권한·확대/축소 */
+  siteSettings: boolean;
+}
 
 /** 다운로드 내역 페이지의 버튼 */
 export type DownloadAction = "open" | "show" | "remove" | "retry" | "cancel" | "pause" | "resume";

@@ -55,7 +55,7 @@ describe("오른쪽 클릭 메뉴", () => {
   });
 
   it("빈 곳: 뒤로·앞으로·새로고침", () => {
-    expect(ids({})).toEqual(["back", "forward", "reload", "selectAll", "-", "inspect"]);
+    expect(ids({})).toEqual(["back", "forward", "reload", "selectAll", "-", "savePage", "print", "-", "inspect"]);
     expect(contextItems(at({}))[1]).toMatchObject({ id: "forward", enabled: false });
   });
 

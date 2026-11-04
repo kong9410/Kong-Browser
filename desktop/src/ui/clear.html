@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>인터넷 사용 기록 삭제</title>
+    <link rel="stylesheet" href="pages.css" />
+    <style>
+      main {
+        width: min(560px, calc(100% - 32px));
+      }
+      .lead {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .range {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 26px 0 12px;
+        font-size: 14px;
+      }
+      .range select {
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        font: inherit;
+      }
+      .opt {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 12px 14px;
+        border-top: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .opt:first-child {
+        border-top: 0;
+      }
+      .opt input {
+        margin-top: 4px;
+        width: 16px;
+        height: 16px;
+        accent-color: var(--accent);
+        flex: none;
+      }
+      .opt b {
+        display: block;
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--fg);
+      }
+      .opt > span > span {
+        display: block;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+        margin-top: 20px;
+      }
+      #done {
+        color: #15803d;
+        font-size: 13px;
+      }
+      #go {
+        padding: 9px 20px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 600;
+      }
+      #go:hover {
+        background: #4338ca;
+      }
+      #go:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>인터넷 사용 기록 삭제</h1>
+      <p class="lead">이 PC 의 Kong Browser 에 남은 기록을 지워요.</p>
+      <div class="range">
+        <label for="since">기간</label>
+        <select id="since">
+          <option value="3600000">지난 1시간</option>
+          <option value="86400000">지난 24시간</option>
+          <option value="604800000">지난 7일</option>
+          <option value="2419200000">지난 4주</option>
+          <option value="0" selected>전체 기간</option>
+        </select>
+      </div>
+      <div class="card">
+        <label class="opt"><input type="checkbox" id="history" checked /><span><b>방문 기록</b><span id="history-n">방문한 페이지 목록, 주소창 자동완성, 목록의 읽은 글 표시</span></span></label>
+        <label class="opt"><input type="checkbox" id="downloads" /><span><b>다운로드 기록</b><span>다운로드 내역 목록 (받은 파일은 지우지 않아요)</span></span></label>
+        <label class="opt"><input type="checkbox" id="cookies" /><span><b>쿠키 및 사이트 데이터</b><span>대부분의 사이트에서 로그아웃돼요. 기간과 관계없이 전체를 지워요.</span></span></label>
+        <label class="opt"><input type="checkbox" id="cache" checked /><span><b>캐시된 이미지와 파일</b><span>사이트가 다음에 조금 느리게 열릴 수 있어요. 기간과 관계없이 전체를 지워요.</span></span></label>
+        <label class="opt"><input type="checkbox" id="siteSettings" /><span><b>사이트 설정</b><span>사이트별로 허용·차단한 권한(알림·위치 등)과 확대/축소</span></span></label>
+      </div>
+      <div class="actions">
+        <span id="done" hidden>삭제했어요.</span>
+        <button id="go" type="button">삭제</button>
+      </div>
+    </main>
+    <script src="clear.js"></script>
+  </body>
+</html>
