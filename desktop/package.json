@@ -1,7 +1,7 @@
 {
   "name": "kong-browser",
   "productName": "Kong Browser",
-  "version": "0.0.0-beta",
+  "version": "0.0.1-beta",
   "private": true,
   "description": "커뮤니티 화면을 통일해서 보여주는 브라우저",
   "main": "dist/main.js",
