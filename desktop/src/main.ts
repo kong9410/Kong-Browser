@@ -1059,19 +1059,21 @@ function showContextMenu(w: Win, tab: Tab | null, p: Electron.ContextMenuParams)
   const nav = wc.navigationHistory;
   const run: Record<ContextAction, () => void> = {
     openLinkTab: () => createTab(w, p.linkURL, { activate: false, after: tab ?? active }),
-    copyLink: () => clipboard.writeText(p.linkURL),
+    copyLink: () => void clipboard.writeText(p.linkURL),
     openImageTab: () => createTab(w, p.srcURL, { after: tab ?? active }),
     saveImage: () => wc.downloadURL(p.srcURL), // 다운로드 폴더에 저장 (다운로드 내역에도 남음)
     copyImage: () => wc.copyImageAt(p.x, p.y),
-    copyImageUrl: () => clipboard.writeText(p.srcURL),
+    copyImageUrl: () => void clipboard.writeText(p.srcURL),
     cut: () => wc.cut(),
     copy: () => wc.copy(),
     paste: () => wc.paste(),
     // 클립보드의 주소(또는 검색어)로 바로 이동
-    pasteAndGo: () => {
-      const text = clipboard.readText().trim();
-      if (text) current(w)?.loadURL(inputUrl(text));
-    },
+    // Electron 45 부터 clipboard 는 Promise 를 돌려준다
+    pasteAndGo: () =>
+      void clipboard.readText().then((t) => {
+        const text = t.trim();
+        if (text) current(w)?.loadURL(inputUrl(text));
+      }),
     selectAll: () => wc.selectAll(),
     search: () => createTab(w, searchUrl(loadSettings().searchEngine, p.selectionText.trim()), { after: tab ?? active }),
     back: () => nav.goBack(),
