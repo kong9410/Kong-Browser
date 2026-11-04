@@ -383,6 +383,29 @@ html.kong-on #kong-root .k-hidden {
   font-size: 12px;
   font-weight: 700;
 }
+/* 썸네일이 있는 행 (디시 실시간 베스트 등): 왼쪽 작은 그림 + 오른쪽 제목·정보 */
+#kong-root a.k-row.k-has-thumb {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+#kong-root a.k-row .k-thumb {
+  flex: none;
+  width: 84px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f1f1f4;
+  border: 1px solid var(--k-line);
+  box-sizing: border-box;
+}
+#kong-root a.k-row .k-row-body {
+  flex: 1;
+  min-width: 0;
+}
+#kong-root a.k-row.k-visited .k-thumb {
+  opacity: 0.7;
+}
 #kong-root .k-row .k-meta {
   margin-top: 2px;
   font-size: 12px;

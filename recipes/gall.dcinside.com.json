@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 19,
+  "version": 20,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
@@ -283,6 +283,11 @@
         },
         "image": "[data-type=icon_pic], [data-type=icon_recomimg]",
         "video": "[data-type=icon_movie], [data-type=icon_recomovie]",
+        "thumbnail": {
+          "sel": [
+            ".gall_tit .thumimg img"
+          ]
+        },
         "visitParams": [
           "id",
           "no"

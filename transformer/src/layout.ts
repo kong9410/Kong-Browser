@@ -327,10 +327,23 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
       if (r.video) t.appendChild(mediaIcon("video"));
       const n = r.commentCount?.replace(/[^0-9]/g, "");
       if (n && n !== "0") t.appendChild(h("span", "k-ccount", n));
-      a.appendChild(t);
-      a.appendChild(
-        meta([r.author, r.createdAt, r.views && `조회 ${r.views}`, r.likes && r.likes !== "0" && `추천 ${r.likes}`]),
-      );
+      const info = meta([r.author, r.createdAt, r.views && `조회 ${r.views}`, r.likes && r.likes !== "0" && `추천 ${r.likes}`]);
+      if (r.thumbnail) {
+        // 썸네일: 행 왼쪽에 작은 그림, 제목·정보는 오른쪽 (못 불러오면 그림 자리를 없앤다)
+        a.classList.add("k-has-thumb");
+        const img = h("img", "k-thumb") as HTMLImageElement;
+        img.alt = "";
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.src = r.thumbnail;
+        img.addEventListener("error", () => {
+          img.remove();
+          a.classList.remove("k-has-thumb");
+        });
+        const body = h("div", "k-row-body");
+        body.append(t, info);
+        a.append(img, body);
+      } else a.append(t, info);
       list.appendChild(a);
     },
   };

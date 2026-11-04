@@ -206,6 +206,29 @@ describe("목록의 이미지·동영상 표시", () => {
     expect(rows.map((t) => [...t.querySelectorAll(".k-media")].map((m) => (m as HTMLElement).title))).toEqual([[], ["이미지"], ["이미지"], ["동영상"]]);
     expect(rows[1].textContent).toBe("그림");
   });
+
+  it("썸네일이 있는 행은 왼쪽에 작은 그림 (디시 실시간 베스트), 없는 행은 그대로", () => {
+    page(
+      "https://example.test/board/1",
+      `<table class="list">
+        <tr class="row"><td><a href="/board/1/read/1"><div class="thumimg"><img src="//cdn.test/t1.jpg" alt="썸네일"></div>[갤] 썸네일 글</a></td></tr>
+        <tr class="row"><td><a href="/board/1/read/2">그림 없는 글</a></td></tr>
+        <tr class="row"><td><a href="/board/1/read/3"><div class="thumimg"><img src="javascript:alert(1)"></div>이상한 주소</a></td></tr>
+      </table>`,
+    );
+    const thumbRecipe: Recipe = {
+      ...recipe,
+      pages: recipe.pages.map((p) => (p.type === "board" ? { ...p, rows: { ...p.rows, thumbnail: { sel: [".thumimg img"] } } } : p)),
+    };
+    const l = locate(document, pickPage(thumbRecipe, document).page!) as LocatedBoard;
+    expect(l.rows.map((r) => r.thumbnail)).toEqual(["https://cdn.test/t1.jpg", null, null]);
+    expect(l.rows[0].title).toBe("[갤] 썸네일 글");
+    const root = buildBoard(l, thumbRecipe).root;
+    const rows = [...root.querySelectorAll("a.k-row")];
+    expect(rows.map((r) => r.classList.contains("k-has-thumb"))).toEqual([true, false, false]);
+    expect((rows[0].querySelector("img.k-thumb") as HTMLImageElement).getAttribute("src")).toBe("https://cdn.test/t1.jpg");
+    expect(rows[0].querySelector(".k-row-body .k-row-title")?.textContent).toBe("[갤] 썸네일 글");
+  });
 });
 
 describe("읽은 글 표시 (앱의 방문 기록)", () => {

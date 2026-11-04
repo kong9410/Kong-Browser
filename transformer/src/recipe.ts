@@ -145,6 +145,8 @@ export interface RowSpec {
   image?: string;
   /** item 자신 또는 내부에서 매칭되면 동영상이 있는 글 */
   video?: string;
+  /** 글 썸네일 이미지 (기본 attr=src). 있으면 목록 행 왼쪽에 작은 그림으로. 예) 디시 실시간 베스트 */
+  thumbnail?: Field;
   /** 읽은 글 표시용: 글을 가리키는 쿼리 이름 (예: 디시 ["id", "no"]). 없으면 주소 경로만으로 같은 글인지 본다 */
   visitParams?: string[];
   /**
