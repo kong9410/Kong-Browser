@@ -428,11 +428,18 @@ html.kong-on #kong-root .k-hidden {
   grid-area: top;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   min-height: 34px;
   padding: 0 4px;
 }
 #kong-root > .k-top .k-site {
   font-size: 15px;
+}
+/* 사이트 계정 영역 (로그인 등): 로고 맞은편 오른쪽 끝 */
+#kong-root > .k-top > .k-account {
+  flex: none;
+  max-width: 70%;
 }
 #kong-root > :is(.k-nav, .k-nav-open) {
   grid-area: nav;

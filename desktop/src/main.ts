@@ -8,6 +8,7 @@ import { dedupeKey, DEDUPE_MS, shouldReport, toReport } from "../../transformer/
 import type { Status } from "../../transformer/src/recipe";
 import * as bm from "./bookmarks.js";
 import { contextItems, type ContextAction } from "./context-menu.js";
+import { isFresh } from "./leave-dialog.js";
 import { DOWNLOADS_MAX, isActive, overall, restoreDownloads, searchDownloads, statusText, uniqueName, type DownloadInfo } from "./downloads.js";
 import { IPC, type BrowserState, type InternalRequest, type PageConfig, type Rect, type TabInfo, type TabState } from "./shared.js";
 import { isPopup, popupSize } from "./popup.js";
@@ -104,6 +105,8 @@ interface Tab {
   favicon: string | null;
   /** 지금 페이지를 원본으로 불러왔는지 (불러올 때의 토글 값). 아직 안 불러왔으면 null */
   loadedOriginal: boolean | null;
+  /** 앱이 마지막으로 시킨 이동 (주소창·뒤로·새로고침 등): 사이트가 막았다가 '나가기' 를 고르면 다시 한다 */
+  intent?: { at: number; run: () => void };
 }
 
 let wins: Win[] = [];
@@ -229,7 +232,14 @@ function createTab(w: Win, url: string, opts: { activate?: boolean; after?: Tab 
     createTab(tab.w, target, { activate: disposition !== "background-tab", after: tab });
     return { action: "deny" };
   });
-  wc.on("did-create-window", (child) => child.removeMenu());
+  wc.on("did-create-window", (child) => {
+    child.removeMenu();
+    child.webContents.on("will-prevent-unload", () => askLeave(child.webContents));
+  });
+  // 글쓰기 화면처럼 '나가시겠어요?'(beforeunload) 를 거는 페이지: Electron 은 확인 창 없이 이동을 그냥 막으므로
+  // 일단 막힌 채로 두고 페이지 안에 확인 창을 띄운다. 나가기를 고르면 leaveGo 로 막혔던 이동을 다시
+  trackIntents(tab);
+  wc.on("will-prevent-unload", () => askLeave(wc, tab));
   wc.on("did-start-navigation", (details) => {
     if (details.isMainFrame && !details.isSameDocument) update(tab, { verdict: null, failed: [] });
   });
@@ -284,6 +294,38 @@ function detachFrom(tab: Tab): boolean {
   }
   return w.tabs.length > 0;
 }
+
+/** 앱이 시키는 이동(주소 열기·뒤로·앞으로·새로고침)을 기억: 사이트가 막으면 '나가기' 뒤에 그대로 다시 한다 */
+function trackIntents(tab: Tab) {
+  const wc = tab.view.webContents;
+  const wrap = (obj: object, name: string) => {
+    const o = obj as Record<string, (...a: unknown[]) => unknown>;
+    const orig = o[name].bind(obj);
+    o[name] = (...args: unknown[]) => {
+      tab.intent = { at: Date.now(), run: () => void Promise.resolve(orig(...args)).catch(() => {}) };
+      return orig(...args);
+    };
+  };
+  for (const name of ["loadURL", "reload"]) wrap(wc, name);
+  for (const name of ["goBack", "goForward", "goToIndex", "goToOffset"]) wrap(wc.navigationHistory, name);
+}
+
+/** 나가기 확인을 기다리는 페이지: 나가기를 고르면 다시 할 이동 (모르면 null — 페이지가 방금 누른 링크로 간다) */
+const pendingLeave = new WeakMap<WebContents, (() => void) | null>();
+
+function askLeave(wc: WebContents, tab?: Tab) {
+  const intent = tab?.intent;
+  pendingLeave.set(wc, intent && isFresh(intent.at, Date.now()) ? intent.run : null);
+  wc.send(IPC.leaveAsk);
+}
+
+ipcMain.handle(IPC.leaveGo, (e) => {
+  const run = pendingLeave.get(e.sender);
+  pendingLeave.delete(e.sender);
+  if (!run) return false;
+  run();
+  return true;
+});
 
 function closeTab(tab: Tab) {
   const w = tab.w;

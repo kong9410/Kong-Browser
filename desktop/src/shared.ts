@@ -7,6 +7,10 @@ export const IPC = {
   pageStatus: "kong:page-status",
   /** 페이지 preload → main: 통일 화면의 왼쪽 메뉴를 접거나 펼침 (다음 페이지에서도 같은 상태로) */
   pageNav: "kong:page-nav",
+  /** main → 페이지 preload: 사이트가 떠나기를 막음(beforeunload) → 나가기 확인 창을 띄움 */
+  leaveAsk: "kong:leave-ask",
+  /** 페이지 preload → main (invoke): 나가기를 골랐으니 막혔던 이동을 다시 (해 줬으면 true) */
+  leaveGo: "kong:leave-go",
   /** 툴바 → main */
   navigate: "ui:navigate",
   back: "ui:back",

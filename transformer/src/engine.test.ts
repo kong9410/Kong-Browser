@@ -413,7 +413,7 @@ describe("fit: 사이트의 고정 폭 한 줄을 칸에 맞춤", () => {
     expect(css).toContain(":is(#kong-root .img_comment .addbox){display:flex!important");
     expect(css).toContain(":is(#kong-root .img_comment .addbox)>*{float:none!important;flex:none}");
     expect(css).toContain(":is(#kong-root .img_comment .cmt_txtbox){float:none!important;width:auto!important;flex:1 1 0!important");
-    expect(fitCss({ full: [".w textarea"] })).toBe(":is(#kong-root .w textarea){width:100%!important;max-width:100%!important;box-sizing:border-box!important}");
+    expect(fitCss({ full: [".w textarea"] })).toBe(":is(#kong-root .w textarea){width:100%!important;max-width:100%!important;min-width:0!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important}");
     expect(fitCss(undefined)).toBe("");
   });
   it("디시 레시피: 이미지 댓글 한 줄(닉네임 + 글 + 날짜)", async () => {
@@ -586,5 +586,17 @@ describe("원본 숨기기", () => {
     // 숨기는 규칙이 바로 이것 (style.css)
     const fs = await import("node:fs");
     expect(fs.readFileSync("src/style.css", "utf8")).toContain("html.kong-on body > .k-orig,");
+  });
+});
+
+describe("사이트 계정 영역 (로그인 등)", () => {
+  it("레시피 account 를 맨 위 줄 오른쪽(로고 맞은편)에, keepStyle 이면 사이트 모양 그대로", () => {
+    const rows = [1, 2, 3].map((i) => `<tr class="row"><td><a href="/board/1/read/${i}">글${i}</a></td></tr>`).join("");
+    page("https://example.test/board/1", `<header><div id="hd"><a href="/"><img src="/l.png"></a></div><div class="links"><a href="/login">로그인</a></div></header><table class="list">${rows}</table>`);
+    const r: Recipe = { ...recipe, logo: { sel: ["#hd a"] }, account: { sel: ["header .links"], keepStyle: true } };
+    const root = buildBoard(locate(document, pickPage(r, document).page!) as LocatedBoard, r).root;
+    const top = root.querySelector(".k-top")!;
+    expect([...top.children].map((e) => e.className)).toEqual(["k-site k-logo", "k-account k-keep"]);
+    expect(top.querySelector(".k-account a[href='/login']")?.textContent).toBe("로그인");
   });
 });

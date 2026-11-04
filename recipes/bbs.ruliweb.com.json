@@ -1,13 +1,19 @@
 {
   "schemaVersion": 2,
   "host": "bbs.ruliweb.com",
-  "version": 10,
+  "version": 13,
   "minEngine": 1,
   "siteName": "루리웹",
   "logo": {
     "sel": [
       "#header .logo > a"
     ]
+  },
+  "account": {
+    "sel": [
+      "#header .logo .mini"
+    ],
+    "keepStyle": true
   },
   "menu": [
     {
@@ -56,6 +62,14 @@
     }
   ],
   "side": [
+    {
+      "move": {
+        "sel": [
+          ".main_aside .login_wrapper"
+        ],
+        "keepStyle": true
+      }
+    },
     {
       "links": {
         "groups": [
@@ -176,6 +190,20 @@
             ".comment_count_wrapper .paging_wrapper"
           ]
         }
+      },
+      "write": {
+        "sel": [
+          ".board_main_bottom .btn_wrapper a.btn_write"
+        ]
+      },
+      "commentWrite": {
+        "sel": [
+          "#comment_input",
+          "#cmt .comment_write:not(.reply_write)",
+          "#cmt > .common_write:not(.reply_write)",
+          "#cmt .comment_disable"
+        ],
+        "keepStyle": true
       }
     },
     {
@@ -255,6 +283,12 @@
       "search": {
         "sel": [
           ".board_bottom .search_wrapper"
+        ]
+      },
+      "write": {
+        "sel": [
+          ".board_bottom a.btn_write",
+          ".board_top a.btn_write"
         ]
       }
     },
@@ -414,6 +448,32 @@
       "search": {
         "sel": [
           ".board_bottom .search_wrapper"
+        ]
+      }
+    },
+    {
+      "id": "write",
+      "type": "hub",
+      "match": "^/[a-z]+(/[0-9]+)?/board/[0-9]+/write",
+      "probe": [
+        "#board_write, #error"
+      ],
+      "title": {
+        "sel": [
+          "head > title"
+        ],
+        "pattern": "^(.+?)\\s*\\|"
+      },
+      "blocks": {
+        "sel": [
+          "#board_write, #error"
+        ],
+        "keepStyle": true
+      },
+      "fit": {
+        "full": [
+          "#error",
+          "#error .desc"
         ]
       }
     },

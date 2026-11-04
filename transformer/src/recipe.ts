@@ -116,7 +116,7 @@ export interface FitSpec {
   row?: string[];
   /** 고정 폭과 float 를 풀어 남은 폭을 채운다 (row 안의 한 칸, 또는 옆의 float 요소 옆) */
   fill?: string[];
-  /** 고정 폭 대신 부모 폭에 맞춘다 (width 100%). 예) 디시 댓글 쓰기의 984px 글상자 */
+  /** 고정 폭 대신 부모 폭에 맞춘다 (width 100%, 최소 폭·좌우 여백 해제). 예) 디시 댓글 쓰기의 984px 글상자, 루리웹 안내 화면 */
   full?: string[];
   /** 좌우 안쪽 여백을 좁게 (16px). 사이트가 넓은 화면 기준으로 준 큰 여백. 예) 디시 글쓰기 칸 좌우 68px */
   tight?: string[];
@@ -247,6 +247,11 @@ export interface Recipe {
   siteName: string;
   /** 사이트 맨 위의 로고 링크 (누르면 사이트 홈). 통합 화면 머리에 로고로 다시 그린다 */
   logo?: Field;
+  /**
+   * move. 사이트의 계정 영역(로그인 버튼 등). 맨 위 줄 오른쪽에, 로고 맞은편 (keepStyle 이면 사이트 모양 그대로).
+   * 예) 디시 머리 오른쪽 위 링크 줄 (마이너갤 · … · 로그인 · 야간모드)
+   */
+  account?: Field;
   menu?: MenuSpec[];
   side?: SideBlock[];
   pages: Page[];

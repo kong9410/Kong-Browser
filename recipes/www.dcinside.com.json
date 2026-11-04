@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "www.dcinside.com",
-  "version": 1,
+  "version": 2,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
@@ -35,6 +35,14 @@
     }
   ],
   "side": [
+    {
+      "move": {
+        "sel": [
+          "#login_area"
+        ],
+        "keepStyle": true
+      }
+    },
     {
       "move": {
         "sel": [

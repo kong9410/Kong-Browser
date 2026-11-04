@@ -148,6 +148,8 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
   cmtSection.appendChild(moreBox);
   // 댓글 쓰기 칸: 댓글 목록 바로 아래 (사이트의 입력칸·등록 버튼을 그대로 옮겨 사이트 동작대로)
   const writeBox = moveSlot("k-cmt-write", f.commentWrite, p.commentWrite);
+  // 댓글 이벤트를 상위 요소에 위임한 사이트(anchor)면 쓰기 칸도 그 안(댓글 목록 아래)에 두므로, 숨기지 않을 엔진 영역으로 표시
+  writeBox?.classList.add("k-gen");
   /** 댓글 페이지 버튼: 사이트가 댓글 영역을 다시 그리면 새 버튼이 숨겨진 원본 쪽에 생기므로 그걸로 교체 */
   const syncMore = () => {
     if (!p.comments?.more) return;
@@ -404,8 +406,9 @@ export function fitCss(fit: FitSpec | undefined): string {
   if (fit?.tight?.length) out += `:is(${scope(fit.tight)}){padding-left:16px!important;padding-right:16px!important}`;
   if (fit?.static?.length) out += `:is(${scope(fit.static)}){position:static!important}`;
   for (const r of fit?.right ?? []) out += `:is(${scope([r.sel])}){left:auto!important;right:${r.px ?? 0}px!important}`;
-  // full 은 폭만 (float 는 그대로 두어야 앞의 float 줄 아래로 내려간다: 디시 글쓰기의 제목칸)
-  if (fit?.full?.length) out += `:is(${scope(fit.full)}){width:100%!important;max-width:100%!important;box-sizing:border-box!important}`;
+  // full 은 폭만: 부모 폭에 맞추고 넓은 화면 기준의 최소 폭·좌우 여백(가운데 맞춤용)을 푼다.
+  // float 는 그대로 두어야 앞의 float 줄 아래로 내려간다 (디시 글쓰기의 제목칸)
+  if (fit?.full?.length) out += `:is(${scope(fit.full)}){width:100%!important;max-width:100%!important;min-width:0!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important}`;
   return out;
 }
 

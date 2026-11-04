@@ -151,6 +151,14 @@ export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "bo
   // 맨 위 줄: 사이트 로고 (누르면 사이트 홈). 세 열 전체 폭
   const top = el("header", "k-top");
   top.appendChild(siteMark(recipe));
+  // 오른쪽: 사이트 계정 영역 (로그인 등)
+  const account = hit(document, recipe.account)?.el;
+  if (account) {
+    const box = el("div", "k-account " + (recipe.account?.keepStyle ? "k-keep" : "k-move"));
+    if (recipe.account?.keepStyle) placeKept(box, account);
+    else box.appendChild(account);
+    top.appendChild(box);
+  }
 
   root.append(top, nav, backdrop, open, main, side);
   draw();

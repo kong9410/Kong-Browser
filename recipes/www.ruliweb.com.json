@@ -1,13 +1,19 @@
 {
   "schemaVersion": 2,
   "host": "www.ruliweb.com",
-  "version": 1,
+  "version": 2,
   "minEngine": 1,
   "siteName": "루리웹",
   "logo": {
     "sel": [
       "#header .logo > a"
     ]
+  },
+  "account": {
+    "sel": [
+      "#header .logo .mini"
+    ],
+    "keepStyle": true
   },
   "menu": [
     {
@@ -53,6 +59,16 @@
       "links": [
         ".list_snb a"
       ]
+    }
+  ],
+  "side": [
+    {
+      "move": {
+        "sel": [
+          ".main_aside .login_wrapper"
+        ],
+        "keepStyle": true
+      }
     }
   ],
   "pages": [

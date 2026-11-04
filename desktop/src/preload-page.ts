@@ -3,6 +3,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { boot } from "../../transformer/src/index";
 import type { Recipe } from "../../transformer/src/recipe";
+import { askLeave, installLeaveGuard } from "./leave-dialog";
 import { allowCopy, installScrollButtons } from "./page-tools";
 import { IPC, type InternalRequest, type PageConfig } from "./shared";
 
@@ -28,4 +29,7 @@ if (window.top === window) {
   if (recipes.some((r) => r.host === location.host)) allowCopy();
   // 맨 위/맨 아래 버튼은 모든 페이지에 (브라우저 기능)
   installScrollButtons();
+  // 글쓰기 화면 등에서 '나가시겠어요?' 확인 창 (Electron 은 창 없이 이동을 막기만 하므로)
+  installLeaveGuard();
+  ipcRenderer.on(IPC.leaveAsk, () => askLeave(() => ipcRenderer.invoke(IPC.leaveGo)));
 }

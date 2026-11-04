@@ -1,13 +1,19 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 18,
+  "version": 19,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
     "sel": [
       "header.dcheader h1.dclogo a.logo_img"
     ]
+  },
+  "account": {
+    "sel": [
+      "header.dcheader .dchead .area_links"
+    ],
+    "keepStyle": true
   },
   "menu": [
     {
@@ -34,6 +40,14 @@
     }
   ],
   "side": [
+    {
+      "move": {
+        "sel": [
+          "#login_box"
+        ],
+        "keepStyle": true
+      }
+    },
     {
       "title": "게시물",
       "move": {
