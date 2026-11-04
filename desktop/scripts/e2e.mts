@@ -17,6 +17,16 @@ const check = (name: string, ok: boolean, detail: unknown = "") => {
   if (!ok) failures++;
   console.log(`${ok ? "✔" : "✘"} ${name}${detail !== "" ? `  ${typeof detail === "string" ? detail : JSON.stringify(detail)}` : ""}`);
 };
+/** 조건이 맞을 때까지 잠깐씩 다시 본다 (페이지·탭이 늦게 뜨는 경우의 고정 대기 대신). 마지막 값을 돌려준다 */
+async function until<T>(read: () => Promise<T>, ok: (v: T) => boolean, ms = 5000): Promise<T> {
+  const t0 = Date.now();
+  let v = await read();
+  while (!ok(v) && Date.now() - t0 < ms) {
+    await new Promise((r) => setTimeout(r, 200));
+    v = await read();
+  }
+  return v;
+}
 
 async function launch(env: Record<string, string> = {}, executablePath?: string) {
   const app = await electron.launch({
@@ -69,7 +79,7 @@ async function shot(app: ElectronApplication, toolbar: Page, name: string) {
 // ---------- 1. 정상 레시피 ----------
 {
   const { app, toolbar } = await launch();
-  check("시작 페이지", (await state(app)).url.startsWith("file:"));
+  check("시작 페이지", (await until(() => state(app), (s) => s.url.startsWith("file:"))).url.startsWith("file:"));
 
   let s = await go(app, toolbar, BOARD);
   const rows = await inPage<number>(app, `document.querySelectorAll("#kong-root a.k-row").length`);
@@ -275,8 +285,7 @@ async function shot(app: ElectronApplication, toolbar: Page, name: string) {
   check("첫 탭 클릭 → 첫 탭 페이지로 전환", s.url.startsWith("https://example.com") && (await toolbar.inputValue("#address")).startsWith("https://example.com"), { url: s.url });
   // 새 창으로 여는 링크(target=_blank) → 새 탭
   await inPage(app, `(() => { const a = document.createElement("a"); a.href = "https://bbs.ruliweb.com/community/board/300143"; a.target = "_blank"; document.body.appendChild(a); a.click(); })()`);
-  await new Promise((r) => setTimeout(r, 800));
-  tl = await tabList();
+  tl = await until(tabList, (t) => t.length === 3 && t[1].url.includes("ruliweb"));
   check("target=_blank 링크 → 바로 오른쪽에 새 탭으로", tl.length === 3 && tl[1].active && tl[1].url.includes("ruliweb"), tl);
   s = await waitVerdict(app);
   check("링크로 연 탭도 통일 화면", s.verdict === "ok", { verdict: s.verdict });
