@@ -741,3 +741,59 @@ kong-browser/
 - 자동완성 목록 (2026-11-04, 사용자 요청): 마우스를 올린 줄은 옅은 회색으로 표시(키보드로 고른 줄은 기존 연보라). 목록을 눌러 이동하면 툴바에 `addressDone` 을 보내 주소창 입력을 끝내고(커서 해제, 커서는 페이지로) 이동할 주소를 바로 보임. Enter 로 이동할 때도 페이지가 바뀌기 전까지 이동할 주소를 보임(전에는 이전 주소가 잠깐 다시 보임). 목록 view 를 처음 만들 때 다 불러오기 전에 보낸 목록이 사라져 첫 글자의 목록이 비어 보이던 문제도 고침
 - 디시 실시간 베스트 썸네일 (2026-11-04, 사용자 요청, 브랜치 feature/dcbest-thumbnails, 디시 레시피 20): 실시간 베스트 목록 행(`tr.us-post.thum`)은 제목 링크 안에 `.thumimg img` 썸네일이 있음. 행 스펙에 `thumbnail` 필드(기본 attr=src, http(s) 주소만)를 더하고, 있으면 행 왼쪽에 84×60 둥근 그림 + 오른쪽 제목·정보 (못 불러오면 그림 자리를 없앰, 읽은 글은 그림을 조금 흐리게). 썸네일이 없는 다른 갤러리 목록은 그대로
   - 저장한 실시간 베스트 HTML 을 원래 주소로 열어 확인 (Playwright, 이미지는 실제로 받음): 50행 중 썸네일 48행 모두 보임
+
+### 8-12. 에펨코리아 지원 설계 (2026-11-04, 사용자 요청 "에펨코리아 설계해줘", 브랜치 feature/fmkorea)
+
+PC 사이트 www.fmkorea.com (XE/Rhymix, 스킨 sketchbook5_elkha) 를 디시·루리웹과 같은 통합 화면으로. 저장한 HTML(홈·/best·/humor·/hotdeal·글 하나)로 구조를 확인함. 레시피 파일 `recipes/www.fmkorea.com.json`, dock 에는 이미 있음.
+
+**화면 고르기 — 주소보다 probe 로.** 같은 글·게시판이 여러 주소 모양으로 열린다: 게시판 `/humor` · `/index.php?mid=humor&page=2`, 글 `/10518310830` · `/best/10517941707` · `/index.php?mid=best2&document_srl=…`. 그래서 match 는 넓게(`^/`) 두고 probe 로 가른다. 순서가 중요: 글 화면 아래에도 게시판 목록이 붙어 있으므로 글을 맨 앞에.
+
+| 순서 | id | probe | 화면 |
+| --- | --- | --- | --- |
+| 1 | post | `.rd_body article .xe_content` | 글 본문 + 댓글 |
+| 2 | write | `act=dispBoardWrite` 주소 | 글쓰기 (2단계) |
+| 3 | list-widget | `.fm_best_widget li` | 포텐 터짐(/best, /best2), 홈(/), 핫딜 — 썸네일 목록 |
+| 4 | list | `table.bd_lst tbody tr` | 일반 게시판(유머·정치·축구 …) — 표 목록 |
+
+**목록 (표 모양, 일반 게시판)**
+- 행 `table.bd_lst tbody tr`, 공지 `.notice` (접힌 공지 펼치기 행은 링크가 없어 저절로 빠짐)
+- 말머리 `td.cate`, 제목·링크 `td.title > a:first-child`, 댓글 수 `td.title .replyNum`, 글쓴이 `td.author .member_plate`(레벨 아이콘 img 는 글자에 안 들어감), 시각 `td.time`, 조회 `td.m_no:not(.m_no_voted)`, 추천 `td.m_no_voted`
+- 이미지·동영상 표시 `.extraimages i[title=이미지]` / `i[title=동영상]` (class 는 둘 다 붙어 있어 title 로 구분)
+- 쪽 넘김 `form.bd_pg`, 검색 `form.bd_srch_btm`, 글쓰기 `a[href*="act=dispBoardWrite"]`
+
+**목록 (위젯 모양, 포텐·홈·핫딜)**
+- 행 `.fm_best_widget li.li`, 제목 `h3.title .ellipsis-target`, 링크 `h3.title a`, 댓글 수 `.comment_count`, 말머리 `.category a:last-child`, 시각 `.regdate`("3 시간 전"), 글쓴이 `.author`(앞의 "/ " 는 pattern 으로 뗌), 추천 `.pc_voted_count .count`
+- 썸네일 `img.thumb` — 게으른 로딩이라 진짜 주소는 `data-original` (src 는 투명 gif). 실시간 베스트 썸네일 기능(행 스펙 `thumbnail`, attr 지정 가능)을 그대로 씀 → 이 브랜치는 feature/dcbest-thumbnails 위에서 시작
+- 핫딜은 `.hotdeal_info`(쇼핑몰 / 가격 / 배송) 줄이 더 있다 → 2단계에서 행 스펙에 `extra`(제목 아래 한 줄) 를 더해 보여줌
+- 핫딜 페이지는 위에 공지 표(table.bd_lst)도 있지만 위젯 화면이 먼저 잡히므로 공지는 원본 쪽에 남음 (필요하면 2단계)
+
+**글 화면**
+- 제목 `.rd_hd h1 .np_18px_span`(필수), 글쓴이 `.rd_hd .btm_area .side:not(.fr) .member_plate`, 시각 `.rd_hd .date`, 조회·추천·댓글 수는 `.rd_hd .btm_area .side.fr` 글자에서 pattern(`조회 수\s*([0-9,]+)` 등)
+- 본문 `.rd_body article > .xe_content`(필수 — `.xe_content` 는 댓글에도 있으므로 article 바로 아래로 좁힘). 본문 이미지는 src 가 진짜 주소라 그대로
+- 추천 버튼 `.fm_vote`(포텐 / 방출) — 사이트 스크립트로 동작하므로 keepStyle 로 그대로 옮김
+- 댓글: 목록 `.fdb_lst`, 행 `.fdb_lst_ul > li.fdb_itm:not(.comment_best)`, 베스트 댓글 `li.comment_best`(위에 따로 한 번 더 나오는 복사본 — 루리웹 bestItem 과 같은 방식), 대댓글 `li.re`(style margin-left), 글쓴이 `.meta .member_plate` 를 whoNode 로(레벨 아이콘을 닉네임 옆에 — 디시 닉네임 아이콘과 같은 방식), 시각 `.meta .date`, 내용 `.comment-content .xe_content`(필수), 동작 `.fdb_nav`(추천·비추천; "댓글로 가기"·주소 복사는 exclude). 대댓글 내용 맨 앞의 `a.findParent`(부모 닉네임) 는 그대로 둠
+- 댓글 쓰기 `.cmt_editor` keepStyle (로그아웃이면 "로그인 해주세요" 안내가 그대로 보임)
+
+**공통**
+- 로고 `#header .logo a`(이미지 로고), 계정 영역 `#header .logged_info` keepStyle (로그아웃이면 로그인 폼, 로그인이면 회원 메뉴 — 둘 다 사이트 것 그대로)
+- 왼쪽 메뉴: `#gnb li.li1` 묶음마다 제목 `:scope > a.a1`, 링크 `.ul2 a.a2`, 지금 위치는 `.on` (current: mark). 맨 끝 "전체 게시판" 묶음도 그대로
+- 오른쪽 칸: 사이트 사이드바는 거의 광고(160×600 iframe)라 비워 둠. 필요하면 `.fm_hot_key`(인기 검색어) 정도
+- 야간 모드(`data-fm-night-swap`) 는 원본 쪽 기능이라 통합 화면에서는 무시
+
+**엔진에 더할 것**
+1. (있음, 브랜치 feature/dcbest-thumbnails) 행 썸네일 `thumbnail` — attr 를 `data-original` 로 지정
+2. 읽은 글 표시 `visitPattern`(새 필드): 같은 글이 `/123`, `/best/123`, `?document_srl=123` 로 나뉘어 지금의 visitParams(쿼리 이름)·경로 비교로는 같은 글로 못 묶음 → 주소에서 글 번호를 뽑는 정규식 `(?:document_srl=|^/(?:best2?/)?)([0-9]{6,})` 로 열쇠를 만든다. 첫 캡처가 열쇠, 없으면 지금 방식
+3. (2단계) 행 `extra` — 핫딜 정보 줄
+
+**단계**
+- 1단계: 표·위젯 목록(썸네일·이미지/동영상 표시·읽은 글), 글 본문·추천 버튼, 댓글(베스트·대댓글·닉네임 레벨 아이콘), 메뉴·로고·계정 영역, 검색·쪽 넘김·글쓰기 버튼
+- 2단계: 댓글 쓰기(로그인한 상태로 확인 필요), 글쓰기 화면(XE 에디터를 디시·루리웹처럼 keepStyle 로), 핫딜 정보 줄, 댓글 쪽 넘김(댓글이 아주 많은 글)
+
+**위험·확인할 것**
+- 에펨코리아는 짧은 시간에 많이 열면 보안 확인 화면을 띄운다. probe 가 없으면 원본 그대로(fail-open) 이므로 망가지지는 않지만, 레시피 확인은 저장한 HTML 로 하고 실제 사이트는 적게 연다
+- 글쓴이·댓글 닉네임 옆 레벨 아이콘(`img.level`)은 사이트 이미지라 keep 으로 옮긴 요소 안에서 크기만 맞춤
+- 광고 iframe 이 목록·본문 사이에 많다(`.fm_list728_ad` 등) — 원본 쪽에 남겨 두므로 통합 화면에는 안 나옴
+- 로그인 상태 화면(계정 메뉴, 댓글 쓰기 칸)은 저장본이 없음 → 1단계 뒤 사용자 로그인으로 확인
+- 에펨코리아 1단계 구현 (2026-11-04, 레시피 `www.fmkorea.com.json` 1): 위 설계대로 글(post) → 홈(home, 제목은 메뉴 첫 묶음 "포텐터짐") → 위젯 목록(list-widget) → 표 목록(list) 순서. 엔진에 행 스펙 `visitPattern`(주소에서 글 번호를 뽑는 정규식, `visited.ts` 의 VisitRule) 추가. 표 목록의 공지 행은 말머리 "공지" 를 빼서(text 조건) 배지와 겹치지 않게, 글쓰기 링크 안의 단축키 안내(`.num`, "alt+w") 는 exclude
+  - 저장한 페이지 5개를 원래 주소로 열어 확인 (Playwright, 이미지는 실제로 받음): 모두 판정 ok. 홈·포텐 24행(썸네일 19), 유머 23행(이미지·동영상 표시 19), 핫딜 20행(썸네일 20), 글 하나 댓글 57개(베스트·대댓글·레벨 아이콘·추천 버튼), 왼쪽 메뉴 54개, 사이트 로그인 칸
+  - 확인 못 한 것: Kong 앱에서 실제 사이트, 로그인한 상태(회원 메뉴·댓글 쓰기), 댓글이 아주 많은 글의 댓글 쪽 넘김

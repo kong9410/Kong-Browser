@@ -239,6 +239,21 @@ describe("읽은 글 표시 (앱의 방문 기록)", () => {
     expect(visitKey("https://g.test/board/view/?id=a&no=5", dc)).not.toBe(visitKey("https://g.test/board/view/?id=a&no=6", dc));
   });
 
+  it("글 번호 규칙(visitPattern): 여러 주소 모양의 같은 글을 하나로 (에펨코리아)", () => {
+    const fm = { pattern: "(?:document_srl=|^/(?:best2?/)?)([0-9]{6,})" };
+    const k = visitKey("https://www.fmkorea.com/10517941707", fm);
+    expect(visitKey("https://www.fmkorea.com/best/10517941707", fm)).toBe(k);
+    expect(visitKey("https://www.fmkorea.com/index.php?mid=best2&sort_index=pop&order_type=desc&document_srl=10517941707", fm)).toBe(k);
+    expect(visitKey("https://www.fmkorea.com/10517941708", fm)).not.toBe(k);
+    // 규칙에 안 맞는 주소(게시판 목록)는 지금처럼 경로로
+    expect(visitKey("https://www.fmkorea.com/humor", fm)).toBe("www.fmkorea.com/humor");
+    // 잘못된 정규식이면 경로 방식으로
+    expect(visitKey("https://www.fmkorea.com/123456", { pattern: "(" })).toBe("www.fmkorea.com/123456");
+    setVisited(["https://www.fmkorea.com/best/10517941707"]);
+    expect(isVisited("https://www.fmkorea.com/index.php?mid=best2&document_srl=10517941707", fm)).toBe(true);
+    expect(isVisited("https://www.fmkorea.com/10518310830", fm)).toBe(false);
+  });
+
   it("방문한 글 행에 표시를 붙이고, 누른 글은 바로 표시", () => {
     page(
       "https://example.test/board/1",

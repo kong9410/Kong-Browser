@@ -313,8 +313,8 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
       const a = h("a", `k-row${r.notice ? " k-notice" : ""}`);
       a.href = r.href;
       // 읽은 글은 제목 색을 바꾼다 (사이트의 방문한 링크 색처럼)
-      const params = l.page.rows.visitParams;
-      if (isVisited(r.href, params)) a.classList.add("k-visited");
+      const rule = { params: l.page.rows.visitParams, pattern: l.page.rows.visitPattern };
+      if (isVisited(r.href, rule)) a.classList.add("k-visited");
       a.addEventListener("click", () => {
         a.classList.add("k-visited");
         markVisited(a.href);

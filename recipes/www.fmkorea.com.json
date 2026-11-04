@@ -1,0 +1,379 @@
+{
+  "schemaVersion": 2,
+  "host": "www.fmkorea.com",
+  "version": 1,
+  "minEngine": 1,
+  "siteName": "에펨코리아",
+  "logo": {
+    "sel": [
+      "#header .logo a"
+    ]
+  },
+  "account": {
+    "sel": [
+      "#header .logged_info"
+    ],
+    "keepStyle": true
+  },
+  "menu": [
+    {
+      "groups": [
+        "#gnb li.li1"
+      ],
+      "heading": {
+        "sel": [
+          ":scope > a.a1"
+        ]
+      },
+      "links": [
+        ".ul2 a.a2"
+      ],
+      "current": "mark",
+      "mark": ".on"
+    }
+  ],
+  "pages": [
+    {
+      "id": "post",
+      "type": "post",
+      "match": "^/",
+      "probe": [
+        ".rd_body article .xe_content"
+      ],
+      "title": {
+        "sel": [
+          ".rd_hd h1 .np_18px_span",
+          ".rd_hd h1"
+        ],
+        "required": true
+      },
+      "author": {
+        "sel": [
+          ".rd_hd .btm_area .side:not(.fr) .member_plate"
+        ]
+      },
+      "createdAt": {
+        "sel": [
+          ".rd_hd .date"
+        ]
+      },
+      "views": {
+        "sel": [
+          ".rd_hd .btm_area .side.fr"
+        ],
+        "pattern": "조회 수\\s*([0-9,]+)"
+      },
+      "likes": {
+        "sel": [
+          ".rd_hd .btm_area .side.fr"
+        ],
+        "pattern": "추천 수\\s*(-?[0-9,]+)"
+      },
+      "commentCount": {
+        "sel": [
+          ".rd_hd .btm_area .side.fr"
+        ],
+        "pattern": "댓글\\s*([0-9,]+)"
+      },
+      "body": {
+        "sel": [
+          ".rd_body article > .xe_content"
+        ],
+        "required": true
+      },
+      "actions": {
+        "sel": [
+          ".fm_vote"
+        ],
+        "keepStyle": true
+      },
+      "comments": {
+        "anchor": ".fdb_lst",
+        "item": [
+          ".fdb_lst_ul > li.fdb_itm:not(.comment_best)"
+        ],
+        "bestItem": [
+          ".fdb_lst_ul > li.fdb_itm.comment_best"
+        ],
+        "replyMarker": ".re",
+        "who": {
+          "sel": [
+            ".meta .member_plate"
+          ]
+        },
+        "whoNode": {
+          "sel": [
+            ".meta .member_plate"
+          ]
+        },
+        "when": {
+          "sel": [
+            ".meta .date"
+          ]
+        },
+        "content": {
+          "sel": [
+            ".comment-content .xe_content"
+          ],
+          "required": true
+        },
+        "actions": {
+          "sel": [
+            ".fdb_nav"
+          ],
+          "exclude": [
+            ".findComment",
+            ".copy-button"
+          ]
+        }
+      },
+      "commentWrite": {
+        "sel": [
+          ".fdb_lst .cmt_editor"
+        ],
+        "keepStyle": true
+      }
+    },
+    {
+      "id": "home",
+      "type": "board",
+      "match": "^/?(\\?.*)?$",
+      "probe": [
+        ".fm_best_widget li.li"
+      ],
+      "boardName": {
+        "sel": [
+          "#gnb li.li1:first-child > a.a1"
+        ]
+      },
+      "rows": {
+        "scope": [
+          ".fm_best_widget"
+        ],
+        "item": [
+          "li.li"
+        ],
+        "title": {
+          "sel": [
+            "h3.title .ellipsis-target",
+            "h3.title a"
+          ]
+        },
+        "link": {
+          "sel": [
+            "h3.title a"
+          ]
+        },
+        "category": {
+          "sel": [
+            ".category a:last-child"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".author"
+          ],
+          "pattern": "/\\s*(.+)$"
+        },
+        "createdAt": {
+          "sel": [
+            ".regdate"
+          ]
+        },
+        "likes": {
+          "sel": [
+            ".pc_voted_count .count"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            ".comment_count"
+          ]
+        },
+        "thumbnail": {
+          "sel": [
+            "img.thumb"
+          ],
+          "attr": "data-original"
+        },
+        "visitPattern": "(?:document_srl=|^/(?:best2?/)?)([0-9]{6,})"
+      },
+      "pager": {
+        "sel": [
+          "form.bd_pg"
+        ]
+      }
+    },
+    {
+      "id": "list-widget",
+      "type": "board",
+      "match": "^/",
+      "probe": [
+        ".fm_best_widget li.li"
+      ],
+      "boardName": {
+        "sel": [
+          "head > title"
+        ],
+        "pattern": "^(.+?) - 에펨코리아$"
+      },
+      "rows": {
+        "scope": [
+          ".fm_best_widget"
+        ],
+        "item": [
+          "li.li"
+        ],
+        "title": {
+          "sel": [
+            "h3.title .ellipsis-target",
+            "h3.title a"
+          ]
+        },
+        "link": {
+          "sel": [
+            "h3.title a"
+          ]
+        },
+        "category": {
+          "sel": [
+            ".category a:last-child"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".author"
+          ],
+          "pattern": "/\\s*(.+)$"
+        },
+        "createdAt": {
+          "sel": [
+            ".regdate"
+          ]
+        },
+        "likes": {
+          "sel": [
+            ".pc_voted_count .count"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            ".comment_count"
+          ]
+        },
+        "thumbnail": {
+          "sel": [
+            "img.thumb"
+          ],
+          "attr": "data-original"
+        },
+        "visitPattern": "(?:document_srl=|^/(?:best2?/)?)([0-9]{6,})"
+      },
+      "pager": {
+        "sel": [
+          "form.bd_pg"
+        ]
+      },
+      "search": {
+        "sel": [
+          "form.bd_srch_btm"
+        ]
+      },
+      "write": {
+        "sel": [
+          "a[href*='act=dispBoardWrite']"
+        ],
+        "exclude": [
+          ".num"
+        ]
+      }
+    },
+    {
+      "id": "list",
+      "type": "board",
+      "match": "^/",
+      "probe": [
+        "table.bd_lst tbody td.title"
+      ],
+      "boardName": {
+        "sel": [
+          "head > title"
+        ],
+        "pattern": "^(.+?) - 에펨코리아$"
+      },
+      "rows": {
+        "scope": [
+          "table.bd_lst"
+        ],
+        "item": [
+          "tbody tr"
+        ],
+        "notice": ".notice",
+        "category": {
+          "sel": [
+            "td.cate"
+          ],
+          "text": "^(?!공지$)"
+        },
+        "title": {
+          "sel": [
+            "td.title > a:first-child"
+          ]
+        },
+        "link": {
+          "sel": [
+            "td.title > a:first-child"
+          ]
+        },
+        "author": {
+          "sel": [
+            "td.author .member_plate",
+            "td.author"
+          ]
+        },
+        "createdAt": {
+          "sel": [
+            "td.time"
+          ]
+        },
+        "views": {
+          "sel": [
+            "td.m_no:not(.m_no_voted)"
+          ]
+        },
+        "likes": {
+          "sel": [
+            "td.m_no_voted"
+          ],
+          "pattern": "(-?[0-9][0-9,]*)"
+        },
+        "commentCount": {
+          "sel": [
+            "td.title .replyNum"
+          ]
+        },
+        "image": "i[title=이미지]",
+        "video": "i[title=동영상]",
+        "visitPattern": "(?:document_srl=|^/(?:best2?/)?)([0-9]{6,})"
+      },
+      "pager": {
+        "sel": [
+          "form.bd_pg"
+        ]
+      },
+      "search": {
+        "sel": [
+          "form.bd_srch_btm"
+        ]
+      },
+      "write": {
+        "sel": [
+          "a[href*='act=dispBoardWrite']"
+        ],
+        "exclude": [
+          ".num"
+        ]
+      }
+    }
+  ]
+}
