@@ -147,6 +147,8 @@ export interface RowSpec {
   video?: string;
   /** 글 썸네일 이미지 (기본 attr=src). 있으면 목록 행 왼쪽에 작은 그림으로. 예) 디시 실시간 베스트 */
   thumbnail?: Field;
+  /** 제목 아래에 한 줄로 더 보일 글자. 예) 에펨코리아 핫딜의 "쇼핑몰: 네이버 / 가격: 21,320원 / 배송: 무료" */
+  extra?: Field;
   /** 읽은 글 표시용: 글을 가리키는 쿼리 이름 (예: 디시 ["id", "no"]). 없으면 주소 경로만으로 같은 글인지 본다 */
   visitParams?: string[];
   /**

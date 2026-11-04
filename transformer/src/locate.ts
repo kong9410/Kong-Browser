@@ -44,6 +44,8 @@ export interface LocatedRow {
   video: boolean;
   /** 썸네일 이미지 주소 (절대 주소) */
   thumbnail: string | null;
+  /** 제목 아래 한 줄 (핫딜 정보 등) */
+  extra: string | null;
 }
 
 export interface LocatedBoard {
@@ -203,6 +205,7 @@ export function locateRows(scope: Element, spec: RowSpec): LocatedRow[] {
     notice: marked(item, spec.notice),
     image: marked(item, spec.image),
     video: marked(item, spec.video),
+    extra: val(item, spec.extra),
     thumbnail: (() => {
       if (!spec.thumbnail) return null;
       const h = hit(item, { attr: "src", ...spec.thumbnail });

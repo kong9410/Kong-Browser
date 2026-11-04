@@ -406,6 +406,15 @@ html.kong-on #kong-root .k-hidden {
 #kong-root a.k-row.k-visited .k-thumb {
   opacity: 0.7;
 }
+/* 제목 아래 한 줄 (핫딜 정보 등) */
+#kong-root .k-row-extra {
+  margin-top: 2px;
+  color: #3f3f46;
+  font-size: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 #kong-root .k-row .k-meta {
   margin-top: 2px;
   font-size: 12px;

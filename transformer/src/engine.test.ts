@@ -229,6 +229,28 @@ describe("목록의 이미지·동영상 표시", () => {
     expect((rows[0].querySelector("img.k-thumb") as HTMLImageElement).getAttribute("src")).toBe("https://cdn.test/t1.jpg");
     expect(rows[0].querySelector(".k-row-body .k-row-title")?.textContent).toBe("[갤] 썸네일 글");
   });
+
+  it("제목 아래 한 줄(extra): 에펨코리아 핫딜의 쇼핑몰·가격·배송 (게으른 로딩 썸네일은 attr 로 진짜 주소)", () => {
+    page(
+      "https://example.test/board/1",
+      `<table class="list">
+        <tr class="row"><td><img class="thumb" src="/blank.gif" data-original="//cdn.test/t.webp"><a href="/board/1/read/1">새우 1kg</a><div class="info">쇼핑몰: <b>네이버</b> / 가격: <b>21,320원</b></div></td></tr>
+        <tr class="row"><td><a href="/board/1/read/2">정보 없음</a></td></tr>
+      </table>`,
+    );
+    const r2: Recipe = {
+      ...recipe,
+      pages: recipe.pages.map((p) =>
+        p.type === "board" ? { ...p, rows: { ...p.rows, extra: { sel: [".info"] }, thumbnail: { sel: ["img.thumb"], attr: "data-original" } } } : p,
+      ),
+    };
+    const l = locate(document, pickPage(r2, document).page!) as LocatedBoard;
+    expect(l.rows.map((r) => r.extra)).toEqual(["쇼핑몰: 네이버 / 가격: 21,320원", null]);
+    expect(l.rows[0].thumbnail).toBe("https://cdn.test/t.webp");
+    const rows = [...buildBoard(l, r2).root.querySelectorAll("a.k-row")];
+    expect(rows[0].querySelector(".k-row-body .k-row-extra")?.textContent).toBe("쇼핑몰: 네이버 / 가격: 21,320원");
+    expect(rows[1].querySelector(".k-row-extra")).toBeNull();
+  });
 });
 
 describe("읽은 글 표시 (앱의 방문 기록)", () => {

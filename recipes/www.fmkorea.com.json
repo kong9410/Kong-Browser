@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "www.fmkorea.com",
-  "version": 1,
+  "version": 2,
   "minEngine": 1,
   "siteName": "에펨코리아",
   "logo": {
@@ -125,11 +125,36 @@
             ".findComment",
             ".copy-button"
           ]
+        },
+        "more": {
+          "sel": [
+            ".fdb_lst .bd_pg"
+          ]
         }
       },
       "commentWrite": {
         "sel": [
           ".fdb_lst .cmt_editor"
+        ],
+        "keepStyle": true
+      }
+    },
+    {
+      "id": "write",
+      "type": "hub",
+      "match": "act=disp(BoardWrite|MemberLoginForm)",
+      "probe": [
+        "#content main .login_form, #content main form.bd_wrt, #content main #fo_write"
+      ],
+      "title": {
+        "sel": [
+          "head > title"
+        ],
+        "pattern": "^(.+?) - 에펨코리아$"
+      },
+      "blocks": {
+        "sel": [
+          "#content main .login_form, #content main form.bd_wrt, #content main #fo_write"
         ],
         "keepStyle": true
       }
@@ -267,7 +292,12 @@
           ],
           "attr": "data-original"
         },
-        "visitPattern": "(?:document_srl=|^/(?:best2?/)?)([0-9]{6,})"
+        "visitPattern": "(?:document_srl=|^/(?:best2?/)?)([0-9]{6,})",
+        "extra": {
+          "sel": [
+            ".hotdeal_info"
+          ]
+        }
       },
       "pager": {
         "sel": [

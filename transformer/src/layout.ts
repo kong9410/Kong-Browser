@@ -328,6 +328,8 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
       const n = r.commentCount?.replace(/[^0-9]/g, "");
       if (n && n !== "0") t.appendChild(h("span", "k-ccount", n));
       const info = meta([r.author, r.createdAt, r.views && `조회 ${r.views}`, r.likes && r.likes !== "0" && `추천 ${r.likes}`]);
+      // 제목 아래 한 줄 (에펨코리아 핫딜의 쇼핑몰·가격·배송 등)
+      const extra = r.extra ? h("div", "k-row-extra", r.extra) : null;
       if (r.thumbnail) {
         // 썸네일: 행 왼쪽에 작은 그림, 제목·정보는 오른쪽 (못 불러오면 그림 자리를 없앤다)
         a.classList.add("k-has-thumb");
@@ -341,9 +343,9 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
           a.classList.remove("k-has-thumb");
         });
         const body = h("div", "k-row-body");
-        body.append(t, info);
+        body.append(t, ...(extra ? [extra] : []), info);
         a.append(img, body);
-      } else a.append(t, info);
+      } else a.append(t, ...(extra ? [extra] : []), info);
       list.appendChild(a);
     },
   };
