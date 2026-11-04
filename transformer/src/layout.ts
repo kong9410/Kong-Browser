@@ -416,12 +416,15 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
   const list = h("div", "k-rows");
   // 목록 | 갤러리 전환 (레시피 rows.gallery): 같은 행을 썸네일 카드로. 고른 것은 사이트마다 기억
   if (l.page.rows.gallery) {
-    const key = `kong-gallery:${location.host}`;
-    let on = false;
+    // "on": 처음엔 갤러리 (사이트 원래 화면이 사진 격자인 게시판, 예: 웃긴대학 웃긴제목). 이런 화면은 고른 것을 화면(page id)마다 따로 기억
+    const byDefault = l.page.rows.gallery === "on";
+    const key = `kong-gallery:${location.host}${byDefault ? `:${l.page.id}` : ""}`;
+    let on = byDefault;
     try {
-      on = localStorage.getItem(key) === "1";
+      const saved = localStorage.getItem(key);
+      if (saved !== null) on = saved === "1";
     } catch {
-      /* 저장소를 못 쓰면 목록형 */
+      /* 저장소를 못 쓰면 기본값 */
     }
     const sw = h("div", "k-view-switch");
     sw.setAttribute("role", "group");

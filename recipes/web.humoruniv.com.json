@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "web.humoruniv.com",
-  "version": 1,
+  "version": 2,
   "minEngine": 1,
   "siteName": "웃긴대학",
   "logo": {
@@ -69,6 +69,14 @@
           "dd a[href]"
         ],
         "current": "none"
+      }
+    },
+    {
+      "move": {
+        "sel": [
+          "#wrap_body_index > #wrap_r"
+        ],
+        "keepStyle": true
       }
     }
   ],
@@ -277,6 +285,101 @@
       "hide": [
         "#naver_adpost_wrap"
       ]
+    },
+    {
+      "id": "grid",
+      "type": "board",
+      "match": "^/board/humor/list\\.html",
+      "probe": [
+        "#cnts_list_new div[id='item'] .w_subject"
+      ],
+      "boardName": {
+        "sel": [
+          "head > title"
+        ]
+      },
+      "rows": {
+        "scope": [
+          "#cnts_list_new"
+        ],
+        "item": [
+          "div[id='item']"
+        ],
+        "title": {
+          "sel": [
+            ".w_subject span[id^='w_subject_']"
+          ]
+        },
+        "link": {
+          "sel": [
+            ".w_subject a"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".hu_nick_txt"
+          ]
+        },
+        "createdAt": {
+          "sel": [
+            ".w_date"
+          ]
+        },
+        "likes": {
+          "sel": [
+            ".w_extra .o"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            ".list_re_num"
+          ],
+          "pattern": "([0-9]+)"
+        },
+        "thumbnail": {
+          "sel": [
+            "img.img_toon"
+          ]
+        },
+        "gallery": "on",
+        "visitParams": [
+          "table",
+          "number"
+        ],
+        "sameBoard": "[?&]table=([^&]+)"
+      },
+      "pager": {
+        "sel": [
+          "#cnts_list_new > .paging"
+        ]
+      },
+      "search": {
+        "sel": [
+          "#wrap_li_sch #sch form"
+        ]
+      },
+      "write": {
+        "sel": [
+          "#write_btn a"
+        ]
+      },
+      "hide": [
+        "#naver_adpost_wrap"
+      ]
+    },
+    {
+      "id": "home",
+      "type": "hub",
+      "match": "^/(main\\.html)?(\\?.*)?$",
+      "probe": [
+        "#wrap_body_index > #wrap_l_c"
+      ],
+      "blocks": {
+        "sel": [
+          "#wrap_body_index > #wrap_l_c"
+        ],
+        "keepStyle": true
+      }
     }
   ]
 }

@@ -838,6 +838,22 @@ describe("목록 | 갤러리 전환 (레시피 rows.gallery)", () => {
     expect(again.querySelector(".k-rows")!.classList.contains("k-gallery")).toBe(true);
     localStorage.removeItem("kong-gallery:example.test");
   });
+
+  it('"on": 처음엔 갤러리, 고른 것은 화면(page id)마다 따로 기억 (다른 게시판의 목록형 선택과 섞이지 않게)', () => {
+    localStorage.setItem("kong-gallery:example.test", "0"); // 다른 게시판에서 목록형을 고른 적이 있어도
+    localStorage.removeItem("kong-gallery:example.test:board");
+    page("https://example.test/board/1", `<table class="list"><tr class="row"><td><a href="/board/1/read/1">글</a></td></tr></table>`);
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    for (const p of r.pages) if (p.type === "board") Object.assign(p.rows, { gallery: "on" });
+    const build = () => buildBoard(locate(document, pickPage(r, document).page!) as LocatedBoard, r).root;
+    const root = build();
+    expect(root.querySelector(".k-rows")!.classList.contains("k-gallery")).toBe(true);
+    root.querySelectorAll<HTMLButtonElement>(".k-view-btn")[0].click();
+    expect(localStorage.getItem("kong-gallery:example.test:board")).toBe("0");
+    expect(build().querySelector(".k-rows")!.classList.contains("k-gallery")).toBe(false);
+    localStorage.removeItem("kong-gallery:example.test");
+    localStorage.removeItem("kong-gallery:example.test:board");
+  });
 });
 
 describe("landing: 가운데 큰 로고 + 검색창만 (네이버 첫 화면)", () => {
