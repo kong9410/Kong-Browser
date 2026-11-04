@@ -1012,3 +1012,68 @@ describe("보이는 사본 (Field.mirror): 네이버 가로 광고", () => {
     expect(document.querySelector("#root #ad_timeboard")).not.toBeNull(); // 원본은 그대로
   });
 });
+
+describe("글 아래 게시글 목록 (PostPage.list)", () => {
+  const r: Recipe = {
+    ...recipe,
+    menu: [],
+    pages: [
+      {
+        id: "post",
+        type: "post",
+        match: "^/board/[0-9]+/read/[0-9]+",
+        probe: [".view"],
+        title: { sel: [".subject"], required: true },
+        body: { sel: [".content"], required: true },
+        comments: { item: [".cmt li"], content: { sel: [".text"], required: true } },
+        list: { from: "board", rows: { item: ["tr.row:not(.ad)"] }, pager: { sel: [".list_bottom .paging"] } },
+      },
+      {
+        id: "board",
+        type: "board",
+        match: "^/board/[0-9]+/?$",
+        probe: [".list"],
+        rows: {
+          scope: ["table.list"],
+          item: ["tr.row.real"],
+          notice: ".notice",
+          title: { sel: ["td.subj a"] },
+          link: { sel: ["td.subj a"] },
+          author: { sel: ["td.name"] },
+        },
+        pager: { sel: [".paging"] },
+      },
+    ],
+  };
+  const html = `<div class="view"><h1 class="subject">지금 글</h1><div class="content">본문</div>
+    <ul class="cmt"><li><p class="text">댓글 하나</p></li><div class="paging">댓글 쪽</div></ul></div>
+    <table class="list">
+      <tr class="row notice"><td class="subj"><a href="/board/1/read/1">공지 글</a></td><td class="name">운영자</td></tr>
+      <tr class="row ad"><td class="subj"><a href="https://ad.example.test">광고</a></td></tr>
+      <tr class="row"><td class="subj"><a href="/board/1/read/10">지금 글</a></td><td class="name">가</td></tr>
+      <tr class="row"><td class="subj"><a href="/board/1/read/9">이전 글</a></td><td class="name">나</td></tr>
+    </table><div class="list_bottom"><div class="paging">1 2 3</div></div>`;
+
+  it("댓글 아래·원본 링크 위에 목록 화면과 같은 행으로, 글 화면에서 다른 행 스펙만 덮어쓰고, 지금 글은 강조", () => {
+    page("https://example.test/board/1/read/10", html);
+    const post = locate(document, pickPage(r, document).page!) as LocatedPost;
+    const view = buildPost(post, r);
+    const main = view.root.querySelector(".k-main")!;
+    const order = [...main.children].map((c) => c.classList[0]);
+    expect(order.indexOf("k-comments")).toBeLessThan(order.indexOf("k-post-list"));
+    expect(order[order.length - 1]).toBe("k-source");
+    const rows = [...main.querySelectorAll(".k-post-list a.k-row")];
+    expect(rows.map((a) => a.querySelector(".k-row-title")?.textContent)).toEqual(["공지공지 글", "지금 글", "이전 글"]);
+    expect(rows[0].classList.contains("k-notice")).toBe(true);
+    expect(rows.filter((a) => a.classList.contains("k-row-here")).map((a) => (a as HTMLAnchorElement).href)).toEqual(["https://example.test/board/1/read/10"]);
+    // 쪽 넘김: 댓글 쪽이 아니라 목록 쪽
+    expect(main.querySelector(".k-post-list .k-pager")?.textContent).toBe("1 2 3");
+    expect(main.querySelector(".k-post-list .k-sec-title")?.textContent).toBe("글 목록");
+  });
+
+  it("글 아래에 목록이 없으면 목록 칸을 만들지 않는다", () => {
+    page("https://example.test/board/1/read/10", html.replace(/<table[\s\S]*<\/table>/, ""));
+    const view = buildPost(locate(document, pickPage(r, document).page!) as LocatedPost, r);
+    expect(view.root.querySelector(".k-post-list")).toBeNull();
+  });
+});

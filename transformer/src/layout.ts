@@ -1,14 +1,14 @@
 // ③ 재배치: 통일된 뼈대(#kong-root)를 만들고 원본 요소를 옮긴다.
 // text 슬롯 = 원본 텍스트를 읽어 엔진이 만든 요소에 넣음 / move 슬롯 = 원본 노드를 통째로 이동 (이벤트·지연로딩 유지)
 // 설계: docs/DESIGN.md 4절
-import { findAll, hit } from "./locate.js";
+import { findAll, hit, locateBoard } from "./locate.js";
 import type { Hit, LocatedBoard, LocatedComment, LocatedHub, LocatedPost, LocatedRow } from "./locate.js";
-import type { Field, FitSpec, Recipe } from "./recipe.js";
+import type { BoardPage, Field, FitSpec, PostList, Recipe } from "./recipe.js";
 import { CTX_CLASS, inContext, placeKept } from "./keep.js";
 import { buildShell, ROOT_ID } from "./nav.js";
 import { heroMark } from "./logo.js";
 import { mirrorInto } from "./mirror.js";
-import { isVisited, markVisited } from "./visited.js";
+import { isVisited, markVisited, visitKey } from "./visited.js";
 import css from "./style.css";
 
 export { ROOT_ID };
@@ -90,6 +90,8 @@ export interface PostView {
 export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
   const p = l.page;
   const f = l.fields;
+  // 글 아래 게시글 목록: 다른 칸을 옮기기 전에 찾아 둔다
+  const postRows = p.list ? locatePostList(p.list, recipe) : null;
   const root = h("div");
 
   const head = h("header", "k-head");
@@ -129,10 +131,13 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
   const cmtList = h("div", "k-cmt-list");
   cmtSection.append(cmtTitle, cmtList);
 
+  // 글 아래 게시글 목록 (레시피 list): 댓글보다 아래, 원본 링크 위. 댓글 쪽 요소는 이 앞에 놓인다
+  const postList = postRows ? h("section", "k-post-list") : null;
+  if (postList) root.appendChild(postList);
   const src = h("a", "k-source", `원본 보기 · ${location.host}`);
   src.href = location.href;
   root.appendChild(src);
-  const place = (el: Element) => root.insertBefore(el, src); // 원본 링크는 항상 맨 아래
+  const place = (el: Element) => root.insertBefore(el, postList ?? src); // 원본 링크는 항상 맨 아래
 
   // 사이트가 댓글 버튼 이벤트를 상위 요소에 위임해 둔 경우(jQuery .on(selector) 등), 버튼을 그 밖으로 꺼내면 동작하지 않는다.
   // 그래서 그 상위 요소(anchor)를 통째로 뼈대에 옮기고, 원래 내용은 숨긴 채 그 "안에" 통일된 댓글 목록을 만든다.
@@ -286,6 +291,7 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
   for (const c of l.best) view.addComment(c, true);
   for (const c of l.comments) view.addComment(c, false);
   view.refreshCount();
+  if (postList && !renderPostList(postList, postRows!)) postList.remove();
 
   view.root = buildShell(root, recipe, "post");
   return view;
@@ -309,6 +315,89 @@ function mediaIcon(kind: "image" | "video") {
   s.title = kind === "image" ? "이미지" : "동영상";
   s.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${MEDIA_SVG[kind]}</svg>`;
   return s;
+}
+
+/**
+ * 글 아래 게시글 목록: 목록 화면(list.from)의 행 스펙을 빌려(글 화면에서 다른 것만 덮어써) 찾는다.
+ * 글 화면의 다른 칸을 옮기기 전에 불러야 한다 (에펨코리아는 댓글 영역(anchor)이 목록까지 감싸고 있어, 옮긴 뒤에는 문서에서 못 찾는다)
+ */
+function locatePostList(spec: PostList, recipe: Recipe): LocatedBoard | null {
+  const from = recipe.pages.find((x): x is BoardPage => x.type === "board" && x.id === spec.from);
+  if (!from) return null;
+  const page: BoardPage = {
+    ...from,
+    rows: { ...from.rows, ...spec.rows },
+    // 덮어쓴 칸은 셀렉터만 바꾸고 나머지 설정(keepStyle 등)은 목록 화면 것 그대로
+    pager: spec.pager ? { ...from.pager, ...spec.pager } : from.pager,
+    search: spec.search ? { ...from.search, ...spec.search } : from.search,
+    more: undefined,
+    write: undefined,
+  };
+  const lb = locateBoard(document, page);
+  return lb.rows.length ? lb : null;
+}
+
+/** 찾아 둔 글 아래 목록을 목록 화면과 같은 행으로 그린다. 그릴 행이 없으면 false */
+function renderPostList(box: HTMLElement, lb: LocatedBoard): boolean {
+  const list = h("div", "k-rows");
+  const add = rowAdder(lb, list);
+  for (const r of lb.rows) add(r);
+  if (!list.children.length) return false;
+  box.append(h("h2", "k-sec-title", "글 목록"), list);
+  for (const slot of [moveSlot("k-pager", lb.pager, lb.page.pager), moveSlot("k-search", lb.search, lb.page.search)]) if (slot) box.appendChild(slot);
+  return true;
+}
+
+/** 목록 행 그리기 (목록 화면과 글 아래 목록이 같이 쓴다). 지금 보고 있는 글 행은 강조 */
+function rowAdder(l: LocatedBoard, list: HTMLElement): (r: LocatedRow) => void {
+  const rule = { params: l.page.rows.visitParams, pattern: l.page.rows.visitPattern };
+  const here = visitKey(location.href, rule);
+  return (r) => {
+    r.item.setAttribute("data-kong-done", "1");
+    if (!r.title || !r.href) return;
+    const a = h("a", `k-row${r.notice ? " k-notice" : ""}`);
+    a.href = r.href;
+    // 지금 보고 있는 글 (글 아래 목록)
+    if (here && visitKey(r.href, rule) === here) a.classList.add("k-row-here");
+    // 읽은 글은 제목 색을 바꾼다 (사이트의 방문한 링크 색처럼)
+    if (isVisited(r.href, rule)) a.classList.add("k-visited");
+    a.addEventListener("click", () => {
+      a.classList.add("k-visited");
+      markVisited(a.href);
+    });
+    const t = h("div", "k-row-title");
+    if (r.notice) t.appendChild(h("span", "k-badge", "공지"));
+    if (r.category) t.appendChild(h("span", "k-cat", r.category.replace(/^\[|\]$/g, "")));
+    t.appendChild(document.createTextNode(r.title));
+    if (r.image) t.appendChild(mediaIcon("image"));
+    if (r.video) t.appendChild(mediaIcon("video"));
+    const n = r.commentCount?.replace(/[^0-9]/g, "");
+    if (n && n !== "0") t.appendChild(h("span", "k-ccount", n));
+    const info = meta([r.author, r.createdAt, r.views && `조회 ${r.views}`, r.likes && r.likes !== "0" && `추천 ${r.likes}`]);
+    // 제목 아래 한 줄 (에펨코리아 핫딜의 쇼핑몰·가격·배송 등)
+    const extra = r.extra ? h("div", "k-row-extra", r.extra) : null;
+    if (r.thumbnail) {
+      // 썸네일: 행 왼쪽에 작은 그림, 제목·정보는 오른쪽 (못 불러오면 그림 자리를 없앤다)
+      a.classList.add("k-has-thumb");
+      const img = h("img", "k-thumb") as HTMLImageElement;
+      img.alt = "";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.src = r.thumbnail;
+      img.addEventListener("error", () => {
+        img.remove();
+        a.classList.remove("k-has-thumb");
+      });
+      const body = h("div", "k-row-body");
+      body.append(t, ...(extra ? [extra] : []), info);
+      a.append(img, body);
+    } else {
+      // 썸네일이 없는 행: 갤러리 보기에서 빈 그림 자리 (목록 보기에서는 숨김)
+      if (l.page.rows.gallery) a.appendChild(h("span", "k-thumb k-thumb-empty"));
+      a.append(t, ...(extra ? [extra] : []), info);
+    }
+    list.appendChild(a);
+  };
 }
 
 export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
@@ -366,55 +455,7 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
   }
   root.appendChild(list);
 
-  const view: BoardView = {
-    kind: "board",
-    root,
-    addRow(r) {
-      r.item.setAttribute("data-kong-done", "1");
-      if (!r.title || !r.href) return;
-      const a = h("a", `k-row${r.notice ? " k-notice" : ""}`);
-      a.href = r.href;
-      // 읽은 글은 제목 색을 바꾼다 (사이트의 방문한 링크 색처럼)
-      const rule = { params: l.page.rows.visitParams, pattern: l.page.rows.visitPattern };
-      if (isVisited(r.href, rule)) a.classList.add("k-visited");
-      a.addEventListener("click", () => {
-        a.classList.add("k-visited");
-        markVisited(a.href);
-      });
-      const t = h("div", "k-row-title");
-      if (r.notice) t.appendChild(h("span", "k-badge", "공지"));
-      if (r.category) t.appendChild(h("span", "k-cat", r.category.replace(/^\[|\]$/g, "")));
-      t.appendChild(document.createTextNode(r.title));
-      if (r.image) t.appendChild(mediaIcon("image"));
-      if (r.video) t.appendChild(mediaIcon("video"));
-      const n = r.commentCount?.replace(/[^0-9]/g, "");
-      if (n && n !== "0") t.appendChild(h("span", "k-ccount", n));
-      const info = meta([r.author, r.createdAt, r.views && `조회 ${r.views}`, r.likes && r.likes !== "0" && `추천 ${r.likes}`]);
-      // 제목 아래 한 줄 (에펨코리아 핫딜의 쇼핑몰·가격·배송 등)
-      const extra = r.extra ? h("div", "k-row-extra", r.extra) : null;
-      if (r.thumbnail) {
-        // 썸네일: 행 왼쪽에 작은 그림, 제목·정보는 오른쪽 (못 불러오면 그림 자리를 없앤다)
-        a.classList.add("k-has-thumb");
-        const img = h("img", "k-thumb") as HTMLImageElement;
-        img.alt = "";
-        img.loading = "lazy";
-        img.decoding = "async";
-        img.src = r.thumbnail;
-        img.addEventListener("error", () => {
-          img.remove();
-          a.classList.remove("k-has-thumb");
-        });
-        const body = h("div", "k-row-body");
-        body.append(t, ...(extra ? [extra] : []), info);
-        a.append(img, body);
-      } else {
-        // 썸네일이 없는 행: 갤러리 보기에서 빈 그림 자리 (목록 보기에서는 숨김)
-        if (l.page.rows.gallery) a.appendChild(h("span", "k-thumb k-thumb-empty"));
-        a.append(t, ...(extra ? [extra] : []), info);
-      }
-      list.appendChild(a);
-    },
-  };
+  const view: BoardView = { kind: "board", root, addRow: rowAdder(l, list) };
   for (const r of l.rows) view.addRow(r);
 
   for (const box of [

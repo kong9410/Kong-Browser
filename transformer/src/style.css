@@ -1212,26 +1212,24 @@ html.kong-on #kong-root .k-hidden {
   margin: 6px 0 10px 24px;
 }
 
-/* 오른쪽 열로 옮긴 사이트 페이지 번호 (디시 글 아래 목록의 페이지): 지금 페이지는 강조색 */
-#kong-root .k-side .k-move em {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--k-accent);
-  border-radius: 4px;
-  background-color: var(--k-accent) !important;
-  color: var(--k-on-accent) !important;
-  font: 500 12.5px/1 var(--k-mono);
-  font-style: normal;
+/* ---------- 글 아래 게시글 목록 (레시피 list): 목록 화면과 같은 행, 지금 보는 글은 강조 ---------- */
+#kong-root .k-post-list {
+  margin-top: 36px;
+  padding-top: 4px;
+  border-top: 1px solid var(--k-line);
 }
-#kong-root .k-side .bottom_paging_box {
-  display: flex !important;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 8px !important;
+#kong-root .k-post-list .k-sec-title {
+  margin-bottom: 6px;
+}
+#kong-root a.k-row.k-row-here {
+  margin: 0 -8px;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-radius: 4px;
+  background: var(--k-accent-soft);
+}
+#kong-root a.k-row.k-row-here .k-row-title {
+  color: var(--k-accent);
 }
 
 /* ---------- landing (설계 8-14절): 구글 첫 화면처럼 가운데 큰 로고 + 검색창만 ----------

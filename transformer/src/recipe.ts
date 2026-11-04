@@ -85,6 +85,18 @@ export interface CommentSpec {
   replyWrite?: Field;
 }
 
+/** 글 아래 게시글 목록 (PostPage.list) */
+export interface PostList {
+  /** 행 스펙을 빌려 올 목록 화면의 id (같은 레시피의 board) */
+  from: string;
+  /** 행 스펙 중 글 화면에서 다른 것만 (예: 디시 글 아래 목록은 행 class 가 깨져 있고 data-type 이 없다) */
+  rows?: Partial<RowSpec>;
+  /** 쪽 넘김 (없으면 목록 화면 것). 글 화면에는 댓글 쪽 넘김도 있어 좁혀야 하는 경우 */
+  pager?: Field;
+  /** 게시판 검색 (없으면 목록 화면 것) */
+  search?: Field;
+}
+
 export interface PostPage {
   id: string;
   type: "post";
@@ -112,6 +124,11 @@ export interface PostPage {
   write?: Field;
   /** move. 사이트의 댓글 쓰기 칸(입력·등록 버튼). 댓글 목록 아래에 (댓글을 못 쓰는 글이면 생략, 경고 없음) */
   commentWrite?: Field;
+  /**
+   * 글 아래 게시글 목록 (루리웹·디시·에펨코리아처럼 글 화면 아래에 그 게시판 목록이 있는 사이트). 댓글 아래에 목록 화면과 같은 모양으로.
+   * from 의 목록 화면(board) 행 스펙·쪽 넘김·검색을 그대로 쓰고, 글 화면에서 다른 것만 덮어쓴다. 지금 보는 글 행은 강조. 행이 없으면 생략
+   */
+  list?: PostList;
   /** 검산용: 페이지에 표시된 일반 댓글 수 */
   commentCount?: Field;
   comments?: CommentSpec;

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "bbs.ruliweb.com",
-  "version": 14,
+  "version": 15,
   "minEngine": 1,
   "siteName": "루리웹",
   "logo": {
@@ -204,6 +204,14 @@
           "#cmt .comment_disable"
         ],
         "keepStyle": true
+      },
+      "list": {
+        "from": "board",
+        "pager": {
+          "sel": [
+            "#board_list .board_bottom > .paging_wrapper"
+          ]
+        }
       }
     },
     {

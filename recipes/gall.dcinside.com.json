@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 21,
+  "version": 22,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
@@ -69,26 +69,6 @@
       "hide": [
         ".btn_subject_more"
       ]
-    },
-    {
-      "links": {
-        "groups": [
-          "#bottom_listwrap"
-        ],
-        "label": "글 목록",
-        "links": [
-          "tr.ub-content td.gall_tit > a:first-child:not(:has(.icon_n_survey, .icon_ad, .icon_notice))"
-        ],
-        "current": "mark",
-        "mark": "[class*=crt]"
-      }
-    },
-    {
-      "move": {
-        "sel": [
-          "#bottom_listwrap .bottom_paging_box"
-        ]
-      }
     }
   ],
   "pages": [
@@ -232,6 +212,27 @@
           ".view_comment > .cmt_write_box:not([id^=img_cmt_write_box_])"
         ],
         "keepStyle": true
+      },
+      "list": {
+        "from": "board",
+        "rows": {
+          "item": [
+            "tr.ub-content:not(:has(.icon_ad, .icon_n_survey))"
+          ],
+          "notice": ".icon_notice",
+          "image": ".icon_pic, .icon_recomimg",
+          "video": ".icon_movie, .icon_recomovie"
+        },
+        "pager": {
+          "sel": [
+            "#bottom_listwrap .bottom_paging_box"
+          ]
+        },
+        "search": {
+          "sel": [
+            "#bottom_listwrap form"
+          ]
+        }
       }
     },
     {

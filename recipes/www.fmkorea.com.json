@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "www.fmkorea.com",
-  "version": 5,
+  "version": 6,
   "minEngine": 1,
   "siteName": "에펨코리아",
   "logo": {
@@ -167,6 +167,9 @@
           ".fdb_lst .cmt_editor"
         ],
         "keepStyle": true
+      },
+      "list": {
+        "from": "list"
       }
     },
     {
