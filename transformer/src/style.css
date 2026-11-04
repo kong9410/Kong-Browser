@@ -460,6 +460,28 @@ html.kong-on #kong-root .k-hidden {
 #kong-root .k-badge::after {
   content: "]";
 }
+/* 바로 위 행에 딸린 줄 (rows.reply, 웃긴대학 답글 베스트의 답글): 들여서, 앞에 └ */
+#kong-root a.k-row.k-row-reply {
+  position: relative;
+  padding-left: 28px;
+  padding-top: 2px;
+}
+/* 딸린 줄이 있는 행은 아래 선 없이 붙인다 */
+#kong-root a.k-row:has(+ a.k-row.k-row-reply) {
+  border-bottom-color: transparent;
+  padding-bottom: 4px;
+}
+#kong-root a.k-row.k-row-reply::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-left: 1.5px solid var(--k-line);
+  border-bottom: 1.5px solid var(--k-line);
+}
+
 /* 썸네일이 있는 행 (디시 실시간 베스트 등): 왼쪽 작은 그림 + 오른쪽 제목·정보 */
 #kong-root a.k-row.k-has-thumb {
   display: flex;

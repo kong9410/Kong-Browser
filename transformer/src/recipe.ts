@@ -173,6 +173,8 @@ export interface RowSpec {
   commentCount?: Field;
   /** item 이 공지 행이면 매칭 */
   notice?: string;
+  /** item 이 바로 위 행에 딸린 줄이면 매칭 → 들여서 그림. 예) 웃긴대학 답글 베스트: 글 줄 아래 그 글의 베스트 답글 줄 */
+  reply?: string;
   /** item 자신 또는 내부에서 매칭되면 이미지가 있는 글 (사이트의 그림 아이콘 등) */
   image?: string;
   /** item 자신 또는 내부에서 매칭되면 동영상이 있는 글 */
@@ -200,6 +202,11 @@ export interface RowSpec {
    * 다른 게시판 글(사이드바, 인기글 등)이 목록에 섞였는지 검산한다. 예: "/board/([0-9]+)", "[?&]id=([^&]+)"
    */
   sameBoard?: string;
+  /**
+   * 행 링크가 가는 곳. 기본 post(같은 사이트의 글 주소인지 검산). list 는 다른 목록(같은 레시피의 목록 화면 주소인지 검산).
+   * 예) 웃긴대학 웹소설 첫 화면의 작품 줄 → 그 작품의 회차 목록
+   */
+  linksTo?: "post" | "list";
 }
 
 export interface BoardPage {

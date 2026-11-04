@@ -61,6 +61,8 @@ export interface LocatedRow {
   likes: string | null;
   commentCount: string | null;
   notice: boolean;
+  /** 바로 위 행에 딸린 줄 (rows.reply) */
+  reply: boolean;
   image: boolean;
   video: boolean;
   /** 썸네일 이미지 주소 (절대 주소) */
@@ -230,6 +232,7 @@ export function locateRows(scope: Element, spec: RowSpec): LocatedRow[] {
     likes: val(item, spec.likes),
     commentCount: val(item, spec.commentCount),
     notice: marked(item, spec.notice),
+    reply: marked(item, spec.reply),
     image: marked(item, spec.image),
     video: marked(item, spec.video),
     extra: [val(item, spec.extra), ...(spec.extras ?? []).map((f) => val(item, f))].filter(Boolean).join(" · ") || null,

@@ -355,7 +355,7 @@ function rowAdder(l: LocatedBoard, list: HTMLElement): (r: LocatedRow) => void {
   return (r) => {
     r.item.setAttribute("data-kong-done", "1");
     if (!r.title || !r.href) return;
-    const a = h("a", `k-row${r.notice ? " k-notice" : ""}`);
+    const a = h("a", `k-row${r.notice ? " k-notice" : ""}${r.reply ? " k-row-reply" : ""}`);
     a.href = r.href;
     // 지금 보고 있는 글 (글 아래 목록)
     if (here && visitKey(r.href, rule) === here) a.classList.add("k-row-here");

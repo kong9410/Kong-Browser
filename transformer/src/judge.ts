@@ -83,7 +83,9 @@ function judgeBoard(l: LocatedBoard, recipe: Recipe, failed: string[], warnings:
   if (l.page.search && !l.search?.el) warnings.push("search");
 
   // 행 링크가 같은 사이트의 게시글 주소인지: 사이드바/다른 게시판 목록이 섞였는지 잡는다
-  const postMatches = recipe.pages.filter((p) => p.type === "post").map((p) => new RegExp(p.match));
+  // (rows.linksTo 가 list 면 글이 아니라 목록 화면 주소인지: 웃긴대학 웹소설 작품 줄 → 회차 목록)
+  const target = l.page.rows.linksTo === "list" ? "board" : "post";
+  const postMatches = recipe.pages.filter((p) => p.type === target).map((p) => new RegExp(p.match));
   if (postMatches.length && valid.length) {
     const ok = valid.filter((r) => {
       const u = new URL(r.href!);

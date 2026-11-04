@@ -128,6 +128,35 @@ describe("판정", () => {
       failed: ["rows:otherBoards(1/5)"],
     });
   });
+
+  it("rows.reply: 바로 위 행에 딸린 줄은 k-row-reply (웃긴대학 답글 베스트: 글 줄 아래 베스트 답글)", () => {
+    page(
+      "https://example.test/board/1",
+      `<table class="list">
+        <tr class="row"><td><a href="/board/1/read/1">글</a></td></tr>
+        <tr class="row"><td><img class="re"><a href="/board/1/read/1?c=9">답글</a></td></tr>
+        <tr class="row"><td><a href="/board/1/read/2">다음 글</a></td></tr>
+      </table>`,
+    );
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    for (const p of r.pages) if (p.type === "board") p.rows.reply = "img.re";
+    const root = buildBoard(locate(document, pickPage(r, document).page!) as LocatedBoard, r).root;
+    expect([...root.querySelectorAll("a.k-row")].map((a) => a.classList.contains("k-row-reply"))).toEqual([false, true, false]);
+  });
+
+  it("rows.linksTo list: 행 링크가 글이 아니라 목록 화면 주소여야 ok (웃긴대학 웹소설 작품 → 회차 목록)", () => {
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    const board = r.pages.find((p) => p.type === "board")!;
+    if (board.type !== "board") throw new Error();
+    delete board.rows.sameBoard;
+    const rows = (href: (i: number) => string) => [0, 1, 2, 3].map((i) => `<tr class="row"><td><a href="${href(i)}">작품${i}</a></td></tr>`).join("");
+    page("https://example.test/board/1", `<table class="list">${rows((i) => `/board/${i + 2}`)}</table>`);
+    expect(judge(locate(document, pickPage(r, document).page!), r).failed).toEqual(["rows:links(0/4)"]); // 기본(post): 글 주소가 아니라 실패
+    board.rows.linksTo = "list";
+    expect(judge(locate(document, pickPage(r, document).page!), r).verdict).toBe("ok");
+    page("https://example.test/board/1", `<table class="list">${rows((i) => `/board/1/read/${i}`)}</table>`);
+    expect(judge(locate(document, pickPage(r, document).page!), r).failed).toEqual(["rows:links(0/4)"]); // list 인데 글 주소면 실패
+  });
 });
 
 describe("메뉴 읽기와 지금 위치 강조", () => {

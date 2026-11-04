@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "web.humoruniv.com",
-  "version": 2,
+  "version": 4,
   "minEngine": 1,
   "siteName": "웃긴대학",
   "logo": {
@@ -22,6 +22,39 @@
       ],
       "links": [
         "a[href]"
+      ],
+      "current": "none",
+      "style": "chips"
+    },
+    {
+      "label": "기간별 베스트",
+      "groups": [
+        "#wrap_cnts > div:has(a[href*='board_best.html?'])"
+      ],
+      "links": [
+        "a[href*='board_best.html?']"
+      ],
+      "current": "none",
+      "style": "chips"
+    },
+    {
+      "label": "웹소설 장르",
+      "groups": [
+        "#navi.cr_menu"
+      ],
+      "links": [
+        ".item a[href]"
+      ],
+      "current": "none",
+      "style": "chips"
+    },
+    {
+      "label": "웹소설",
+      "groups": [
+        "#wrap_cnts > div:first-child:has(a[href*='cr_my_recent'])"
+      ],
+      "links": [
+        "a[href]:not(:has(img))"
       ],
       "current": "none",
       "style": "chips"
@@ -77,6 +110,23 @@
           "#wrap_body_index > #wrap_r"
         ],
         "keepStyle": true
+      }
+    },
+    {
+      "links": {
+        "groups": [
+          "#main_list_best"
+        ],
+        "label": "인기 웹소설",
+        "links": [
+          ".cr_div a:has(.pic_desc)"
+        ],
+        "linkText": {
+          "sel": [
+            ".pic_desc"
+          ]
+        },
+        "current": "none"
       }
     }
   ],
@@ -280,6 +330,247 @@
       "write": {
         "sel": [
           "#write_btn a"
+        ]
+      },
+      "hide": [
+        "#naver_adpost_wrap"
+      ]
+    },
+    {
+      "id": "best",
+      "type": "board",
+      "match": "^/board/humor/board_best\\.html",
+      "probe": [
+        "#cnts_list_new table#post_list tr[id^='li_chk_']"
+      ],
+      "boardName": {
+        "sel": [
+          "#wrap_cnts > div.o"
+        ]
+      },
+      "rows": {
+        "scope": [
+          "#cnts_list_new table#post_list"
+        ],
+        "item": [
+          "tr[id^='li_chk_']"
+        ],
+        "title": {
+          "sel": [
+            "td.li_sbj span[id^='title_chk_']"
+          ]
+        },
+        "link": {
+          "sel": [
+            "td.li_sbj a[href*='read.html']"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".hu_nick_txt"
+          ]
+        },
+        "createdAt": {
+          "sel": [
+            "td.li_date"
+          ]
+        },
+        "views": {
+          "sel": [
+            "td.li_und"
+          ]
+        },
+        "likes": {
+          "sel": [
+            "td.li_und .o"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            ".list_comment_num"
+          ],
+          "pattern": "([0-9]+)"
+        },
+        "thumbnail": {
+          "sel": [
+            "td.li_num img.thumb"
+          ]
+        },
+        "visitParams": [
+          "table",
+          "number"
+        ]
+      },
+      "pager": {
+        "sel": [
+          "#cnts_list_new > .paging"
+        ]
+      },
+      "search": {
+        "sel": [
+          "#wrap_cnts > form[name='form']"
+        ],
+        "keepStyle": true
+      },
+      "hide": [
+        "#naver_adpost_wrap"
+      ]
+    },
+    {
+      "id": "cr",
+      "type": "board",
+      "match": "^/cr/cr_list\\.html",
+      "probe": [
+        ".body_main > table a[href*='cr_idx'] .subject"
+      ],
+      "boardName": {
+        "sel": [
+          "#navi.cr_menu .item.on a",
+          "#navi.cr_menu .item a"
+        ],
+        "pattern": "^(.+)$"
+      },
+      "rows": {
+        "scope": [
+          ".body_main > table"
+        ],
+        "item": [
+          "tr:has(> td .subject)"
+        ],
+        "category": {
+          "sel": [
+            ".category"
+          ]
+        },
+        "title": {
+          "sel": [
+            ".subject .li",
+            ".subject"
+          ]
+        },
+        "link": {
+          "sel": [
+            "a[href*='cr_idx']"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".hu_nick_txt"
+          ]
+        },
+        "createdAt": {
+          "sel": [
+            ".date"
+          ]
+        },
+        "views": {
+          "sel": [
+            "span.gray"
+          ]
+        },
+        "likes": {
+          "sel": [
+            "span.ok"
+          ]
+        },
+        "thumbnail": {
+          "sel": [
+            "img.thumb"
+          ]
+        },
+        "extras": [
+          {
+            "sel": [
+              ".cr_count"
+            ]
+          },
+          {
+            "sel": [
+              ".content"
+            ]
+          }
+        ],
+        "visitParams": [
+          "table",
+          "cr_idx"
+        ],
+        "linksTo": "list"
+      },
+      "pager": {
+        "sel": [
+          ".body_main .paging"
+        ]
+      },
+      "hide": [
+        "#naver_adpost_wrap"
+      ]
+    },
+    {
+      "id": "comment-best",
+      "type": "board",
+      "match": "^/board/humor/comment_search\\.html",
+      "probe": [
+        ".body_main table a[href*='comment_number=']"
+      ],
+      "boardName": {
+        "sel": [
+          ".body_main table th .title"
+        ]
+      },
+      "rows": {
+        "scope": [
+          ".body_main table:has(a[href*='comment_number='])"
+        ],
+        "item": [
+          "tr:has(a[href*='read.html'])"
+        ],
+        "reply": "td img[src*='ic_re']",
+        "category": {
+          "sel": [
+            ".tablename"
+          ]
+        },
+        "title": {
+          "sel": [
+            ".a_blue",
+            ".comment_more .comment",
+            ".comment_more"
+          ]
+        },
+        "link": {
+          "sel": [
+            "a[href*='read.html']"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".hu_nick_txt"
+          ]
+        },
+        "createdAt": {
+          "sel": [
+            ".date"
+          ]
+        },
+        "likes": {
+          "sel": [
+            "span.ok"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            "font[color='green']"
+          ],
+          "pattern": "([0-9]+)"
+        },
+        "thumbnail": {
+          "sel": [
+            "img.img_pc"
+          ]
+        },
+        "visitParams": [
+          "table",
+          "number"
         ]
       },
       "hide": [
