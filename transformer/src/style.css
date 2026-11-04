@@ -723,6 +723,78 @@ html.kong-on #kong-root .k-hidden {
   padding-top: 14px;
   border-top: 1px solid var(--k-line);
 }
+/* 사이트마다 다른 검색 영역(루리웹: 선택 2개 + 입력 + 버튼, 디시: 선택 + 입력 + 아이콘 버튼, 디시 홈 통합검색)을 같은 모양으로.
+   입력 요소를 감싸는 상자들은 풀어서(display: contents) 입력 요소들만 한 줄로 늘어놓는다.
+   (입력 요소가 없는 상자, 예를 들어 검색어 자동완성 층은 그대로 두어 입력칸 아래에 뜨게) */
+#kong-root .k-search.k-move,
+#kong-root > .k-main > .k-hub-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  position: relative;
+}
+#kong-root :is(.k-search.k-move, .k-hub-top) :is(form, fieldset, div, label):has(input:not([type=hidden]), select, button):not(.k-excluded) {
+  display: contents !important;
+}
+/* 첫 화면 맨 위 검색은 입력칸을 넓게 */
+#kong-root .k-hub-top input:not([type=hidden]) {
+  flex: 1 1 auto !important;
+  max-width: 560px;
+}
+#kong-root :is(.k-search.k-move, .k-hub-top) :is(select, input:not([type=hidden]), button) {
+  display: block !important;
+  float: none !important;
+  box-sizing: border-box !important;
+  width: auto !important;
+  height: 38px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 10px !important;
+  background: var(--k-card) !important;
+  color: var(--k-fg) !important;
+  font: 400 14px/1 var(--k-font) !important;
+  text-indent: 0 !important;
+}
+#kong-root :is(.k-search.k-move, .k-hub-top) select {
+  padding-right: 28px !important;
+  cursor: pointer;
+}
+#kong-root :is(.k-search.k-move, .k-hub-top) input:not([type=hidden]) {
+  flex: 0 1 280px;
+  min-width: 140px;
+}
+#kong-root :is(.k-search.k-move, .k-hub-top) :is(select, input):focus {
+  border-color: var(--k-accent) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--k-accent-soft);
+}
+/* 검색 버튼: 강조색 바탕 + 흰 글자 (디시는 그림 버튼이라 그림을 지우고 숨은 "검색" 글자를 보인다) */
+/* (공통 규칙과 같은 무게가 되도록 :not([type=hidden]) — 뒤에 있는 이 규칙이 이긴다) */
+#kong-root :is(.k-search.k-move, .k-hub-top) button:not([type=hidden]) {
+  padding: 0 18px !important;
+  border-color: var(--k-accent) !important;
+  background: var(--k-accent) none !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+}
+#kong-root :is(.k-search.k-move, .k-hub-top) button:not([type=hidden]):hover {
+  filter: brightness(1.08);
+}
+#kong-root :is(.k-search.k-move, .k-hub-top) button :is(.blind, .screen_out, .sr-only) {
+  position: static !important;
+  clip: auto !important;
+  clip-path: none !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+  margin: 0 !important;
+  visibility: visible !important;
+  color: inherit !important;
+  font-size: inherit !important;
+}
 
 /* ---------- 사이트 모양 그대로 옮긴 블록 (keepStyle, keep.ts) ----------
    원래 조상을 본뜬 껍데기(.k-ctx)는 자리를 차지하지 않고 사이트 CSS 선택자만 맞게 한다 */
@@ -752,4 +824,22 @@ html.kong-on #kong-root .k-hidden {
 /* 사이트 모양 그대로인 오른쪽 블록(디시 실북갤 250px 등)이 들어가도록 오른쪽 열을 넓힌다 (그런 페이지에서만) */
 #kong-root:has(> .k-side .k-side-keep) {
   --k-sidew: clamp(256px, 15vw, 340px);
+}
+
+/* ---------- 첫 화면 가운데 칸의 사이트 블록 (디시 홈 실시간 베스트·개념글) ----------
+   사이트 모양 그대로 옮긴 블록(keepStyle)이지만 가운데 칸에서는 통합 화면과 어울리게:
+   배치·썸네일·화살표 넘김은 사이트 CSS 그대로 두고, 글꼴·선 색·링크 색만 맞춘다 (오른쪽 열 블록은 그대로) */
+#kong-root > .k-main > .k-hub-block.k-keep,
+#kong-root > .k-main > .k-hub-block.k-keep *:not(i):not([class*="icon"]) {
+  font-family: var(--k-font) !important;
+}
+#kong-root > .k-main > .k-hub-block.k-keep * {
+  border-color: var(--k-line) !important;
+}
+#kong-root > .k-main > .k-hub-block.k-keep a:hover,
+#kong-root > .k-main > .k-hub-block.k-keep a:hover * {
+  color: var(--k-accent) !important;
+}
+#kong-root > .k-main > .k-hub-block.k-keep + .k-hub-block.k-keep {
+  margin-top: 28px;
 }

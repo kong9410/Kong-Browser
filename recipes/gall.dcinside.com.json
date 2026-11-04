@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 12,
+  "version": 13,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
@@ -246,6 +246,10 @@
       "search": {
         "sel": [
           "form[name=frmSearch]"
+        ],
+        "exclude": [
+          ".select_area",
+          ".option_box"
         ]
       }
     }
