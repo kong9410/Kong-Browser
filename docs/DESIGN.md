@@ -894,3 +894,74 @@ PC 사이트 www.fmkorea.com (XE/Rhymix, 스킨 sketchbook5_elkha) 를 디시·�
 - 목록 | 갤러리 전환 (2026-11-04, 사용자 요청 "뮬 장터에 갤러리형 보기", 레시피 5): 엔진 행 스펙 `gallery` — 목록 머리(글쓰기 버튼 옆)에 "목록 | 갤러리" 전환. 갤러리는 같은 행을 썸네일 카드(정사각 그림 · 제목 두 줄 · 가격·지역 굵게 · 글쓴이/날짜)로 칸 맞춤 격자에, 공지는 맨 위에 한 줄씩, 썸네일 없는 글은 빈 그림 자리. 고른 것은 사이트마다 기억(localStorage `kong-gallery:호스트`, 못 쓰면 목록형)
   - 사이트 자체의 갤러리형 보기(`mode=gallery`)는 글 링크가 스크립트(`javascript:vm.goView(번호,'sell')`)이고 구조가 달라, 그 주소는 목록 match 에서 빼 원본 그대로(배너 없음). 통합 화면에는 위의 전환이 있으므로 그 주소로 갈 일이 거의 없음. 프리미엄 글 제목에 붙은 댓글 수 "[1]" 도 제목에서 뺌
   - 실제 사이트로 확인: 갤러리 누름 → 카드 35장 · 공지 7줄 · 한 줄에 4장, 다시 열어도 갤러리
+
+### 8-14. 네이버 첫 화면: 로고 + 검색창만 (2026-11-04, 사용자 요청 "구글 화면처럼, 로고와 검색창만", 설계)
+
+네이버 첫 화면(`www.naver.com/`)을 구글 첫 화면처럼 가운데 큰 로고 + 검색창 하나로 줄인다. 뉴스스탠드·쇼핑·광고·바로가기 줄은 모두 숨긴다(원본/통합 토글로 언제든 원래 화면). 검색 결과(`search.naver.com`)는 다른 호스트라 이번 범위 밖.
+
+**분석** (실제 화면을 Playwright 로 열어 읽음, 2026-11-04)
+- `body > #wrap` 아래 `#whale-banner`(웨일 설치 띠) · `#header`(216px) · `#container > #root`(React, 클래스 이름이 `Layout-module__…___해시`) · `#footer`
+- 검색은 `#header` 안, React 밖의 서버 HTML: `#header > #topSearchWrap.header_inner > #search_area.search_area > .search_group > #search.search_group_inner`
+  - `#search` 안에 다 있다: 안쪽 로고 `h1#special-input-logo.search_logo`(N 모양 인라인 SVG), 검색 폼 `form#sform`(action search.naver.com, 숨은 입력 10여 개 + `input#query`), 검색 버튼 `#search-btn`, AI 검색 `#search-ai-tab-button`, 한글 자판 `#ke_kbd_btn` + `#_nx_kbd`, 자동완성 층 `#autoFrame > #greenwindowAutocompleteLayer`(최근 검색 `#atcmp_recent`, 추천어 `#atcmp_keyword`)
+  - 특별한 날 로고(두들): `#topSearchWrap > #special-logo.search_special_bg picture img`(오늘은 "한글 점자의 날" GIF) + 지도 링크(`map > area`, 그 날의 검색어). 이런 날은 `#search` 에 `type_special_logo_full` 이 붙고 안쪽 N 로고는 폭 0(숨김)
+  - 같은 줄의 나머지: 광고 `#timeboard-ex`, `#search-right`(광고 그림), 바로가기 `#shortcutArea`(메일·카페·블로그…), 메뉴·페이·알림·장바구니 아이콘(`#topAsideArea` 등)
+- 로그인: React 안 `#account`(`a[class*=link_login]` → `nid.naver.com/nidlogin.login?mode=form&url=https://www.naver.com/`). 로그인하면 같은 자리에 프로필·메일 수
+- 처음에 `#query` 에 포커스가 있다(사이트가 자동으로)
+- **시험 재배치로 확인한 것**
+  - `#search_area` 만 떼어 옮기면 사이트 CSS 가 `#header …` 조상 기준이라 모양이 다 깨진다(N 로고 SVG 가 화면 가득) → **keepStyle(조상 껍데기 `.k-ctx`)이 꼭 필요**
+  - 조상 껍데기(`#wrap > #header > #topSearchWrap.header_inner`)를 둔 채 옮기면 모양 그대로, 입력하면 자동완성 층이 뜨고 추천어 10개가 나온다(스크립트가 id 로 요소를 찾으므로 옮겨도 동작). 다만 원래 자리 기준 위치(가로 오프셋)가 따라와 가운데에서 벗어나므로 `[data-kong-kept]` 위치 풀기 + 폭 지정이 필요
+
+**화면** (`www.naver.com.json`, 페이지 하나)
+
+| id | type | match | probe |
+| --- | --- | --- | --- |
+| home | hub (layout landing) | `^/?(\?.*)?$` | `#search_area #query` |
+
+- 가운데 한 열, 위에서 22vh 쯤: ① 큰 로고 ② 검색창(`#search_area`, keepStyle) — 끝
+- 큰 로고: 두들이 있는 날은 두들 그림(`#special-logo picture img`, 누르면 지도 링크의 검색 — 구글 두들과 같음), 없는 날은 네이버 로고(안쪽 N 로고 SVG 를 복사해 키움, 못 찾으면 "NAVER" 글자). 큰 로고가 있으니 검색창 안쪽 N 로고는 숨김(hide `#special-input-logo`)
+- 검색창 안에서 남길 것: 입력칸 · 검색 버튼 · AI 검색 · 한글 자판 · 자동완성 층(모두 `#search` 안이라 같이 옮겨짐). 숨길 것: 바로가기 줄·광고·아이콘(옮기지 않으면 원본과 함께 숨음)
+- 맨 위 줄: 왼쪽 로고 없음(가운데 큰 로고가 대신), 오른쪽에 "로그인"(로그인 상태면 사이트가 그린 계정 표시) — 아래 "계정" 참고
+- 왼쪽 메뉴 열 · 오른쪽 열 · 본문 칸 테두리 없음(통합 화면의 세 열 뼈대를 이 화면에서는 쓰지 않음)
+- 어두운 화면: 바탕은 통합 화면 어두운 색, 검색창은 사이트 모양 그대로(흰 상자) — 구글 어두운 화면과 비슷
+
+**엔진에 더할 것**
+1. hub `layout: "landing"`: 세 열 대신 가운데 한 열(`#kong-root[data-page="landing"]`) — 왼쪽 메뉴·오른쪽 열·본문 칸 테두리 없이 로고 + top 만, 화면 폭이 좁으면(폰) 위 여백만 줄임
+2. hub `hero`: 큰 로고 후보 Field 목록(위에서부터 처음 찾은 것). 그림(img)이면 그 그림, 인라인 SVG 면 복사, 그 밖이면 사이트 이름 글자. 누르면 가장 가까운 링크(없으면 사이트 홈)
+3. `readLogo` 가 인라인 SVG 로고도 읽기(지금은 img·배경 그림만) — 다른 사이트 머리 로고에도 쓰임
+4. 계정 `clone`: React 가 그리는 계정 칸(`#account`)을 옮기면 React 가 다시 그릴 때 "자식이 아님" 오류가 날 수 있어, 옮기지 않고 복사해 맨 위 줄에 두고 원본이 바뀌면(관찰) 다시 복사. 링크만 쓰므로 이벤트가 없어도 됨
+5. 포커스 되살리기: 재배치 전에 포커스가 있던 입력칸이 옮겨진 쪽에 있으면 붙인 뒤 다시 포커스(네이버 `#query`, 구글처럼 바로 입력). 앱이 새 탭에서 주소창에 둔 포커스는 건드리지 않음(페이지에 포커스가 없었으면 안 함)
+- 이미 있는 것: hub `top`·`hide`, keepStyle(조상 껍데기), fail-open(probe 없으면 원본), 원본/통합 토글
+
+**레시피 초안**
+```json
+{
+  "host": "www.naver.com", "siteName": "네이버",
+  "account": { "sel": ["#account a[class*=link_login]", "#account"], "clone": true },
+  "pages": [{
+    "id": "home", "type": "hub", "layout": "landing",
+    "match": "^/?(\?.*)?$", "probe": ["#search_area #query"],
+    "hero": { "sel": ["#special-logo picture img", "#special-input-logo a"] },
+    "top": { "sel": ["#search_area"], "keepStyle": true },
+    "hide": ["#special-input-logo"]
+  }]
+}
+```
+
+**단계**
+- 1단계: 엔진 1~5 + 레시피, 두들 있는 날/없는 날 둘 다 확인(없는 날은 저장본으로), 자동완성 · 한글 자판 · AI 검색 · 엔터 검색 동작
+- 2단계(원하면): 바로가기 줄(메일·카페·블로그…)을 검색창 아래 작은 아이콘 줄로, 로그인 상태 계정 표시(프로필·메일 수) 다듬기
+
+**위험·확인할 것**
+- 숨겨진 원본의 React 앱(뉴스스탠드·광고)은 계속 돈다 — 화면엔 안 보이지만 데이터·광고 요청은 그대로(1단계에서는 막지 않음)
+- 사이트가 나중에 body 에 붙이는 알림(웨일 설치·브라우저 업데이트 권유 상자)이 통합 화면 위에 뜰 수 있음 → 보이면 레시피 hide 로
+- 자동완성 층 위치는 `#search` 기준(absolute)이라 위치 풀기 규칙이 층까지 풀지 않게 옮긴 블록 자신(`[data-kong-kept]`)에만 적용(지금 규칙 그대로)
+- 두들 그림은 날마다 크기가 다름 → 높이 상한(예: 160px)으로 맞춤
+- 네이버가 머리 구조를 바꾸면 probe 가 없어 원본 그대로(fail-open)
+- 네이버 1단계 구현 (2026-11-04, 레시피 `www.naver.com.json` 1): 엔진 — hub `layout: "landing"`(가운데 한 열, 메뉴·오른쪽 열·본문 칸 테두리 없음, 맨 위 줄은 오른쪽 계정만) · `hero`(큰 로고: 그림 → 인라인 SVG 복사 → 이름 글자, 링크는 이미지 맵 → 가까운 링크 → 사이트 홈) · `readLogo` 인라인 SVG · 계정 `clone`(복사해 두고 감시로 다시 복사) · 재배치 전 포커스가 있던 입력칸에 다시 포커스(`run`)
+  - 확인해 보니 두들 그림과 N 로고 SVG 는 문서 준비(DOMContentLoaded) 뒤에 사이트 스크립트가 그린다(엔진이 돌 때는 빈 `h1`) → 큰 로고는 5초 동안 150ms 마다 다시 보고 더 앞 후보(두들 > N 로고)가 생기면 다시 그림(`HERO_WAIT`)
+  - 검색창은 첫 화면 검색칸(`k-hub-top`)의 통일 규칙(입력칸·버튼 모양 맞춤)을 받지 않게 다른 이름(`k-landing-search`)으로, 사이트 모양 그대로
+  - 실제 사이트로 확인(밝은·어두운 화면): 판정 ok, 큰 로고 = 오늘 두들("한글 점자의 날", 누르면 그날 검색), 검색창에 바로 포커스, "날씨" 입력 → 자동완성 10개, 엔터 → search.naver.com 검색 결과, 맨 위 오른쪽 "로그인", 그 밖의 원본은 모두 숨김. 두들 없는 날(N 로고)은 단위 테스트로만 확인
+- 네이버 검색창 아래 바로가기·가로 광고 (2026-11-04, 사용자 요청 "서비스 바로가기 아이콘을 검색바 밑에, 그 밑에 가로로 긴 광고", 레시피 2): landing 에 blocks·ads 를 검색창 아래 차례로 놓게 함
+  - 바로가기 `#shortcutArea`(메일·카페·블로그·쇼핑·뉴스·증권·부동산·지도·웹툰·치지직·더보기·광고 아이콘, React 밖 서버 HTML) → blocks keepStyle 로 옮김. 아이콘 배지("추천")가 자동완성 층 위로 올라오지 않게 검색창 z-index 2, 아이콘 줄 1
+  - 가로 광고 `#ad_timeboard`는 React 안이고, 광고 스크립트가 src 없는 iframe 에 문서를 써 넣는다 → 옮기면 iframe 이 빈 화면으로 다시 열려 광고가 사라짐. 엔진 Field `mirror`(mirror.ts): 옮기지 않고 사본을 둔다. src 없는 iframe 은 그 문서를 srcdoc 으로(sandbox 로 스크립트 막음 — 노출 집계가 두 번 되지 않게, 링크는 `<base target="_blank">` 로 새 창), 주소로 여는 iframe 은 사본에서 비움. 광고 칸은 늦게 그려지므로 8초 동안 200ms 마다 다시 보고 원본이 바뀌면 다시 복사. 원본이 숨겨져 있어 광고 스크립트가 iframe 높이를 0 으로 재므로 사본은 iframe·조상에 적힌 높이(130px)를 쓴다. mirror 광고는 재배치 때 없어도 판정 경고(ads)를 내지 않음
+  - 실제 사이트로 확인: 판정 ok, 아이콘 12개, 광고 830×130 보임, 자동완성 층이 아이콘 줄·광고 위로

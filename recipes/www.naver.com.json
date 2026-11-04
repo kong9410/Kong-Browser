@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 2,
+  "host": "www.naver.com",
+  "version": 2,
+  "minEngine": 1,
+  "siteName": "네이버",
+  "account": {
+    "sel": [
+      "#account a[href*='nidlogin.login']"
+    ],
+    "clone": true
+  },
+  "pages": [
+    {
+      "id": "home",
+      "type": "hub",
+      "layout": "landing",
+      "match": "^/?(\\?.*)?$",
+      "probe": [
+        "#search_area #query"
+      ],
+      "hero": {
+        "sel": [
+          "#special-logo picture img",
+          "#special-input-logo a"
+        ]
+      },
+      "top": {
+        "sel": [
+          "#search_area"
+        ],
+        "keepStyle": true
+      },
+      "blocks": {
+        "sel": [
+          "#shortcutArea"
+        ],
+        "keepStyle": true
+      },
+      "ads": {
+        "sel": [
+          "#ad_timeboard"
+        ],
+        "mirror": true
+      },
+      "hide": [
+        "#kong-root #special-input-logo"
+      ]
+    }
+  ]
+}

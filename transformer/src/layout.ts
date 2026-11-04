@@ -6,6 +6,8 @@ import type { Hit, LocatedBoard, LocatedComment, LocatedHub, LocatedPost, Locate
 import type { Field, FitSpec, Recipe } from "./recipe.js";
 import { CTX_CLASS, inContext, placeKept } from "./keep.js";
 import { buildShell, ROOT_ID } from "./nav.js";
+import { heroMark } from "./logo.js";
+import { mirrorInto } from "./mirror.js";
 import { isVisited, markVisited } from "./visited.js";
 import css from "./style.css";
 
@@ -429,9 +431,58 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
 // ---------- 첫 화면 (게시판에 들어가기 전) ----------
 
 /** 제목 + 광고만. 원본 내용(뉴스·추천글 등)은 숨겨진 채로 둔다 */
+/** 큰 로고를 사이트 스크립트가 나중에 그리는 경우(네이버 두들·N 로고): 잠깐 다시 보다가 더 앞 후보가 생기면 다시 그린다 */
+export const HERO_WAIT = 5000;
+function watchHero(p: LocatedHub["page"], recipe: Recipe, first: Hit | null, onBetter: (el: HTMLElement) => void) {
+  const sels = p.hero?.sel ?? [];
+  const drawn = (x: Hit | null) => !!x?.el && (x.el.matches("img, svg") || !!x.el.querySelector("img, svg"));
+  const rank = (x: Hit | null) => (drawn(x) && x!.sel ? sels.indexOf(x!.sel) : Infinity);
+  let best = rank(first);
+  if (!sels.length || best === 0) return;
+  const t0 = Date.now();
+  const tick = () => {
+    const x = hit(document, p.hero);
+    const r = rank(x);
+    if (r < best) {
+      best = r;
+      onBetter(heroMark(x!.el, recipe));
+    }
+    if (best > 0 && Date.now() - t0 < HERO_WAIT) setTimeout(tick, 150);
+  };
+  setTimeout(tick, 150);
+}
+
 export function buildHub(l: LocatedHub, recipe: Recipe): HTMLElement {
   const root = h("div");
   const p = l.page;
+  if (p.layout === "landing") {
+    // 구글 첫 화면처럼: 큰 로고 + 검색창만 (설계 8-14절). 검색창은 사이트 모양 그대로 두므로 첫 화면 검색칸(k-hub-top)의 통일 규칙을 받지 않게 다른 이름으로
+    let hero = heroMark(l.hero?.el ?? null, recipe);
+    root.appendChild(hero);
+    watchHero(p, recipe, l.hero, (next) => {
+      hero.replaceWith(next);
+      hero = next;
+    });
+    const search = moveSlot("k-landing-search", l.top, p.top);
+    if (search) root.appendChild(search);
+    // 검색창 아래: 사이트 블록(네이버 바로가기 아이콘 줄) → 광고(사본이면 mirror)
+    for (const el of l.blocks) {
+      const box = slotBox("k-landing-block", p.blocks);
+      moveInto(box, el, p.blocks);
+      root.appendChild(box);
+    }
+    if (p.ads?.mirror) {
+      const box = h("div", "k-ad k-landing-ad k-keep");
+      mirrorInto(box, p.ads);
+      root.appendChild(box);
+    } else
+      for (const el of l.ads) {
+        const box = slotBox("k-ad k-landing-ad", p.ads);
+        moveInto(box, el, p.ads);
+        root.appendChild(box);
+      }
+    return buildShell(root, recipe, "hub", "landing");
+  }
   if (p.title) {
     const head = h("header", "k-head");
     head.append(h("h1", "k-title", l.title?.value ?? recipe.siteName));

@@ -37,10 +37,10 @@ function readBlock(spec: MenuSpec, recipe: Recipe): MenuGroup[] {
   const isCurrent = (href: string | null, el?: Element | null) => {
     if (mode === "none") return false;
     if (mode === "mark") {
-      // 사이트가 지금 위치에 붙여 둔 표시를 그대로 따른다 (링크 자신 또는 감싸는 li)
+      // 사이트가 지금 위치에 붙여 둔 표시를 그대로 따른다 (링크 자신, 감싸는 li 나 표의 줄 tr: 디시 글 아래 목록의 지금 글)
       if (!el || !spec.mark) return false;
       try {
-        return el.matches(spec.mark) || !!el.closest("li")?.matches(spec.mark);
+        return el.matches(spec.mark) || !!el.closest("li, tr")?.matches(spec.mark);
       } catch {
         return false;
       }
@@ -66,7 +66,8 @@ function readBlock(spec: MenuSpec, recipe: Recipe): MenuGroup[] {
       // 빈 링크, javascript: 링크, skip 에 맞는 링크, 같은 주소 중복은 뺀다
       .filter((l) => l.text && /^https?:/.test(l.href) && !(skip && skip.test(l.text)) && !seen.has(l.href) && seen.add(l.href));
     const title = head?.value ?? spec.label ?? "";
-    if (!title && !links.length) continue;
+    // 링크가 하나도 없고 제목도 링크가 아니면 보여줄 것이 없다 (예: 디시 글 아래 목록과 같은 id 의 빈 상자)
+    if (!links.length && !headHref) continue;
     groups.push({ title, style: spec.style ?? "list", href: headHref, current: isCurrent(headHref, head?.el?.closest("a")), links });
   }
 

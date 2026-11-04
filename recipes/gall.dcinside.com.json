@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "gall.dcinside.com",
-  "version": 20,
+  "version": 21,
   "minEngine": 1,
   "siteName": "디시인사이드",
   "logo": {
@@ -69,6 +69,26 @@
       "hide": [
         ".btn_subject_more"
       ]
+    },
+    {
+      "links": {
+        "groups": [
+          "#bottom_listwrap"
+        ],
+        "label": "글 목록",
+        "links": [
+          "tr.ub-content td.gall_tit > a:first-child:not(:has(.icon_n_survey, .icon_ad, .icon_notice))"
+        ],
+        "current": "mark",
+        "mark": "[class*=crt]"
+      }
+    },
+    {
+      "move": {
+        "sel": [
+          "#bottom_listwrap .bottom_paging_box"
+        ]
+      }
     }
   ],
   "pages": [

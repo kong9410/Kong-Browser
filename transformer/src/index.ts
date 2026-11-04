@@ -77,6 +77,8 @@ export function run(recipe: Recipe): Status {
   // 댓글을 늦게 불러오는 사이트에서 재배치 시점에 댓글이 0개였다면, 댓글이 처음 붙었을 때 검산한다
   let lateView: PostView | null = null;
   let lateCheck: (() => void) | undefined;
+  // 재배치 전에 포커스가 있던 입력칸(네이버 검색창 등): 옮기면 포커스가 풀리므로 붙인 뒤 다시 준다
+  const focused = document.activeElement;
   try {
     if (located.page.type === "post") {
       const post = located as LocatedPost;
@@ -106,6 +108,8 @@ export function run(recipe: Recipe): Status {
     }
     return st;
   }
+  if (focused instanceof HTMLElement && focused !== document.body && focused.isConnected && focused.closest("#kong-root") && document.activeElement !== focused)
+    focused.focus({ preventScroll: true });
   const st = done({ verdict: j.verdict, pageId: page.id, warnings: j.warnings });
   if (lateView && page.type === "post") {
     const v = lateView;

@@ -67,10 +67,11 @@ export const PHONE_MAX = 760;
 const isPhone = () => window.matchMedia?.(`(max-width: ${PHONE_MAX}px)`).matches ?? false;
 
 /** 본문(main)을 감싸 두 열짜리 #kong-root 를 만든다. 레시피에 menu 가 없거나 읽은 메뉴가 없으면 한 열 그대로 */
-export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "board" | "hub"): HTMLElement {
+export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "board" | "hub", layout?: "landing"): HTMLElement {
   const root = el("div");
   root.id = ROOT_ID;
   root.dataset.page = page;
+  if (layout) root.dataset.layout = layout;
   main.classList.add("k-main");
 
   const nav = el("aside", "k-nav");
@@ -143,16 +144,43 @@ export function buildShell(main: HTMLElement, recipe: Recipe, page: "post" | "bo
     });
     root.classList.toggle("k-has-side", side.querySelector(":is(.k-side-block, .k-side-keep):not([hidden])") !== null);
   };
+  let drawAccount = () => {};
   refresher = () => {
     draw();
     drawSide();
+    drawAccount();
   };
 
   // 맨 위 줄: 사이트 로고 (누르면 사이트 홈). 세 열 전체 폭
   const top = el("header", "k-top");
   top.appendChild(siteMark(recipe));
   // 오른쪽: 사이트 계정 영역 (로그인 등)
-  const account = hit(document, recipe.account)?.el;
+  if (recipe.account?.clone) {
+    // 복사해 두기 (React 가 그리는 칸: 떼어 가지 않는다). 원본이 늦게 생기거나 바뀌면 감시(refreshNav)에서 다시 복사
+    const box = el("div", "k-account k-move k-clone");
+    let lastHtml: string | null = null;
+    drawAccount = () => {
+      const src = hit(document, recipe.account)?.el;
+      const html = src?.outerHTML ?? "";
+      if (html === lastHtml) return;
+      lastHtml = html;
+      box.replaceChildren();
+      box.hidden = !src;
+      if (!src) return;
+      const copy = src.cloneNode(true) as Element;
+      for (const e of [copy, ...Array.from(copy.querySelectorAll("[id]"))]) e.removeAttribute("id");
+      for (const sel of recipe.account?.exclude ?? [])
+        try {
+          copy.querySelectorAll(sel).forEach((e) => e.classList.add("k-excluded"));
+        } catch {
+          /* 잘못된 셀렉터 무시 */
+        }
+      box.appendChild(copy);
+    };
+    drawAccount();
+    top.appendChild(box);
+  }
+  const account = recipe.account?.clone ? null : hit(document, recipe.account)?.el;
   if (account) {
     const box = el("div", "k-account " + (recipe.account?.keepStyle ? "k-keep" : "k-move"));
     // 계정 영역에서 뺄 것 (레시피 exclude: 예) 뮬의 다크모드·알림 아이콘)

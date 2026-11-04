@@ -111,7 +111,8 @@ function judgeBoard(l: LocatedBoard, recipe: Recipe, failed: string[], warnings:
 /** 첫 화면: probe 가 맞으면 그 자체로 정상. 제목·광고를 못 찾으면 경고만 (광고 차단 등) */
 function judgeHub(l: LocatedHub, warnings: string[]) {
   if (l.page.title && !l.title?.value) warnings.push("title");
-  if (l.page.ads && !l.ads.length) warnings.push("ads");
+  // 사본(mirror) 광고는 사이트가 늦게 그려도 기다렸다 그리므로 재배치 때 없어도 경고하지 않는다
+  if (l.page.ads && !l.page.ads.mirror && !l.ads.length) warnings.push("ads");
   if (l.page.top && !l.top?.el) warnings.push("top");
   if (l.page.blocks && !l.blocks.length) warnings.push("blocks");
 }

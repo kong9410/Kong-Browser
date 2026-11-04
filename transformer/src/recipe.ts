@@ -33,6 +33,12 @@ export interface Field {
    * 예) 디시 댓글 내용: 누르면 사이트가 조상 div.cmt_info 의 data-no 로 댓글을 찾아 답글 칸을 연다
    */
   context?: boolean;
+  /**
+   * 옮기지 않고 보이는 사본을 둔다 (mirror.ts). 사이트 스크립트가 내용을 써 넣은 iframe(src 없음)은 옮기면 빈 화면으로 다시 열리므로,
+   * 그 문서를 스크립트 없는 사본(srcdoc + sandbox)으로 그린다. 링크는 새 창으로 열린다. 요소가 늦게 생기면 잠깐 기다렸다 그린다.
+   * 예) 네이버 첫 화면 가로 광고 #ad_timeboard (React 안 + 스크립트가 쓴 iframe)
+   */
+  mirror?: boolean;
 }
 
 export interface CommentSpec {
@@ -217,6 +223,16 @@ export interface HubPage {
   hide?: string[];
   /** 옮긴 사이트 블록 중 고정 폭이 칸보다 넓은 곳 (FitSpec). 예) 디시 글쓰기 화면의 1020px 글쓰기 칸 */
   fit?: FitSpec;
+  /**
+   * landing: 구글 첫 화면처럼 가운데 한 열에 큰 로고(hero) + top(검색창)만. 왼쪽 메뉴·오른쪽 열·본문 칸 테두리 없음 (설계 8-14절).
+   * 예) 네이버 첫 화면
+   */
+  layout?: "landing";
+  /**
+   * landing 의 큰 로고 후보 (위에서부터 처음 찾은 것). 그림(img)이면 그 그림, 안에 인라인 SVG 가 있으면 복사, 아니면 사이트 이름 글자.
+   * 누르면 그림의 이미지 맵 링크(두들) → 가장 가까운 링크 → 사이트 홈. 예) 네이버 두들 그림, 없는 날은 N 로고
+   */
+  hero?: Field;
 }
 
 export type Page = PostPage | BoardPage | HubPage;
@@ -229,7 +245,7 @@ export type Page = PostPage | BoardPage | HubPage;
 export interface MenuSpec {
   /** 지금 위치 강조 방식: board = 같은 게시판(rows.sameBoard), prefix = 주소 경로가 링크로 시작 (상단 메뉴용), mark = 사이트 표시, none = 강조 안 함 (글 목록 등). 기본 board */
   current?: "board" | "prefix" | "mark" | "none";
-  /** current 가 mark 일 때: 사이트가 지금 위치에 붙여 둔 표시 (예: 디시 상단 메뉴의 ".on"). 링크 자신이나 그 li 에서 찾는다 */
+  /** current 가 mark 일 때: 사이트가 지금 위치에 붙여 둔 표시 (예: 디시 상단 메뉴의 ".on"). 링크 자신이나 그 li·tr 에서 찾는다 */
   mark?: string;
   /** 보여주는 모양: list = 세로 목록 (기본), chips = 짧은 항목을 여러 줄로 감싼 칩 (상단 메뉴용) */
   style?: "list" | "chips";
@@ -269,6 +285,15 @@ export interface SideBlock {
   hide?: string[];
 }
 
+/** 계정 영역 (Recipe.account) */
+export interface AccountSpec extends Field {
+  /**
+   * 옮기지 않고 복사해 둔다 (원본이 바뀌면 다시 복사). React 가 그리는 칸처럼 요소를 떼어 가면 사이트가 다시 그릴 때 오류가 나는 경우.
+   * 복사본은 사이트 이벤트가 없으므로 링크만 있는 칸에 쓴다. 예) 네이버 #account 의 로그인 링크
+   */
+  clone?: boolean;
+}
+
 export interface Recipe {
   schemaVersion: 2;
   host: string;
@@ -281,7 +306,7 @@ export interface Recipe {
    * move. 사이트의 계정 영역(로그인 버튼 등). 맨 위 줄 오른쪽에, 로고 맞은편 (keepStyle 이면 사이트 모양 그대로).
    * 예) 디시 머리 오른쪽 위 링크 줄 (마이너갤 · … · 로그인 · 야간모드)
    */
-  account?: Field;
+  account?: AccountSpec;
   menu?: MenuSpec[];
   side?: SideBlock[];
   /**

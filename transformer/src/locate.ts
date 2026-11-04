@@ -88,6 +88,8 @@ export interface LocatedHub {
   blocks: Element[];
   /** 옮길 광고 요소들 (문서 순서) */
   ads: Element[];
+  /** landing 의 큰 로고 */
+  hero: Hit | null;
 }
 
 export type Located = LocatedPost | LocatedBoard | LocatedHub;
@@ -266,6 +268,7 @@ export function locateHub(doc: Document, page: HubPage): LocatedHub {
     top: hit(doc, page.top),
     blocks: page.blocks ? findAll(doc, page.blocks.sel).els : [],
     ads: page.ads ? findAll(doc, page.ads.sel).els : [],
+    hero: hit(doc, page.hero),
   };
 }
 

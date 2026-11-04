@@ -150,6 +150,17 @@ describe("메뉴 읽기와 지금 위치 강조", () => {
     expect(g.links.filter((l) => l.current).map((l) => l.text)).toEqual(["나"]);
   });
 
+  it("mark: 표의 줄(tr)에 붙은 표시도 따른다 (디시 글 아래 목록의 지금 글)", () => {
+    page(
+      "https://example.test/x",
+      `<table id="tbl"><tr><td class="n">1</td><td><a href="/p/1">하나</a></td></tr>
+       <tr class="ub-content crt&gt;"><td class="n"><span class="crt_icon"></span></td><td><a href="/p/2">둘</a></td></tr></table>`,
+    );
+    const g = extractMenu({ ...recipe, menu: [{ label: "목록", groups: ["#tbl"], links: ["td > a"], current: "mark", mark: "[class*=crt]" }] })!
+      .groups[0];
+    expect(g.links.filter((l) => l.current).map((l) => l.text)).toEqual(["둘"]);
+  });
+
   it("board: 같은 게시판 링크가 여럿이면 하나만 (주소가 같으면 그것, 아니면 가장 짧은 것)", () => {
     page("https://example.test/board/1/read/10", html);
     const g = extractMenu(recipe)!.groups.find((x) => x.title === "게시판")!;
@@ -826,5 +837,178 @@ describe("목록 | 갤러리 전환 (레시피 rows.gallery)", () => {
     const again = buildBoard(locate(document, pickPage(r, document).page!) as LocatedBoard, r).root;
     expect(again.querySelector(".k-rows")!.classList.contains("k-gallery")).toBe(true);
     localStorage.removeItem("kong-gallery:example.test");
+  });
+});
+
+describe("landing: 가운데 큰 로고 + 검색창만 (네이버 첫 화면)", () => {
+  const landing = (hero: string[]): Recipe => ({
+    ...recipe,
+    menu: [],
+    side: [],
+    account: { sel: ["#account a.login"], clone: true },
+    pages: [
+      {
+        id: "home",
+        type: "hub",
+        layout: "landing",
+        match: "^/?$",
+        probe: ["#search_area #query"],
+        hero: { sel: hero },
+        top: { sel: ["#search_area"], keepStyle: true },
+      },
+    ],
+  });
+  const html = (doodle: boolean) => `<div id="wrap"><div id="header"><div id="topSearchWrap" class="header_inner">
+      ${doodle ? `<div id="special-logo"><picture><img src="/doodle.gif" alt="한글 점자의 날" usemap="#m"></picture><map name="m"><area href="https://search.example.test/?q=점자"></map></div>` : ""}
+      <div id="search_area" class="search_area"><div id="search"><h1 id="logo"><a href="/"><span><svg id="nlogo" width="20" height="20" viewBox="0 0 20 20"><path d="M0 0h20v20z"/></svg></span></a></h1>
+      <form><input id="query" name="query"></form><div id="autoFrame"></div></div></div>
+      <div id="shortcutArea"><a href="https://mail.example.test">메일</a></div></div></div>
+      <div id="container"><div id="account"><a class="login" href="https://nid.example.test/login">로그인</a></div><div id="newsstand">뉴스</div></div></div>`;
+
+  it("두들 그림이 있으면 큰 로고로, 누르면 이미지 맵의 링크 / 검색창은 사이트 모양 그대로, 나머지는 안 옮김", () => {
+    page("https://example.test/", html(true));
+    const r = landing(["#special-logo picture img", "#logo a"]);
+    const root = buildHub(locate(document, pickPage(r, document).page!) as LocatedHub, r);
+    expect(root.dataset.layout).toBe("landing");
+    const main = root.querySelector(".k-main")!;
+    expect([...main.children].map((c) => c.className)).toEqual(["k-hero", "k-landing-search k-keep"]);
+    const logo = main.querySelector<HTMLAnchorElement>("a.k-hero-logo")!;
+    expect(logo.querySelector("img")?.getAttribute("src")).toBe("https://example.test/doodle.gif");
+    expect(logo.href).toBe("https://search.example.test/?q=%EC%A0%90%EC%9E%90");
+    expect(logo.title).toBe("한글 점자의 날");
+    // 검색창: 조상 껍데기(#wrap > #header > #topSearchWrap) 안에
+    expect(main.querySelector(".k-landing-search #wrap.k-ctx #header.k-ctx #topSearchWrap.k-ctx #search_area #query")).not.toBeNull();
+    expect(root.querySelector("#shortcutArea, #newsstand")).toBeNull();
+  });
+
+  it("두들이 없으면 로고 안의 인라인 SVG 를 복사 (id 지움), 누르면 사이트 홈", () => {
+    page("https://example.test/", html(false));
+    const r = landing(["#special-logo picture img", "#logo a"]);
+    const root = buildHub(locate(document, pickPage(r, document).page!) as LocatedHub, r);
+    const logo = root.querySelector<HTMLAnchorElement>("a.k-hero-logo")!;
+    const svg = logo.querySelector("svg")!;
+    expect(svg.id).toBe("");
+    expect(svg.getAttribute("width")).toBeNull();
+    expect(logo.href).toBe("https://example.test/");
+    expect(root.querySelector("#search_area svg")?.getAttribute("id")).toBe("nlogo"); // 원본 로고는 그대로 (검색창과 함께 옮겨짐)
+  });
+
+  it("사이트가 로고를 늦게 그리면(네이버) 더 앞 후보가 생길 때 큰 로고를 다시 그린다", async () => {
+    page("https://example.test/", html(true).replace(/<img[^>]*>/, "").replace(/<svg[\s\S]*?<\/svg>/, ""));
+    const r = landing(["#special-logo picture img", "#logo a"]);
+    const root = buildHub(locate(document, pickPage(r, document).page!) as LocatedHub, r);
+    expect(root.querySelector("a.k-hero-logo")?.textContent).toBe("테스트"); // 아직 없으면 이름 글자
+    mount(root);
+    root.querySelector("#logo span")!.innerHTML = '<svg viewBox="0 0 1 1"></svg>';
+    await new Promise((res) => setTimeout(res, 200));
+    expect(root.querySelector("a.k-hero-logo svg")).not.toBeNull();
+    document.querySelector("#special-logo picture")!.innerHTML = '<img src="/late.gif" alt="두들">';
+    await new Promise((res) => setTimeout(res, 200));
+    expect(root.querySelector("a.k-hero-logo img")?.getAttribute("src")).toBe("https://example.test/late.gif");
+    expect(root.querySelectorAll(".k-hero").length).toBe(1);
+  });
+
+  it("계정 clone: 원본은 그대로 두고 복사본을 맨 위 줄에, 원본이 바뀌면 다시 복사", async () => {
+    page("https://example.test/", html(false));
+    const r = landing(["#logo a"]);
+    const root = buildHub(locate(document, pickPage(r, document).page!) as LocatedHub, r);
+    mount(root);
+    observeHub();
+    const box = root.querySelector(".k-top .k-account.k-clone")!;
+    expect(box.querySelector("a")?.textContent).toBe("로그인");
+    expect(document.querySelector("#container #account a.login")).not.toBeNull(); // 원본 자리 그대로
+    document.querySelector("#account")!.innerHTML = `<a class="login" href="https://nid.example.test/login">다시 로그인</a>`;
+    await new Promise((res) => setTimeout(res, 250));
+    expect(box.querySelector("a")?.textContent).toBe("다시 로그인");
+  });
+
+  it("재배치 전에 검색창에 있던 포커스를 붙인 뒤 되돌린다", async () => {
+    const { run } = await import("./index.js");
+    page("https://example.test/", html(false));
+    const q = document.querySelector<HTMLInputElement>("#query")!;
+    q.focus();
+    expect(document.activeElement).toBe(q);
+    const st = run(landing(["#logo a"]));
+    expect(st.verdict).toBe("ok");
+    expect(q.closest("#kong-root")).not.toBeNull();
+    expect(document.activeElement).toBe(q);
+  });
+});
+
+describe("readLogo: 인라인 SVG 로고", () => {
+  it("그림·배경 그림이 없으면 SVG 를 복사해 머리 로고로", () => {
+    page("https://example.test/", `<h1 class="logo"><a href="/"><svg viewBox="0 0 10 10"><rect width="10" height="10"/></svg></a></h1>`);
+    const r = { ...recipe, logo: { sel: [".logo a"] } };
+    expect(readLogo(r)?.src).toBeNull();
+    expect(readLogo(r)?.svg).not.toBeNull();
+    const mark = siteMark(r);
+    expect(mark.querySelector("svg")).not.toBeNull();
+    expect(mark.querySelector(".k-blind")?.textContent).toBe("테스트");
+  });
+});
+
+describe("보이는 사본 (Field.mirror): 네이버 가로 광고", () => {
+  it("스크립트가 쓴 iframe 은 문서를 srcdoc 으로, 스크립트는 막고(sandbox) 링크는 새 창, id 는 지움", async () => {
+    const { mirrorCopy, MIRROR_SANDBOX } = await import("./mirror.js");
+    page("https://example.test/", `<div id="ad"><div style="height: 130px"><iframe id="f" style="height: 0px"></iframe></div></div>`);
+    const f = document.querySelector<HTMLIFrameElement>("#f")!;
+    const el = document.querySelector("#ad")!;
+    const doc = f.contentDocument;
+    if (!doc) return; // 가짜 DOM 이 iframe 문서를 지원하지 않으면 건너뜀
+    expect(mirrorCopy(el)).toBeNull(); // 아직 빈 광고: 나중에 다시
+    doc.body.innerHTML = `<a href="/click">광고</a>`;
+    const copy = mirrorCopy(el)!;
+    const d = copy.querySelector("iframe")!;
+    expect(d.getAttribute("sandbox")).toBe(MIRROR_SANDBOX);
+    expect(d.getAttribute("srcdoc")).toContain(`<a href="/click">광고</a>`);
+    expect(d.getAttribute("srcdoc")).toContain(`target="_blank"`);
+    expect(copy.querySelector("[id]")).toBeNull();
+    expect(copy.id).toBe("");
+    expect(d.style.height).toBe("130px"); // 숨겨진 원본이 잰 0 대신 조상에 적힌 높이
+    expect(document.querySelector("#ad #f")).toBe(f); // 원본 그대로
+  });
+
+  it("주소로 여는 iframe 은 사본에서 비운다 (다시 불러와 집계가 두 번 되지 않게)", async () => {
+    const { mirrorCopy } = await import("./mirror.js");
+    page("https://example.test/", `<div id="ad"><iframe src="https://ads.example.test/x"></iframe><span>글</span></div>`);
+    const copy = mirrorCopy(document.querySelector("#ad")!)!;
+    expect(copy.querySelector("iframe")?.hasAttribute("src")).toBe(false);
+    expect(copy.querySelector("span")?.textContent).toBe("글");
+  });
+
+  it("landing: 검색창 → 바로가기 줄 → 광고 사본 순서, 광고가 늦게 생기면 기다렸다 그린다", async () => {
+    page(
+      "https://example.test/",
+      `<div id="wrap"><div id="header"><div id="topSearchWrap"><div id="search_area"><input id="query"></div>
+       <div id="shortcutArea"><a href="https://mail.example.test">메일</a></div></div></div><div id="root"></div></div>`,
+    );
+    const r: Recipe = {
+      ...recipe,
+      menu: [],
+      pages: [
+        {
+          id: "home",
+          type: "hub",
+          layout: "landing",
+          match: "^/?$",
+          probe: ["#search_area #query"],
+          top: { sel: ["#search_area"], keepStyle: true },
+          blocks: { sel: ["#shortcutArea"], keepStyle: true },
+          ads: { sel: ["#ad_timeboard"], mirror: true },
+        },
+      ],
+    };
+    const root = buildHub(locate(document, pickPage(r, document).page!) as LocatedHub, r);
+    mount(root);
+    const main = root.querySelector(".k-main")!;
+    expect([...main.children].map((c) => c.classList[0])).toEqual(["k-hero", "k-landing-search", "k-landing-block", "k-ad"]);
+    const ad = main.querySelector<HTMLElement>(".k-landing-ad")!;
+    expect(ad.hidden).toBe(true);
+    // React 가 나중에 광고 칸을 그림 (원본 자리)
+    document.querySelector("#root")!.innerHTML = `<div id="ad_timeboard"><b>가로 광고</b></div>`;
+    await new Promise((res) => setTimeout(res, 300));
+    expect(ad.hidden).toBe(false);
+    expect(ad.querySelector(".k-mirror b")?.textContent).toBe("가로 광고");
+    expect(document.querySelector("#root #ad_timeboard")).not.toBeNull(); // 원본은 그대로
   });
 });

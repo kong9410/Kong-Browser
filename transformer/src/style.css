@@ -1211,3 +1211,139 @@ html.kong-on #kong-root .k-hidden {
 #kong-root .k-reply-write {
   margin: 6px 0 10px 24px;
 }
+
+/* 오른쪽 열로 옮긴 사이트 페이지 번호 (디시 글 아래 목록의 페이지): 지금 페이지는 강조색 */
+#kong-root .k-side .k-move em {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--k-accent);
+  border-radius: 4px;
+  background-color: var(--k-accent) !important;
+  color: var(--k-on-accent) !important;
+  font: 500 12.5px/1 var(--k-mono);
+  font-style: normal;
+}
+#kong-root .k-side .bottom_paging_box {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 8px !important;
+}
+
+/* ---------- landing (설계 8-14절): 구글 첫 화면처럼 가운데 큰 로고 + 검색창만 ----------
+   세 열 뼈대를 쓰지 않는다: 맨 위 줄(오른쪽 계정)만 두고, 가운데 한 열에 로고와 사이트 모양 그대로의 검색창 */
+#kong-root[data-layout="landing"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "top" "main";
+  min-height: 100vh;
+  align-content: start;
+}
+#kong-root[data-layout="landing"] > :is(.k-nav, .k-nav-open, .k-side, .k-nav-backdrop) {
+  display: none !important;
+}
+/* 큰 로고가 가운데에 있으니 맨 위 왼쪽 사이트 이름은 숨김 (계정은 오른쪽 그대로) */
+#kong-root[data-layout="landing"] > .k-top {
+  justify-content: flex-end;
+}
+#kong-root[data-layout="landing"] > .k-top > .k-site {
+  display: none;
+}
+#kong-root[data-layout="landing"] > .k-main {
+  width: min(830px, 100%);
+  margin: 18vh auto 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+#kong-root .k-hero {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+#kong-root a.k-hero-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--k-fg);
+  font: 700 44px/1.1 var(--k-font);
+  text-decoration: none;
+}
+/* 그림(두들)은 날마다 크기가 달라 높이 상한으로 맞춘다 */
+#kong-root a.k-hero-logo img {
+  display: block;
+  max-width: 100%;
+  max-height: 160px;
+  width: auto;
+  height: auto;
+}
+#kong-root a.k-hero-logo svg {
+  display: block;
+  height: 72px;
+  width: auto;
+}
+#kong-root .k-blind {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* 사이트 모양 그대로 옮긴 검색창: 가운데 칸 폭에 맞춘다 (자동완성 층 등 안쪽 위치는 사이트 CSS 그대로) */
+#kong-root .k-landing-search {
+  position: relative;
+  z-index: 2; /* 자동완성 층이 아래 아이콘 줄·광고 위로 */
+  max-width: 720px;
+  margin: 0 auto;
+}
+/* 검색창 아래 사이트 블록 (네이버 바로가기 아이콘 줄): 가운데로 */
+#kong-root .k-landing-block {
+  position: relative;
+  z-index: 1; /* 아이콘 배지(추천 등)가 자동완성 층 위로 올라오지 않게 (검색창은 2) */
+  display: flex;
+  justify-content: center;
+}
+/* 원본은 검색창이 absolute 라 아이콘 줄의 위 여백(네이버 68px)이 머리 맨 위부터 잰 값 → 옮기면 그만큼 벌어지므로 원본과 같은 간격(8px)으로 */
+#kong-root .k-landing-block [data-kong-kept] {
+  float: none !important;
+  transform: none !important;
+  margin-top: 8px !important;
+}
+/* 광고 (사본): 아이콘 줄 아래, 본문 칸 폭 */
+#kong-root .k-landing-ad {
+  display: block;
+  margin-top: 28px;
+}
+#kong-root .k-landing-ad[hidden] {
+  display: none;
+}
+#kong-root .k-landing-ad iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+#kong-root .k-landing-search [data-kong-kept] {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  float: none !important;
+  transform: none !important;
+}
+/* 복사해 둔 계정 칸 (레시피 account.clone): 링크 글자만 */
+#kong-root > .k-top > .k-account.k-clone a {
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  #kong-root[data-layout="landing"] > .k-main {
+    margin-top: 10vh;
+  }
+  #kong-root a.k-hero-logo svg {
+    height: 52px;
+  }
+}
