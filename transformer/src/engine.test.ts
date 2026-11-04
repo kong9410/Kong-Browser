@@ -6,7 +6,7 @@ import { inContext } from "./keep.js";
 import { readLogo, siteMark } from "./logo.js";
 import { setNavOptions } from "./nav.js";
 import { observeHub } from "./observe.js";
-import { cleanText, hit, locate, pickPage, type LocatedBoard, type LocatedHub, type LocatedPost } from "./locate.js";
+import { cleanText, commentDepth, hit, locate, MAX_DEPTH, pickPage, type LocatedBoard, type LocatedHub, type LocatedPost } from "./locate.js";
 import { extractMenu } from "./menu.js";
 import type { Recipe } from "./recipe.js";
 import { isVisited, setVisited, visitKey } from "./visited.js";
@@ -658,5 +658,27 @@ describe("사이트 계정 영역 (로그인 등)", () => {
     const top = root.querySelector(".k-top")!;
     expect([...top.children].map((e) => e.className)).toEqual(["k-site k-logo", "k-account k-keep"]);
     expect(top.querySelector(".k-account a[href='/login']")?.textContent).toBe("로그인");
+  });
+});
+
+describe("대댓글 깊이 (댓글의 댓글의 댓글…)", () => {
+  const el = (html: string) => {
+    document.body.innerHTML = html;
+    return document.body.firstElementChild!;
+  };
+  const fm = { item: ["li"], content: { sel: [".c"] }, replyMarker: ".re", depth: { attr: "style", pattern: "margin-left:\\s*([0-9.]+)%", step: 2 } };
+
+  it("에펨코리아: margin-left 2% 마다 한 단계", () => {
+    expect(commentDepth(el(`<li class="re" style="margin-left:2%"></li>`), fm, true)).toBe(1);
+    expect(commentDepth(el(`<li class="re" style="margin-left:4%"></li>`), fm, true)).toBe(2);
+    expect(commentDepth(el(`<li class="re" style="margin-left: 6%"></li>`), fm, true)).toBe(3);
+    expect(commentDepth(el(`<li class="re" style="margin-left:40%"></li>`), fm, true)).toBe(MAX_DEPTH);
+  });
+
+  it("규칙이 없거나 못 읽으면: 대댓글이면 1, 아니면 0", () => {
+    expect(commentDepth(el(`<li></li>`), fm, false)).toBe(0);
+    expect(commentDepth(el(`<li class="re"></li>`), fm, true)).toBe(1);
+    expect(commentDepth(el(`<li class="re"></li>`), { item: ["li"], content: { sel: [".c"] }, replyMarker: ".re" }, true)).toBe(1);
+    expect(commentDepth(el(`<li style="margin-left:4%"></li>`), { ...fm, depth: { attr: "style", pattern: "(" } }, true)).toBe(1);
   });
 });

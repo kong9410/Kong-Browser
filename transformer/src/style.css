@@ -202,13 +202,14 @@ html.kong-on #kong-root .k-hidden {
   border-top: 0;
 }
 #kong-root .k-cmt.k-reply {
-  padding-left: 22px;
+  /* 1단계 22px, 그보다 깊으면 단계마다 18px 씩 더 (--k-depth, 에펨코리아처럼 댓글의 댓글의 댓글…) */
+  padding-left: calc(22px + (var(--k-depth, 1) - 1) * 18px);
   position: relative;
 }
 #kong-root .k-cmt.k-reply::before {
   content: "";
   position: absolute;
-  left: 7px;
+  left: calc(7px + (var(--k-depth, 1) - 1) * 18px);
   top: 14px;
   width: 8px;
   height: 8px;

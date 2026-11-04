@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "www.fmkorea.com",
-  "version": 2,
+  "version": 5,
   "minEngine": 1,
   "siteName": "에펨코리아",
   "logo": {
@@ -30,6 +30,25 @@
       ],
       "current": "mark",
       "mark": ".on"
+    }
+  ],
+  "side": [
+    {
+      "links": {
+        "groups": [
+          "aside.content_widget section.ul"
+        ],
+        "heading": {
+          "sel": [
+            ".wtitle a",
+            ".wtitle"
+          ]
+        },
+        "links": [
+          "ul li a.title"
+        ],
+        "current": "none"
+      }
     }
   ],
   "pages": [
@@ -88,7 +107,7 @@
         "keepStyle": true
       },
       "comments": {
-        "anchor": ".fdb_lst",
+        "anchor": "div.bd:has(.fdb_lst)",
         "item": [
           ".fdb_lst_ul > li.fdb_itm:not(.comment_best)"
         ],
@@ -96,6 +115,11 @@
           ".fdb_lst_ul > li.fdb_itm.comment_best"
         ],
         "replyMarker": ".re",
+        "depth": {
+          "attr": "style",
+          "pattern": "margin-left:\\s*([0-9.]+)%",
+          "step": 2
+        },
         "who": {
           "sel": [
             ".meta .member_plate"
@@ -130,6 +154,12 @@
           "sel": [
             ".fdb_lst .bd_pg"
           ]
+        },
+        "replyWrite": {
+          "sel": [
+            "#re_cmt"
+          ],
+          "keepStyle": true
         }
       },
       "commentWrite": {

@@ -52,6 +52,12 @@ export interface CommentSpec {
   bestItem?: string[];
   /** item 자신 또는 내부에서 매칭되면 대댓글 */
   replyMarker?: string;
+  /**
+   * 대댓글 깊이 (댓글의 댓글의 댓글…). item 의 attr 값에서 pattern 첫 캡처 숫자를 step 으로 나눈 값이 깊이.
+   * 예) 에펨코리아 style="margin-left:4%" → { attr: "style", pattern: "margin-left:\s*([0-9.]+)%", step: 2 } → 2단계.
+   * 없으면 replyMarker 에 맞는 댓글은 1단계
+   */
+  depth?: { attr: string; pattern: string; step?: number };
   who?: Field;
   /**
    * move. 사이트의 글쓴이 표시를 그대로 (닉네임 옆 아이콘·IP 포함). 있으면 who 글자 대신 쓴다.

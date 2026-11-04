@@ -4,7 +4,7 @@
 import { findAll, hit } from "./locate.js";
 import type { Hit, LocatedBoard, LocatedComment, LocatedHub, LocatedPost, LocatedRow } from "./locate.js";
 import type { Field, FitSpec, Recipe } from "./recipe.js";
-import { inContext, placeKept } from "./keep.js";
+import { CTX_CLASS, inContext, placeKept } from "./keep.js";
 import { buildShell, ROOT_ID } from "./nav.js";
 import { isVisited, markVisited } from "./visited.js";
 import css from "./style.css";
@@ -134,7 +134,9 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
   let anchor: HTMLElement | null = null;
   const adoptAnchor = () => {
     if (!p.comments?.anchor) return;
-    if (!anchor?.isConnected) {
+    // 뼈대(root)는 다 만든 뒤에 문서에 붙이므로, 만드는 동안 root 안의 anchor 는 isConnected 가 false 다.
+    // 그때 다시 찾으면(문서에는 이제 없음) 못 찾아 댓글 섹션·쓰기 칸이 anchor 밖으로 빠졌다 → root 안에 있으면 그대로 쓴다
+    if (!anchor || (!anchor.isConnected && !root.contains(anchor))) {
       anchor = document.querySelector(p.comments.anchor) as HTMLElement | null;
       if (!anchor) return;
       anchor.classList.add("k-anchor");
@@ -142,6 +144,12 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
     }
     for (const child of Array.from(anchor.children))
       if (!child.classList.contains("k-gen")) child.classList.add("k-hidden");
+    // 사이트 모양 그대로 옮긴 블록(keepStyle)의 껍데기(.k-ctx)는 원본 조상의 id 까지 본뜬다. 원본이 문서 앞쪽에 있으면 사이트가 id 로
+    // 찾을 때 원본이 잡히지만, anchor 는 뼈대 안으로 옮겨져 그 앞의 껍데기보다 뒤에 온다. 그러면 사이트가 $("#bd_…") 로 껍데기를 잡아
+    // 그 안에서 댓글 입력칸을 못 찾는다 (에펨코리아 댓글 쓰기 칸이 "로딩중..." 에 멈춤). anchor 밖 껍데기에서 anchor 쪽 id 는 뗀다
+    const ids = new Set([anchor.id, ...Array.from(anchor.querySelectorAll("[id]"), (e) => e.id)].filter(Boolean));
+    for (const c of Array.from(root.querySelectorAll<HTMLElement>(`.${CTX_CLASS}[id]`)))
+      if (ids.has(c.id) && !anchor.contains(c)) c.removeAttribute("id");
   };
 
   const moreBox = h("div", "k-more k-move");
@@ -184,6 +192,11 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
       c.item.setAttribute("data-kong-done", "1");
       if (!c.content) return;
       const box = h("div", `k-cmt${c.isReply ? " k-reply" : ""}`);
+      // 여러 단계 대댓글: 깊이만큼 더 들여쓴다 (CSS 변수 --k-depth)
+      if (c.depth > 1) {
+        box.style.setProperty("--k-depth", String(c.depth));
+        box.dataset.depth = String(c.depth);
+      }
       const top = h("div", "k-cmt-head");
       // 글쓴이: 사이트 표시 그대로(아이콘·IP)가 있으면 그것, 아니면 글자
       let who: HTMLElement = h("span", "k-who", c.who ?? "익명");
@@ -234,7 +247,10 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
           replyForms.delete(box);
         }
       for (const form of findAll(document, spec.sel).els) {
-        if (form.closest(`#${ROOT_ID}`)) continue; // 이미 옮긴 것
+        // 이미 옮긴 것 (엔진 영역 안). #kong-root 안이라도 anchor 의 숨겨진 원본 댓글 안에 생긴 칸은 옮긴다 —
+        // 에펨코리아는 댓글 영역(anchor)을 통째로 옮겨 두고, [댓글] 을 누르면 숨겨진 원본 댓글(li) 안에 답글 칸을 넣는다
+        if (form.closest(".k-gen, .k-reply-write")) continue;
+        if (form.closest(`#${ROOT_ID}`) && !form.closest(".k-anchor")) continue;
         // 원본에서 바로 앞에 있는 댓글 = 이 칸이 답글을 다는 댓글 (그 스레드 끝)
         let target: HTMLElement | null = null;
         let targetItem: Element | null = null;

@@ -19,6 +19,26 @@ export interface LocatedComment {
   content: Element | null;
   actions: Element | null;
   isReply: boolean;
+  /** 대댓글 깊이: 0 = 댓글, 1 = 댓글의 댓글, 2 = 그 댓글의 댓글 … (최대 MAX_DEPTH) */
+  depth: number;
+}
+
+/** 들여쓰기 단계는 이만큼까지 (그보다 깊으면 같은 단계로) */
+export const MAX_DEPTH = 6;
+
+/** 레시피의 깊이 규칙으로 대댓글 깊이를 읽는다. 규칙이 없거나 못 읽으면 대댓글이면 1, 아니면 0 */
+export function commentDepth(item: Element, spec: CommentSpec, isReply: boolean): number {
+  const d = spec.depth;
+  if (d) {
+    try {
+      const m = new RegExp(d.pattern).exec(item.getAttribute(d.attr) ?? "");
+      const n = m ? Number(m[1]) : NaN;
+      if (Number.isFinite(n) && n > 0) return Math.min(MAX_DEPTH, Math.max(1, Math.round(n / (d.step || 1))));
+    } catch {
+      /* 잘못된 정규식이면 아래로 */
+    }
+  }
+  return isReply ? 1 : 0;
 }
 
 export interface LocatedPost {
@@ -138,6 +158,8 @@ export function pickPage(recipe: Recipe, doc: Document): { page: Page | null; ca
 }
 
 export function locateComment(item: Element, spec: CommentSpec): LocatedComment {
+  const isReply = spec.replyMarker ? item.matches(spec.replyMarker) || qsa(item, spec.replyMarker).length > 0 : false;
+  const depth = commentDepth(item, spec, isReply);
   return {
     item,
     who: val(item, spec.who),
@@ -145,7 +167,8 @@ export function locateComment(item: Element, spec: CommentSpec): LocatedComment 
     when: val(item, spec.when),
     content: hit(item, spec.content)?.el ?? null,
     actions: hit(item, spec.actions)?.el ?? null,
-    isReply: spec.replyMarker ? item.matches(spec.replyMarker) || qsa(item, spec.replyMarker).length > 0 : false,
+    isReply: isReply || depth > 0,
+    depth,
   };
 }
 
