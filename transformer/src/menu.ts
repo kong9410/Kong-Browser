@@ -70,6 +70,21 @@ function readBlock(spec: MenuSpec, recipe: Recipe): MenuGroup[] {
     groups.push({ title, style: spec.style ?? "list", href: headHref, current: isCurrent(headHref, head?.el?.closest("a")), links });
   }
 
+  // 레시피에 적어 둔 고정 묶음 (사이트 페이지에 없어도 항상)
+  for (const f of spec.fixed ?? []) {
+    const href = abs(f.href ?? null);
+    groups.push({
+      title: f.title,
+      style: spec.style ?? "list",
+      href,
+      current: isCurrent(href),
+      links: f.links.map((l) => {
+        const h = abs(l.href) ?? "";
+        return { text: l.text, href: h, current: isCurrent(h) };
+      }),
+    });
+  }
+
   // 블록 안에서 강조는 하나만: 지금 주소와 완전히 같은 링크 → (prefix) 가장 긴 경로 / (board) 가장 짧은 주소
   const norm = (u: string | null) => (u ?? "").replace(/[?#]$/, "");
   const marked = groups.flatMap((g) => [g, ...g.links]).filter((x) => x.current);

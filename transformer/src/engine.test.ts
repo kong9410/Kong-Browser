@@ -746,3 +746,85 @@ describe("뮬: 브라우저에서 그리는 사이트·사이트 팝업·여러 
     expect(commentDepth(at(`<div class="reply" style="padding-left: 60px;"></div>`), spec, true)).toBe(2);
   });
 });
+
+describe("답글 칸: 숨겨진 원본 댓글 안에 생기고(anchor), 사이트가 칸을 빼면 같이 지움 (뮬·에펨코리아)", () => {
+  it("anchor 안 원본 댓글에 생긴 칸을 그 댓글 아래로 옮기고, 사이트가 옮긴 칸을 지우면 빈 자리도 없앤다", () => {
+    page(
+      "https://example.test/board/1/read/10",
+      `<div class="view"><h1 class="subject">제목</h1><div class="content">본문</div>
+       <div id="cmts"><div class="item" id="c1"><span class="t">첫 댓글</span></div><div class="item" id="c2"><span class="t">둘째 댓글</span></div></div></div>`,
+    );
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    const p = r.pages.find((x) => x.id === "post") as Extract<Recipe["pages"][number], { type: "post" }>;
+    p.comments = { anchor: "#cmts", item: ["#cmts .item"], content: { sel: [".t"] }, replyWrite: { sel: ["#cmts .item .write-group"] } };
+    const view = buildPost(locate(document, pickPage(r, document).page!) as LocatedPost, r);
+    mount(view.root);
+    // 사이트(Vue)가 [답글달기] 로 첫 댓글 안에 입력칸을 그린다 (원본 댓글은 숨겨진 anchor 안)
+    const form = document.createElement("div");
+    form.className = "write-group";
+    form.innerHTML = "<textarea></textarea>";
+    document.querySelector("#c1")!.appendChild(form);
+    view.syncReplyForms();
+    const box = view.root.querySelector(".k-reply-write");
+    expect(box?.contains(form)).toBe(true);
+    expect(box?.previousElementSibling?.textContent).toContain("첫 댓글");
+    // 사이트가 칸을 닫음(v-if: 옮긴 요소를 지움) → 빈 상자도 사라짐
+    form.remove();
+    view.syncReplyForms();
+    expect(view.root.querySelector(".k-reply-write")).toBeNull();
+  });
+});
+
+describe("고정 메뉴 묶음 (레시피 fixed): 사이트가 일부 페이지에만 두는 하위 메뉴", () => {
+  it("제목 링크 + 하위 링크를 항상 보이고, 지금 주소와 같은 링크를 강조 (뮬 악기장터 → 레코딩)", () => {
+    page("https://example.test/bbs/market/sell?&ct1=a", `<div id="x"></div>`);
+    const r: Recipe = {
+      ...recipe,
+      menu: [
+        {
+          groups: [],
+          links: [],
+          current: "prefix",
+          fixed: [
+            { title: "악기장터", href: "/bbs/market", links: [{ text: "뮬 악기장터", href: "/bbs/market/sell" }, { text: "레코딩", href: "/bbs/market/sell?&ct1=a" }, { text: "삽니다", href: "/bbs/market/buy" }] },
+            { title: "게시판", href: "/bbs/community/muleins", links: [{ text: "뮬인", href: "/bbs/community/mulein" }] },
+          ],
+        },
+      ],
+    };
+    const m = extractMenu(r)!;
+    expect(m.groups.map((g) => g.title)).toEqual(["악기장터", "게시판"]);
+    expect(m.groups[0].links.map((l) => l.text)).toEqual(["뮬 악기장터", "레코딩", "삽니다"]);
+    const current = m.groups.flatMap((g) => [g, ...g.links]).filter((x) => x.current);
+    expect(current.map((x) => ("text" in x ? x.text : x.title))).toEqual(["레코딩"]);
+  });
+});
+
+describe("목록 | 갤러리 전환 (레시피 rows.gallery)", () => {
+  it("머리에 전환 버튼, 누르면 같은 행을 카드로 (썸네일 없는 행은 빈 그림 자리), 고른 것을 기억", () => {
+    localStorage.removeItem("kong-gallery:example.test");
+    page(
+      "https://example.test/board/1",
+      `<table class="list">
+        <tr class="row"><td><img class="th" src="https://cdn.test/a.jpg"><a href="/board/1/read/1">사진 글</a></td></tr>
+        <tr class="row"><td><a href="/board/1/read/2">사진 없는 글</a></td></tr>
+      </table>`,
+    );
+    const r: Recipe = JSON.parse(JSON.stringify(recipe));
+    for (const p of r.pages) if (p.type === "board") Object.assign(p.rows, { gallery: true, thumbnail: { sel: ["img.th"] } });
+    const root = buildBoard(locate(document, pickPage(r, document).page!) as LocatedBoard, r).root;
+    const btns = [...root.querySelectorAll<HTMLButtonElement>(".k-view-btn")];
+    expect(btns.map((b) => b.textContent)).toEqual(["목록", "갤러리"]);
+    const list = root.querySelector(".k-rows")!;
+    expect(list.classList.contains("k-gallery")).toBe(false);
+    btns[1].click();
+    expect(list.classList.contains("k-gallery")).toBe(true);
+    expect(btns[1].getAttribute("aria-pressed")).toBe("true");
+    expect(localStorage.getItem("kong-gallery:example.test")).toBe("1");
+    expect(root.querySelectorAll("a.k-row .k-thumb-empty").length).toBe(1);
+    // 다시 그리면 기억한 대로 갤러리
+    const again = buildBoard(locate(document, pickPage(r, document).page!) as LocatedBoard, r).root;
+    expect(again.querySelector(".k-rows")!.classList.contains("k-gallery")).toBe(true);
+    localStorage.removeItem("kong-gallery:example.test");
+  });
+});

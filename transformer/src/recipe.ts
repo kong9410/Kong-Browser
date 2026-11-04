@@ -160,6 +160,11 @@ export interface RowSpec {
   extra?: Field;
   /** extra 뒤에 " · " 로 이어 붙일 칸들 (값이 있는 것만). 예) 뮬 장터의 가격 · 지역 */
   extras?: Field[];
+  /**
+   * 목록 머리에 "목록 | 갤러리" 전환을 둔다. 갤러리는 같은 행을 썸네일 카드로 (사이트마다 고른 것을 기억).
+   * 예) 뮬 악기장터 — 사이트의 갤러리형 보기처럼
+   */
+  gallery?: boolean;
   /** 읽은 글 표시용: 글을 가리키는 쿼리 이름 (예: 디시 ["id", "no"]). 없으면 주소 경로만으로 같은 글인지 본다 */
   visitParams?: string[];
   /**
@@ -240,6 +245,11 @@ export interface MenuSpec {
   linkText?: Field;
   /** 글자가 이 정규식에 맞는 링크는 뺀다 (예: 메뉴 끝의 "광고문의") */
   skip?: string;
+  /**
+   * 레시피에 적어 둔 고정 묶음 (제목 + 하위 링크). 사이트가 하위 메뉴를 일부 페이지에만 보여 주거나 링크 주소 없이(Vue 버튼) 두는 경우.
+   * 예) 뮬 악기장터 → 뮬 악기장터 · 레코딩 · 삽니다 · 거래후기 (장터 첫 화면에만 있는 탭). groups 는 비워도 된다
+   */
+  fixed?: { title: string; href?: string; links: { text: string; href: string }[] }[];
 }
 
 /**

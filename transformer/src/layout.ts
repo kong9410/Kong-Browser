@@ -244,9 +244,11 @@ export function buildPost(l: LocatedPost, recipe: Recipe): PostView {
     syncReplyForms() {
       const spec = p.comments?.replyWrite;
       if (!spec) return;
+      // 사이트가 칸을 닫으면 지운다: 원래 자리 표시가 없어졌거나(디시), 옮긴 칸 자체를 사이트가 지운 경우(뮬은 Vue v-if 로 칸을 뺀다)
       for (const [box, mark] of replyForms)
-        if (!mark.isConnected) {
+        if (!mark.isConnected || !findAll(box, spec.sel).els.length) {
           box.remove();
+          mark.remove();
           replyForms.delete(box);
         }
       for (const form of findAll(document, spec.sel).els) {
@@ -321,6 +323,45 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
   root.appendChild(head);
 
   const list = h("div", "k-rows");
+  // 목록 | 갤러리 전환 (레시피 rows.gallery): 같은 행을 썸네일 카드로. 고른 것은 사이트마다 기억
+  if (l.page.rows.gallery) {
+    const key = `kong-gallery:${location.host}`;
+    let on = false;
+    try {
+      on = localStorage.getItem(key) === "1";
+    } catch {
+      /* 저장소를 못 쓰면 목록형 */
+    }
+    const sw = h("div", "k-view-switch");
+    sw.setAttribute("role", "group");
+    sw.setAttribute("aria-label", "보기 방식");
+    const btns = (["목록", "갤러리"] as const).map((label, i) => {
+      const b = h("button", "k-view-btn", label);
+      b.type = "button";
+      b.addEventListener("click", () => set(i === 1));
+      return b;
+    });
+    const set = (g: boolean) => {
+      on = g;
+      list.classList.toggle("k-gallery", g);
+      btns.forEach((b, i) => b.setAttribute("aria-pressed", String((i === 1) === g)));
+      try {
+        localStorage.setItem(key, g ? "1" : "0");
+      } catch {
+        /* 무시 */
+      }
+    };
+    sw.append(...btns);
+    set(on);
+    head.classList.add("k-head-row");
+    const t = head.querySelector(".k-head-tools");
+    if (t) t.prepend(sw);
+    else {
+      const tools2 = h("div", "k-head-tools");
+      tools2.appendChild(sw);
+      head.appendChild(tools2);
+    }
+  }
   root.appendChild(list);
 
   const view: BoardView = {
@@ -364,7 +405,11 @@ export function buildBoard(l: LocatedBoard, recipe: Recipe): BoardView {
         const body = h("div", "k-row-body");
         body.append(t, ...(extra ? [extra] : []), info);
         a.append(img, body);
-      } else a.append(t, ...(extra ? [extra] : []), info);
+      } else {
+        // 썸네일이 없는 행: 갤러리 보기에서 빈 그림 자리 (목록 보기에서는 숨김)
+        if (l.page.rows.gallery) a.appendChild(h("span", "k-thumb k-thumb-empty"));
+        a.append(t, ...(extra ? [extra] : []), info);
+      }
       list.appendChild(a);
     },
   };
