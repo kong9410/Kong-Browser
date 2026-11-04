@@ -1,0 +1,282 @@
+{
+  "schemaVersion": 2,
+  "host": "web.humoruniv.com",
+  "version": 1,
+  "minEngine": 1,
+  "siteName": "웃긴대학",
+  "logo": {
+    "sel": [
+      ".humor_logo a"
+    ]
+  },
+  "account": {
+    "sel": [
+      "#wrap_gnb #wrap_login"
+    ]
+  },
+  "menu": [
+    {
+      "label": "이 게시판",
+      "groups": [
+        "#ctgr_new .slc_c"
+      ],
+      "links": [
+        "a[href]"
+      ],
+      "current": "none",
+      "style": "chips"
+    },
+    {
+      "groups": [
+        "#wrap_gnb .wrap_gnb dl"
+      ],
+      "heading": {
+        "sel": [
+          ":scope > dt",
+          ":scope > a"
+        ]
+      },
+      "links": [
+        "dd a[href]"
+      ]
+    }
+  ],
+  "side": [
+    {
+      "links": {
+        "groups": [
+          "#bbs_best dl"
+        ],
+        "heading": {
+          "sel": [
+            ":scope > dt a",
+            ":scope > dt"
+          ]
+        },
+        "links": [
+          ".subj a"
+        ],
+        "current": "none"
+      }
+    },
+    {
+      "links": {
+        "groups": [
+          "#wrap_ctgr .noti_div"
+        ],
+        "label": "공지",
+        "links": [
+          "dd a[href]"
+        ],
+        "current": "none"
+      }
+    }
+  ],
+  "pages": [
+    {
+      "id": "post",
+      "type": "post",
+      "match": "^/board/humor/read\\.html",
+      "probe": [
+        "#ai_cm_title",
+        "#wrap_body"
+      ],
+      "title": {
+        "sel": [
+          "#ai_cm_title"
+        ],
+        "required": true
+      },
+      "author": {
+        "sel": [
+          "td.info .hu_nick_txt"
+        ]
+      },
+      "createdAt": {
+        "sel": [
+          "#content_info"
+        ],
+        "pattern": "작성시간\\s*([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2})"
+      },
+      "views": {
+        "sel": [
+          "#content_info"
+        ],
+        "pattern": "조회\\s*([0-9,]+)"
+      },
+      "likes": {
+        "sel": [
+          "#ok_div"
+        ]
+      },
+      "body": {
+        "sel": [
+          "#wrap_copy #wrap_body"
+        ],
+        "required": true
+      },
+      "actions": {
+        "sel": [
+          "#wrap_up_down > table"
+        ],
+        "keepStyle": true
+      },
+      "listLink": {
+        "sel": [
+          "#btm_btnset dd.btn a:has(img[src*='btn_list'])",
+          "#btn_set dd.btn a:has(img[src*='btn_list'])"
+        ]
+      },
+      "commentCount": {
+        "sel": [
+          "#content_info .re"
+        ]
+      },
+      "comments": {
+        "item": [
+          "#wrap_cmt_new .cmt_area tr[id^='comment_span_']"
+        ],
+        "bestItem": [
+          "#cmt_best_comm_table tr:has(.hu_nick_txt)"
+        ],
+        "replyMarker": ":has(> td img[src*='blt_cmt_re'])",
+        "who": {
+          "sel": [
+            ".hu_nick_txt"
+          ]
+        },
+        "when": {
+          "sel": [
+            ".list_date"
+          ],
+          "pattern": "([0-9]{4}-[0-9]{2}-[0-9]{2}\\s+[0-9]{2}:[0-9]{2})"
+        },
+        "content": {
+          "sel": [
+            "#list_best_box_text .comment_more",
+            "#list_best_box_text"
+          ],
+          "required": true
+        },
+        "actions": {
+          "sel": [
+            "td.m_cmt_menu"
+          ]
+        },
+        "replyWrite": {
+          "sel": [
+            "table[id^='top_re_comm_']",
+            "div[id^='re_comment_'] #re_comm_form"
+          ],
+          "keepStyle": true
+        }
+      },
+      "commentWrite": {
+        "sel": [
+          "#wrap_cmt_new .cmt_area > form"
+        ],
+        "keepStyle": true
+      },
+      "hide": [
+        "#naver_adpost_wrap"
+      ],
+      "fit": {
+        "full": [
+          ".k-actions #wrap_up_down > table",
+          ":is(.k-cmt-write, .k-reply-write) table",
+          ":is(.k-cmt-write, .k-reply-write) div",
+          ".k-cmt-write .write_cmt input.t"
+        ],
+        "row": [
+          ".k-actions #wrap_up_down > table tr"
+        ]
+      }
+    },
+    {
+      "id": "list",
+      "type": "board",
+      "match": "^/board/humor/list\\.html",
+      "probe": [
+        "#cnts_list_new tr[id^='li_chk_']"
+      ],
+      "boardName": {
+        "sel": [
+          "head > title"
+        ]
+      },
+      "rows": {
+        "scope": [
+          "#cnts_list_new table#post_list",
+          "#cnts_list_new table.bg_list"
+        ],
+        "item": [
+          "tr[id^='li_chk_']"
+        ],
+        "title": {
+          "sel": [
+            "td.li_sbj span[id^='title_chk_']"
+          ]
+        },
+        "link": {
+          "sel": [
+            "td.li_sbj a[href*='read.html']"
+          ]
+        },
+        "author": {
+          "sel": [
+            ".hu_nick_txt"
+          ]
+        },
+        "createdAt": {
+          "sel": [
+            "td.li_date"
+          ]
+        },
+        "views": {
+          "sel": [
+            "td.li_und"
+          ]
+        },
+        "likes": {
+          "sel": [
+            "td.li_und .o"
+          ]
+        },
+        "commentCount": {
+          "sel": [
+            ".list_comment_num"
+          ],
+          "pattern": "([0-9]+)"
+        },
+        "thumbnail": {
+          "sel": [
+            "td.li_num img.thumb"
+          ]
+        },
+        "visitParams": [
+          "table",
+          "number"
+        ],
+        "sameBoard": "[?&]table=([^&]+)"
+      },
+      "pager": {
+        "sel": [
+          "#cnts_list_new > .paging"
+        ]
+      },
+      "search": {
+        "sel": [
+          "#wrap_li_sch #sch form"
+        ]
+      },
+      "write": {
+        "sel": [
+          "#write_btn a"
+        ]
+      },
+      "hide": [
+        "#naver_adpost_wrap"
+      ]
+    }
+  ]
+}

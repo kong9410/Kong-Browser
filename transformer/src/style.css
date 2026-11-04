@@ -116,6 +116,7 @@ html.kong-on #kong-root .k-hidden {
   object-fit: contain;
 }
 #kong-root h1.k-title {
+  display: block !important; /* 사이트 CSS 가 h1 을 숨기는 경우가 있다 (웃긴대학 h1 { display: none }) */
   margin: 4px 0 8px;
   padding: 0;
   font-size: 21px;
@@ -646,6 +647,24 @@ html.kong-on #kong-root .k-hidden {
 }
 #kong-root > .k-top > .k-account:not(.k-keep) li {
   cursor: pointer;
+  font-size: 13px;
+}
+/* 통합 모양 계정 영역에 사이트가 준 고정 크기·테두리·여백(인라인 style)을 풀어 글자 한 줄로 (예: 웃긴대학 로그인 상자 dl/dd) */
+#kong-root > .k-top > .k-account.k-move :is(div, dl, dd, dt, span) {
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  float: none !important;
+  background: none !important;
+}
+#kong-root > .k-top > .k-account.k-move :is(div, dl):has(> :is(dl, dd, dt)) {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+}
+#kong-root > .k-top > .k-account.k-move :is(dd, dt) {
   font-size: 13px;
 }
 #kong-root > :is(.k-nav, .k-nav-open) {
