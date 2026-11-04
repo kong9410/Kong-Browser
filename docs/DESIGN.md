@@ -800,3 +800,5 @@ PC 사이트 www.fmkorea.com (XE/Rhymix, 스킨 sketchbook5_elkha) 를 디시·�
 - 에펨코리아 2단계 (2026-11-04, 레시피 2): 핫딜 목록 제목 아래 `.hotdeal_info`(쇼핑몰 / 가격 / 배송) 한 줄 — 엔진 행 스펙 `extra`(제목 아래 한 줄) 추가. 댓글 쪽 넘김 `.fdb_lst .bd_pg`(cpage). 글쓰기 화면(write, `act=dispBoardWrite`·`dispMemberLoginForm`): 디시·루리웹처럼 사이트 것을 keepStyle 로 가운데에 — 로그아웃이면 사이트 로그인 폼(`main .login_form`), 로그인이면 글쓰기 폼(`form.bd_wrt` / `#fo_write`, sketchbook5 스킨의 이름이라 로그인 상태로 확인 필요). 댓글 쓰기 칸(`.cmt_editor`)은 1단계에서 이미 keepStyle
   - 글 화면 제목 아래 빈 띠처럼 보인 것은 본문 첫 이미지(트윗 캡처)의 윗부분 여백이라 고칠 것 없음
   - 저장한 페이지 7개(댓글 많은 글·글쓰기 포함) 모두 판정 ok. 확인 못 한 것: 로그인 상태의 글쓰기 폼·댓글 쓰기, 핫딜 위쪽 공지 표(통합 화면에 안 나옴, 필요하면 다음에)
+- 에펨코리아 유튜브 영상이 안 보이던 문제 (2026-11-04, 사용자 보고): 에펨코리아는 본문의 유튜브 주소(글자)를 페이지가 뜰 때 링크로 바꾼 뒤, 링크의 `innerText` 로 유튜브인지 알아봐 플레이어로 바꾼다. 그런데 엔진이 원본 깜빡임을 막으려고 document-start 에 `html { visibility: hidden }` 으로 가려 두는 동안 그 스크립트가 돌아서, 가려진 글자의 innerText 가 "" 가 되어 유튜브로 알아보지 못했다(사이트 스크립트에 기록을 넣어 확인: 엔진 없이는 "Z document youtube" 가 불리고, 엔진이 있으면 안 불림). 가리는 방식을 `opacity: 0` + `pointer-events: none` 으로 바꿈(`hide.ts`) — 보이는 모습은 같고 글자는 읽힘. 모든 사이트에 해당
+  - 저장한 그 글을 원래 주소로 열어 확인: 통합 화면 가운데 칸에 유튜브 플레이어(670×377)
